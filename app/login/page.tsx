@@ -1,6 +1,6 @@
 "use client"
 
-import { useState } from "react"
+import { useState, useTransition } from "react"
 import Link from "next/link"
 import { Briefcase, Eye, EyeOff, Mail, Lock } from "lucide-react"
 import { Button } from "@/components/ui/button"
@@ -8,16 +8,27 @@ import { Input } from "@/components/ui/input"
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card"
 import { Checkbox } from "@/components/ui/checkbox"
 import { Separator } from "@/components/ui/separator"
+import { loginAction } from "@/app/actions/auth"
+import { toast } from "sonner"
 
 export default function LoginPage() {
   const [showPassword, setShowPassword] = useState(false)
+  const [isPending, startTransition] = useTransition()
   const [email, setEmail] = useState("")
   const [password, setPassword] = useState("")
 
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault()
-    // Handle login logic here
-    console.log("Login attempt:", { email, password })
+    startTransition(async () => {
+      const data = new FormData()
+      data.append('email', email)
+      data.append('password', password)
+      
+      const res = await loginAction(data)
+      if (res?.error) {
+        toast.error(res.error)
+      }
+    })
   }
 
   return (

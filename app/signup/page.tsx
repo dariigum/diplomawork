@@ -1,6 +1,6 @@
 "use client"
 
-import { useState } from "react"
+import { useState, useTransition } from "react"
 import Link from "next/link"
 import { Briefcase, Eye, EyeOff, Mail, Lock, User } from "lucide-react"
 import { Button } from "@/components/ui/button"
@@ -9,9 +9,12 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/com
 import { Checkbox } from "@/components/ui/checkbox"
 import { Separator } from "@/components/ui/separator"
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs"
+import { signupAction } from "@/app/actions/auth"
+import { toast } from "sonner"
 
 export default function SignupPage() {
   const [showPassword, setShowPassword] = useState(false)
+  const [isPending, startTransition] = useTransition()
   const [formData, setFormData] = useState({
     firstName: "",
     lastName: "",
@@ -20,9 +23,27 @@ export default function SignupPage() {
     companyName: ""
   })
 
-  const handleSubmit = (e: React.FormEvent) => {
+  const handleSubmit = (e: React.FormEvent, role: 'EMPLOYEE' | 'EMPLOYER') => {
     e.preventDefault()
-    console.log("Signup attempt:", formData)
+    startTransition(async () => {
+      const data = new FormData()
+      data.append('role', role)
+      data.append('email', formData.email)
+      data.append('password', formData.password)
+      if (role === 'EMPLOYER') {
+        data.append('firstName', (document.getElementById('empFirstName') as HTMLInputElement)?.value || formData.firstName)
+        data.append('lastName', (document.getElementById('empLastName') as HTMLInputElement)?.value || formData.lastName)
+        data.append('companyName', formData.companyName)
+      } else {
+        data.append('firstName', formData.firstName)
+        data.append('lastName', formData.lastName)
+      }
+
+      const res = await signupAction(data)
+      if (res?.error) {
+        toast.error(res.error)
+      }
+    })
   }
 
   return (
@@ -49,7 +70,7 @@ export default function SignupPage() {
               </TabsList>
 
               <TabsContent value="jobseeker">
-                <form onSubmit={handleSubmit} className="space-y-4">
+                <form onSubmit={(e) => handleSubmit(e, 'EMPLOYEE')} className="space-y-4">
                   {/* Name Fields */}
                   <div className="grid grid-cols-2 gap-4">
                     <div className="space-y-2">
@@ -153,7 +174,7 @@ export default function SignupPage() {
               </TabsContent>
 
               <TabsContent value="employer">
-                <form onSubmit={handleSubmit} className="space-y-4">
+                <form onSubmit={(e) => handleSubmit(e, 'EMPLOYER')} className="space-y-4">
                   {/* Company Name */}
                   <div className="space-y-2">
                     <label htmlFor="companyName" className="text-sm font-medium text-foreground">

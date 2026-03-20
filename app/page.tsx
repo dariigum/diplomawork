@@ -1,11 +1,11 @@
 "use client"
 
-import { useState, useMemo } from "react"
+import { useState, useMemo, useEffect } from "react"
 import { Header } from "@/components/jobs/header"
 import { Footer } from "@/components/jobs/footer"
 import { FiltersSidebar, type FilterState } from "@/components/jobs/filters-sidebar"
 import { JobList } from "@/components/jobs/job-list"
-import { jobs } from "@/lib/job-data"
+import { getHomeData, toggleSaveVacancyAction } from "@/app/actions/vacancy"
 
 const initialFilters: FilterState = {
   search: "",
@@ -18,7 +18,15 @@ const initialFilters: FilterState = {
 
 export default function VacanciesPage() {
   const [filters, setFilters] = useState<FilterState>(initialFilters)
+  const [jobs, setJobs] = useState<any[]>([])
   const [savedJobs, setSavedJobs] = useState<string[]>([])
+  
+  useEffect(() => {
+    getHomeData().then(data => {
+      setJobs(data.jobs)
+      setSavedJobs(data.savedJobs)
+    }).catch(console.error)
+  }, [])
 
   const filteredJobs = useMemo(() => {
     return jobs.filter((job) => {
@@ -28,7 +36,7 @@ export default function VacanciesPage() {
         const matchesSearch =
           job.title.toLowerCase().includes(searchLower) ||
           job.company.toLowerCase().includes(searchLower) ||
-          job.skills.some((skill) => skill.toLowerCase().includes(searchLower))
+          job.skills.some((skill: string) => skill.toLowerCase().includes(searchLower))
         if (!matchesSearch) return false
       }
 
@@ -67,14 +75,18 @@ export default function VacanciesPage() {
 
       return true
     })
-  }, [filters])
+  }, [filters, jobs])
 
-  const handleSaveJob = (jobId: string) => {
+  const handleSaveJob = async (jobId: string) => {
+    // Optimistic UI update
     setSavedJobs((prev) =>
       prev.includes(jobId)
         ? prev.filter((id) => id !== jobId)
         : [...prev, jobId]
     )
+    
+    // Server toggle
+    await toggleSaveVacancyAction(jobId)
   }
 
   return (
@@ -98,11 +110,15 @@ export default function VacanciesPage() {
           <FiltersSidebar filters={filters} onFiltersChange={setFilters} />
           
           {/* Job Listings */}
-          <JobList
-            jobs={filteredJobs}
-            savedJobs={savedJobs}
-            onSaveJob={handleSaveJob}
-          />
+          {jobs.length === 0 ? (
+            <p className="text-muted-foreground w-full text-center py-12">No vacancies posted yet.</p>
+          ) : (
+            <JobList
+              jobs={filteredJobs}
+              savedJobs={savedJobs}
+              onSaveJob={handleSaveJob}
+            />
+          )}
         </div>
       </main>
 

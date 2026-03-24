@@ -18,11 +18,12 @@ interface JobListProps {
   jobs: Job[]
   savedJobs: string[]
   onSaveJob: (jobId: string) => void
+  canApply: boolean
 }
 
 type SortOption = "newest" | "salary-high" | "salary-low" | "relevance"
 
-export function JobList({ jobs, savedJobs, onSaveJob }: JobListProps) {
+export function JobList({ jobs, savedJobs, onSaveJob, canApply }: JobListProps) {
   const [sortBy, setSortBy] = useState<SortOption>("newest")
   const [viewMode, setViewMode] = useState<"list" | "grid">("list")
   const [selectedJob, setSelectedJob] = useState<Job | null>(null)
@@ -117,6 +118,7 @@ export function JobList({ jobs, savedJobs, onSaveJob }: JobListProps) {
               onApply={handleApply}
               onSave={onSaveJob}
               isSaved={savedJobs.includes(job.id)}
+              canApply={canApply}
             />
           ))}
         </div>
@@ -135,14 +137,16 @@ export function JobList({ jobs, savedJobs, onSaveJob }: JobListProps) {
       )}
 
       {/* Apply Modal */}
-      <ApplyModal
-        job={selectedJob}
-        isOpen={isApplyModalOpen}
-        onClose={() => {
-          setIsApplyModalOpen(false)
-          setSelectedJob(null)
-        }}
-      />
+      {canApply && (
+        <ApplyModal
+          job={selectedJob}
+          isOpen={isApplyModalOpen}
+          onClose={() => {
+            setIsApplyModalOpen(false)
+            setSelectedJob(null)
+          }}
+        />
+      )}
     </div>
   )
 }

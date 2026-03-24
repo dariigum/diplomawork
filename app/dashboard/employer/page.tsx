@@ -4,6 +4,9 @@ import dbConnect from "@/lib/db/mongoose";
 import { User, Vacancy } from "@/lib/db/schema";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
+import { Input } from "@/components/ui/input";
+import { Textarea } from "@/components/ui/textarea";
+import { updateEmployerProfileAction } from "@/app/actions/employer";
 
 export default async function EmployerDashboard() {
   const session = await getSession();
@@ -23,15 +26,35 @@ export default async function EmployerDashboard() {
             <CardTitle>Company Profile</CardTitle>
           </CardHeader>
           <CardContent className="space-y-4">
-            <div>
-              <p className="text-sm text-muted-foreground">Company Name</p>
-              <p className="font-medium">{userData?.name}</p>
-            </div>
-            <div>
-              <p className="text-sm text-muted-foreground">Email</p>
-              <p className="font-medium">{userData?.email}</p>
-            </div>
-            <Button variant="outline">Edit Profile</Button>
+            <form action={updateEmployerProfileAction} className="space-y-4">
+              <div className="space-y-2">
+                <label htmlFor="companyName" className="text-sm font-medium">Company Name</label>
+                <Input id="companyName" name="companyName" defaultValue={userData?.name || ""} required />
+              </div>
+              <div className="space-y-2">
+                <label htmlFor="location" className="text-sm font-medium">Company Location</label>
+                <Input id="location" name="location" defaultValue={userData?.location || ""} placeholder="Almaty, Kazakhstan" />
+              </div>
+              <div className="space-y-2">
+                <label htmlFor="website" className="text-sm font-medium">Website</label>
+                <Input id="website" name="website" type="url" defaultValue={userData?.website || ""} placeholder="https://company.com" />
+              </div>
+              <div className="space-y-2">
+                <label htmlFor="description" className="text-sm font-medium">Company Description</label>
+                <Textarea
+                  id="description"
+                  name="description"
+                  rows={5}
+                  defaultValue={userData?.description || ""}
+                  placeholder="Describe what your company does and what kind of work it offers."
+                />
+              </div>
+              <div>
+                <p className="text-sm text-muted-foreground">Email</p>
+                <p className="font-medium">{userData?.email}</p>
+              </div>
+              <Button type="submit" variant="outline">Save Profile</Button>
+            </form>
           </CardContent>
         </Card>
 

@@ -1,9 +1,10 @@
 import Link from "next/link";
 import { getSession } from "@/lib/auth";
 import dbConnect from "@/lib/db/mongoose";
-import { User, Resume, SavedVacancy } from "@/lib/db/schema";
+import { Response, User, Resume, SavedVacancy } from "@/lib/db/schema";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
+import { deleteEmployeeAccountAction, deleteResumeAction } from "@/app/actions/employee";
 
 export default async function EmployeeDashboard() {
   const session = await getSession();
@@ -13,6 +14,11 @@ export default async function EmployeeDashboard() {
   const userData = await User.findById(session.user.id);
   const userResumes = await Resume.find({ userId: session.user.id });
   const savedVacanciesRecords = await SavedVacancy.find({ userId: session.user.id }).populate('vacancyId').lean() as any[];
+  const userResponses = await Response.find({ userId: session.user.id })
+    .populate('vacancyId', 'title salaryMin salaryMax')
+    .populate('resumeId', 'title')
+    .sort({ createdAt: -1 })
+    .lean() as any[];
 
   return (
     <div className="space-y-8">
@@ -34,6 +40,9 @@ export default async function EmployeeDashboard() {
             </div>
             {/* Profile editor component will be added later */}
             <Button variant="outline">Edit Profile</Button>
+            <form action={deleteEmployeeAccountAction}>
+              <Button variant="destructive" type="submit">Delete Account</Button>
+            </form>
           </CardContent>
         </Card>
 
@@ -48,12 +57,32 @@ export default async function EmployeeDashboard() {
             ) : (
               <ul className="space-y-4 mt-4">
                 {userResumes.map(r => (
-                  <li key={r.id} className="border p-4 rounded-lg flex justify-between items-center">
-                    <div>
-                      <p className="font-medium leading-none">{r.title}</p>
-                      <p className="text-sm text-muted-foreground mt-2">{r.skills}</p>
+                  <li key={r.id} className="border p-4 rounded-lg flex justify-between items-center gap-3">
+                    <div className="flex-1 min-w-0">
+                      <p className="font-medium leading-none truncate">{r.title}</p>
+                      <p className="text-sm text-muted-foreground mt-2 truncate">{r.skills}</p>
+                      {r.cvFile && (
+                        <p className="mt-2 text-xs">
+                          <a href={r.cvFile} target="_blank" rel="noopener noreferrer" className="text-primary hover:underline">View CV (PDF)</a>
+                        </p>
+                      )}
                     </div>
-                    <Button variant="secondary" size="sm">Edit</Button>
+                    <div className="flex items-center gap-2 shrink-0">
+                      <Button variant="secondary" size="sm" asChild>
+                        <Link href={`/dashboard/employee/resume/${r.id}`}>Edit</Link>
+                      </Button>
+                      <form action={deleteResumeAction}>
+                        <input type="hidden" name="id" value={r.id} />
+                        <Button
+                          variant="destructive"
+                          size="sm"
+                          type="submit"
+                          onClick={undefined}
+                        >
+                          Delete
+                        </Button>
+                      </form>
+                    </div>
                   </li>
                 ))}
               </ul>
@@ -99,7 +128,35 @@ export default async function EmployeeDashboard() {
             <CardTitle>My Responses</CardTitle>
           </CardHeader>
           <CardContent>
-            <p className="text-muted-foreground text-sm">You haven't applied to any jobs yet.</p>
+            {userResponses.length === 0 ? (
+              <p className="text-muted-foreground text-sm">You haven't applied to any jobs yet.</p>
+            ) : (
+              <ul className="space-y-4 mt-4">
+                {userResponses.map((response) => {
+                  const vacancy = response.vacancyId;
+                  if (!vacancy) return null;
+
+                  return (
+                    <li key={response._id.toString()} className="border p-4 rounded-lg space-y-2">
+                      <div className="flex items-start justify-between gap-3">
+                        <div>
+                          <p className="font-medium">{vacancy.title}</p>
+                          <p className="text-sm text-muted-foreground">
+                            ${vacancy.salaryMin} - ${vacancy.salaryMax}
+                          </p>
+                        </div>
+                        <span className="text-xs rounded-full bg-secondary px-2 py-1 text-secondary-foreground">
+                          {response.status}
+                        </span>
+                      </div>
+                      <p className="text-xs text-muted-foreground">
+                        Resume: {response.resumeId?.title || 'Custom resume'}
+                      </p>
+                    </li>
+                  );
+                })}
+              </ul>
+            )}
           </CardContent>
         </Card>
       </div>

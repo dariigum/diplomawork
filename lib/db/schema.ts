@@ -10,6 +10,7 @@ export interface IUser extends Document {
   location?: string;
   employees?: string;
   logoUrl?: string;
+  website?: string;
   createdAt: Date;
 }
 
@@ -23,6 +24,7 @@ const UserSchema = new Schema<IUser>({
   location: { type: String },
   employees: { type: String },
   logoUrl: { type: String },
+  website: { type: String },
   createdAt: { type: Date, default: Date.now },
 });
 
@@ -35,6 +37,7 @@ export interface IResume extends Document {
   experience: string;
   education: string;
   cvLink?: string;
+  cvFile?: string;
   phone?: string;
   telegram?: string;
   linkedin?: string;
@@ -49,6 +52,7 @@ const ResumeSchema = new Schema<IResume>({
   experience: { type: String, required: true },
   education: { type: String, required: true },
   cvLink: { type: String },
+  cvFile: { type: String },
   phone: { type: String },
   telegram: { type: String },
   linkedin: { type: String },
@@ -67,6 +71,9 @@ export interface IVacancy extends Document {
   salaryMax: number;
   experience?: string;
   employmentType?: string;
+  workMode?: 'REMOTE' | 'ONSITE';
+  country?: string;
+  city?: string;
   address?: string;
   requirements?: string[];
   responsibilities?: string[];
@@ -82,6 +89,9 @@ const VacancySchema = new Schema<IVacancy>({
   salaryMax: { type: Number, required: true },
   experience: { type: String, default: 'Any experience' },
   employmentType: { type: String, default: 'Full-time' },
+  workMode: { type: String, enum: ['REMOTE', 'ONSITE'], default: 'REMOTE' },
+  country: { type: String, default: '' },
+  city: { type: String, default: '' },
   address: { type: String, default: 'Remote' },
   requirements: [{ type: String }],
   responsibilities: [{ type: String }],
@@ -99,6 +109,8 @@ const SavedVacancySchema = new Schema<ISavedVacancy>({
   userId: { type: Schema.Types.ObjectId, ref: 'User', required: true },
   vacancyId: { type: Schema.Types.ObjectId, ref: 'Vacancy', required: true }
 });
+
+SavedVacancySchema.index({ userId: 1, vacancyId: 1 }, { unique: true });
 
 export const SavedVacancy: Model<ISavedVacancy> = mongoose.models.SavedVacancy || mongoose.model<ISavedVacancy>('SavedVacancy', SavedVacancySchema);
 

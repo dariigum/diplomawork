@@ -67,7 +67,13 @@ export default async function CompanyProfilePage({ params }: { params: Promise<{
              </div>
              <div className="flex items-center gap-2">
                <Globe className="h-4 w-4 text-primary" />
-               <a href="#" className="hover:underline transition-colors">Visit Website</a>
+               {company.website ? (
+                 <a href={company.website} target="_blank" rel="noopener noreferrer" className="hover:underline transition-colors">
+                   Visit Website
+                 </a>
+               ) : (
+                 <span>No website provided</span>
+               )}
              </div>
           </div>
         </div>
@@ -94,7 +100,7 @@ export default async function CompanyProfilePage({ params }: { params: Promise<{
                         </h3>
                         <div className="flex items-center gap-3 mt-2 text-sm text-muted-foreground">
                            <Badge variant="outline" className="bg-background">{job.employmentType || "Full-time"}</Badge>
-                           <span className="flex items-center gap-1"><MapPin className="h-3 w-3"/> {job.address}</span>
+                           <span className="flex items-center gap-1"><MapPin className="h-3 w-3"/> {job.workMode === 'REMOTE' ? 'Remote' : [job.city, job.country].filter(Boolean).join(', ') || job.address}</span>
                         </div>
                       </div>
                       <div className="mt-4 pt-4 border-t border-border flex items-center justify-between">

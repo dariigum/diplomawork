@@ -35,8 +35,13 @@ export default function NewResumePage() {
             </div>
 
             <div className="space-y-2">
-              <label htmlFor="cvLink" className="text-sm font-medium">CV Link</label>
-              <Input id="cvLink" name="cvLink" placeholder="Link to your CV (e.g. Google Drive)" />
+              <label htmlFor="cvLink" className="text-sm font-medium">CV Link (e.g. Google Drive)</label>
+              <Input id="cvLink" name="cvLink" placeholder="https://..." />
+            </div>
+
+            <div className="space-y-2">
+              <label htmlFor="cvFile" className="text-sm font-medium">Upload CV (PDF)</label>
+              <Input id="cvFile" name="cvFile" type="file" accept=".pdf" />
             </div>
 
             <div className="grid grid-cols-1 md:grid-cols-2 gap-4">

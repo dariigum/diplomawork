@@ -13,6 +13,7 @@ import {
 import { useState, useEffect } from "react"
 import { getAuthSession, logoutAction } from "@/app/actions/auth"
 import { getSavedVacanciesAction } from "@/app/actions/vacancy"
+import { SAVED_VACANCIES_UPDATED_EVENT } from "@/lib/saved-vacancies-events"
 
 interface HeaderProps {
   savedJobsCount: number
@@ -21,17 +22,61 @@ interface HeaderProps {
 export function Header({ savedJobsCount }: HeaderProps) {
   const [userRole, setUserRole] = useState<string | null>(null)
   const [savedJobsData, setSavedJobsData] = useState<any[]>([])
+  const [savedCount, setSavedCount] = useState(savedJobsCount)
+  const isEmployee = userRole === 'EMPLOYEE'
+
+  useEffect(() => {
+    if (isEmployee) {
+      setSavedCount(savedJobsCount)
+    }
+  }, [isEmployee, savedJobsCount])
+
+  const refreshSavedVacancies = async () => {
+    const jobs = await getSavedVacanciesAction()
+    setSavedJobsData(jobs)
+    setSavedCount(jobs.length)
+  }
 
   useEffect(() => {
     getAuthSession().then(session => {
-      if (session && session.user) {
-        setUserRole(session.user.role)
-        if (session.user.role === 'EMPLOYEE') {
-          getSavedVacanciesAction().then(setSavedJobsData)
-        }
+      if (!session?.user) {
+        setUserRole(null)
+        setSavedJobsData([])
+        setSavedCount(0)
+        return
+      }
+
+      setUserRole(session.user.role)
+
+      if (session.user.role === 'EMPLOYEE') {
+        refreshSavedVacancies().catch(() => {
+          setSavedJobsData([])
+          setSavedCount(0)
+        })
+      } else {
+        setSavedJobsData([])
+        setSavedCount(0)
       }
     })
-  }, [savedJobsCount])
+  }, [])
+
+  const handleSavedPopoverChange = (open: boolean) => {
+    if (open) {
+      refreshSavedVacancies()
+    }
+  }
+
+  useEffect(() => {
+    if (typeof window === 'undefined') return;
+
+    const handleUpdate = () => {
+      if (!isEmployee) return
+      refreshSavedVacancies().catch(() => undefined)
+    }
+
+    window.addEventListener(SAVED_VACANCIES_UPDATED_EVENT, handleUpdate)
+    return () => window.removeEventListener(SAVED_VACANCIES_UPDATED_EVENT, handleUpdate)
+  }, [isEmployee])
 
   return (
     <header className="sticky top-0 z-50 w-full border-b border-border bg-card/95 backdrop-blur supports-[backdrop-filter]:bg-card/80">
@@ -71,16 +116,16 @@ export function Header({ savedJobsCount }: HeaderProps) {
 
           {/* Right Side Actions */}
           <div className="flex items-center gap-2">
-            {userRole && (
+            {isEmployee && (
               <>
                 {/* Saved Jobs Popover */}
-                <DropdownMenu>
+                <DropdownMenu onOpenChange={handleSavedPopoverChange}>
                   <DropdownMenuTrigger asChild>
                     <Button variant="ghost" size="icon" className="relative hidden sm:flex">
                       <Heart className="h-5 w-5 text-muted-foreground" />
-                      {savedJobsCount > 0 && (
+                      {savedCount > 0 && (
                         <Badge className="absolute -top-1 -right-1 h-5 w-5 p-0 flex items-center justify-center text-xs bg-destructive text-destructive-foreground">
-                          {savedJobsCount}
+                          {savedCount}
                         </Badge>
                       )}
                       <span className="sr-only">Saved jobs</span>
@@ -174,14 +219,16 @@ export function Header({ savedJobsCount }: HeaderProps) {
                 
                 {userRole ? (
                   <>
+                    {isEmployee && (
                     <DropdownMenuItem asChild>
                       <Link href="/saved" className="w-full flex items-center justify-between">
                         Saved Jobs
-                        {savedJobsCount > 0 && (
-                          <Badge variant="secondary">{savedJobsCount}</Badge>
+                        {savedCount > 0 && (
+                          <Badge variant="secondary">{savedCount}</Badge>
                         )}
                       </Link>
                     </DropdownMenuItem>
+                    )}
                     <DropdownMenuItem asChild>
                       <Link href={userRole === 'EMPLOYER' ? '/dashboard/employer' : '/dashboard/employee'} className="w-full">
                         Profile

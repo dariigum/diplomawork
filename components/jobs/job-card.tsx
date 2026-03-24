@@ -14,9 +14,10 @@ interface JobCardProps {
   onApply: (job: Job) => void
   onSave: (jobId: string) => void
   isSaved: boolean
+  canApply: boolean
 }
 
-export function JobCard({ job, onApply, onSave, isSaved }: JobCardProps) {
+export function JobCard({ job, onApply, onSave, isSaved, canApply }: JobCardProps) {
   const [isHovered, setIsHovered] = useState(false)
 
   return (
@@ -136,16 +137,18 @@ export function JobCard({ job, onApply, onSave, isSaved }: JobCardProps) {
                     Details
                   </Button>
                 </Link>
-                <Button
-                  size="sm"
-                  className="h-9 px-5 bg-primary text-primary-foreground hover:bg-primary/90"
-                  onClick={(e) => {
-                    e.stopPropagation()
-                    onApply(job)
-                  }}
-                >
-                  Apply Now
-                </Button>
+                {canApply && (
+                  <Button
+                    size="sm"
+                    className="h-9 px-5 bg-primary text-primary-foreground hover:bg-primary/90"
+                    onClick={(e) => {
+                      e.stopPropagation()
+                      onApply(job)
+                    }}
+                  >
+                    Apply Now
+                  </Button>
+                )}
               </div>
             </div>
           </div>

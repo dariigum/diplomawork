@@ -3,11 +3,10 @@
 import dbConnect from '@/lib/db/mongoose';
 import { User } from '@/lib/db/schema';
 import { setSession, hashPassword, comparePassword } from '@/lib/auth';
-import { redirect } from 'next/navigation';
 
 export async function signupAction(formData: FormData) {
   const role = formData.get('role') as string;
-  const email = formData.get('email') as string;
+  const email = ((formData.get('email') as string) || '').trim().toLowerCase();
   const password = formData.get('password') as string;
   const firstName = formData.get('firstName') as string;
   const lastName = formData.get('lastName') as string;
@@ -18,7 +17,10 @@ export async function signupAction(formData: FormData) {
   try {
     await dbConnect();
     const existingUser = await User.findOne({ email });
-    if (existingUser) return { error: 'Email already in use' };
+    if (existingUser) {
+      const existingRole = existingUser.role === 'EMPLOYER' ? 'employer' : 'job seeker';
+      return { error: `This email is already registered to a ${existingRole} account.` };
+    }
 
     const passwordHash = await hashPassword(password);
     let name = `${firstName} ${lastName}`.trim();
@@ -39,16 +41,15 @@ export async function signupAction(formData: FormData) {
     return { error: 'Failed to create user' };
   }
 
-  redirect('/login');
+  return { success: true, redirectTo: '/' };
 }
 
 export async function loginAction(formData: FormData) {
-  const email = formData.get('email') as string;
+  const email = ((formData.get('email') as string) || '').trim().toLowerCase();
   const password = formData.get('password') as string;
 
   if (!email || !password) return { error: 'Missing credentials' };
 
-  let userRole = '';
   try {
     await dbConnect();
     const user = await User.findOne({ email });
@@ -59,18 +60,18 @@ export async function loginAction(formData: FormData) {
     if (!isValid) return { error: 'Invalid credentials' };
 
     await setSession({ id: user.id, role: user.role, email: user.email });
-    userRole = user.role;
   } catch (err: any) {
     console.error(err);
     return { error: 'Failed to authenticate' };
   }
 
-  redirect('/');
+  return { success: true, redirectTo: '/' };
 }
 
 export async function logoutAction() {
   const { clearSession } = await import('@/lib/auth');
   await clearSession();
+  const { redirect } = await import('next/navigation');
   redirect('/login');
 }
 

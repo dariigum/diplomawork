@@ -14,11 +14,13 @@ import {
   AccordionTrigger,
 } from "@/components/ui/accordion"
 import { Badge } from "@/components/ui/badge"
-import { experienceLevels, employmentTypes, locations } from "@/lib/job-data"
 
 interface FiltersSidebarProps {
   onFiltersChange: (filters: FilterState) => void
   filters: FilterState
+  locationOptions?: string[]
+  employmentTypeOptions?: string[]
+  experienceLevelOptions?: string[]
 }
 
 export interface FilterState {
@@ -30,7 +32,7 @@ export interface FilterState {
   remoteOnly: boolean
 }
 
-export function FiltersSidebar({ onFiltersChange, filters }: FiltersSidebarProps) {
+export function FiltersSidebar({ onFiltersChange, filters, locationOptions = [], employmentTypeOptions = [], experienceLevelOptions = [] }: FiltersSidebarProps) {
   const activeFiltersCount = 
     filters.locations.length + 
     filters.employmentTypes.length + 
@@ -137,7 +139,9 @@ export function FiltersSidebar({ onFiltersChange, filters }: FiltersSidebarProps
           </AccordionTrigger>
           <AccordionContent className="pt-2 pb-4">
             <div className="space-y-3">
-              {locations.map((location) => (
+              {locationOptions.length === 0 ? (
+                <p className="text-sm text-muted-foreground">No locations available.</p>
+              ) : locationOptions.map((location) => (
                 <div key={location} className="flex items-center gap-3">
                   <Checkbox
                     id={`location-${location}`}
@@ -166,7 +170,9 @@ export function FiltersSidebar({ onFiltersChange, filters }: FiltersSidebarProps
           </AccordionTrigger>
           <AccordionContent className="pt-2 pb-4">
             <div className="space-y-3">
-              {employmentTypes.map((type) => (
+              {employmentTypeOptions.length === 0 ? (
+                <p className="text-sm text-muted-foreground">No types available.</p>
+              ) : employmentTypeOptions.map((type) => (
                 <div key={type} className="flex items-center gap-3">
                   <Checkbox
                     id={`employment-${type}`}
@@ -195,7 +201,9 @@ export function FiltersSidebar({ onFiltersChange, filters }: FiltersSidebarProps
           </AccordionTrigger>
           <AccordionContent className="pt-2 pb-4">
             <div className="space-y-3">
-              {experienceLevels.map((level) => (
+              {experienceLevelOptions.length === 0 ? (
+                <p className="text-sm text-muted-foreground">No levels available.</p>
+              ) : experienceLevelOptions.map((level) => (
                 <div key={level} className="flex items-center gap-3">
                   <Checkbox
                     id={`experience-${level}`}

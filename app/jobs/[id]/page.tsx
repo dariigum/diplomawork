@@ -1,10 +1,11 @@
 import Link from "next/link"
-import { ArrowLeft, MapPin, Clock, Briefcase, Heart, Wifi, Building2, Users, Calendar, DollarSign, Share2, Flag } from "lucide-react"
+import { ArrowLeft, MapPin, Clock, Briefcase, Heart, Wifi, Building2, Users, Calendar, Globe, Share2, Flag } from "lucide-react"
 import { Button } from "@/components/ui/button"
 import { Badge } from "@/components/ui/badge"
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
 import { Separator } from "@/components/ui/separator"
 import { Header } from "@/components/jobs/header"
+import { JobDetailActions } from "@/components/jobs/job-detail-actions"
 import dbConnect from "@/lib/db/mongoose"
 import { Vacancy, SavedVacancy } from "@/lib/db/schema"
 import { getSession } from "@/lib/auth"
@@ -32,8 +33,10 @@ export default async function JobDetailsPage({ params }: { params: Promise<{ id:
 
   const session = await getSession();
   let savedJobsCount = 0;
+  let isSaved = false;
   if (session && session.user.role === 'EMPLOYEE') {
     savedJobsCount = await SavedVacancy.countDocuments({ userId: session.user.id });
+    isSaved = !!(await SavedVacancy.findOne({ userId: session.user.id, vacancyId: id }).lean());
   }
 
   const company = jobRecord.employerId as any;
@@ -78,7 +81,7 @@ export default async function JobDetailsPage({ params }: { params: Promise<{ id:
                     <div className="flex flex-wrap items-center gap-4 mt-4 text-sm text-muted-foreground">
                       <div className="flex items-center gap-1.5">
                         <MapPin className="h-4 w-4" />
-                        <span>{jobRecord.address}</span>
+                        <span>{jobRecord.workMode === 'REMOTE' ? 'Remote' : `${jobRecord.city || jobRecord.address}${jobRecord.country ? `, ${jobRecord.country}` : ''}`}</span>
                       </div>
                       <div className="flex items-center gap-1.5">
                         <Briefcase className="h-4 w-4" />
@@ -88,7 +91,7 @@ export default async function JobDetailsPage({ params }: { params: Promise<{ id:
                         <Clock className="h-4 w-4" />
                         <span>{jobRecord.experience}</span>
                       </div>
-                      {jobRecord.address === 'Remote' && (
+                      {jobRecord.workMode === 'REMOTE' && (
                         <div className="flex items-center gap-1.5 text-accent">
                           <Wifi className="h-4 w-4" />
                           <span className="font-medium">Remote</span>
@@ -156,13 +159,16 @@ export default async function JobDetailsPage({ params }: { params: Promise<{ id:
             {/* Apply Card */}
             <Card className="sticky top-24">
               <CardContent className="p-6 space-y-4">
-                <Button className="w-full h-12 text-base" size="lg">
-                  Apply Now
-                </Button>
-                <Button variant="outline" className="w-full h-12 text-base" size="lg">
-                  <Heart className="h-5 w-5 mr-2" />
-                  Save Job
-                </Button>
+                <JobDetailActions
+                  job={{
+                    id,
+                    title: jobRecord.title,
+                    company: company.name,
+                    location: jobRecord.workMode === 'REMOTE' ? 'Remote' : `${jobRecord.city || jobRecord.address}${jobRecord.country ? `, ${jobRecord.country}` : ''}`,
+                  }}
+                  initialSaved={isSaved}
+                  canApply={session?.user?.role !== 'EMPLOYER'}
+                />
                 <p className="text-xs text-center text-muted-foreground">
                   Posted {new Date(jobRecord.createdAt).toLocaleDateString()}
                 </p>
@@ -194,6 +200,14 @@ export default async function JobDetailsPage({ params }: { params: Promise<{ id:
                     <MapPin className="h-4 w-4" />
                     <span>{company.location || "Multiple Locations"}</span>
                   </div>
+                  {company.website && (
+                    <div className="flex items-center gap-3 text-muted-foreground">
+                      <Globe className="h-4 w-4" />
+                      <a href={company.website} target="_blank" rel="noopener noreferrer" className="hover:text-foreground hover:underline">
+                        {company.website}
+                      </a>
+                    </div>
+                  )}
                   <div className="flex items-center gap-3 text-muted-foreground">
                     <Calendar className="h-4 w-4" />
                     <span>Active Hiring</span>

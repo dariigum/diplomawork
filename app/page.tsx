@@ -6,6 +6,8 @@ import { Footer } from "@/components/jobs/footer"
 import { FiltersSidebar, type FilterState } from "@/components/jobs/filters-sidebar"
 import { JobList } from "@/components/jobs/job-list"
 import { getHomeData, toggleSaveVacancyAction } from "@/app/actions/vacancy"
+import { emitSavedVacanciesUpdated } from "@/lib/saved-vacancies-events"
+import { toast } from "sonner"
 
 const initialFilters: FilterState = {
   search: "",
@@ -20,11 +22,19 @@ export default function VacanciesPage() {
   const [filters, setFilters] = useState<FilterState>(initialFilters)
   const [jobs, setJobs] = useState<any[]>([])
   const [savedJobs, setSavedJobs] = useState<string[]>([])
+  const [viewerRole, setViewerRole] = useState<string | null>(null)
+  const [filterOptions, setFilterOptions] = useState<{ locations: string[], employmentTypes: string[], experienceLevels: string[] }>({
+    locations: [],
+    employmentTypes: [],
+    experienceLevels: [],
+  })
   
   useEffect(() => {
     getHomeData().then(data => {
       setJobs(data.jobs)
       setSavedJobs(data.savedJobs)
+      setViewerRole(data.viewerRole || null)
+      if (data.filterOptions) setFilterOptions(data.filterOptions)
     }).catch(console.error)
   }, [])
 
@@ -78,15 +88,26 @@ export default function VacanciesPage() {
   }, [filters, jobs])
 
   const handleSaveJob = async (jobId: string) => {
-    // Optimistic UI update
+    const wasSaved = savedJobs.includes(jobId)
+
     setSavedJobs((prev) =>
-      prev.includes(jobId)
+      wasSaved
         ? prev.filter((id) => id !== jobId)
         : [...prev, jobId]
     )
-    
-    // Server toggle
-    await toggleSaveVacancyAction(jobId)
+
+    const result = await toggleSaveVacancyAction(jobId)
+    if (result?.error) {
+      setSavedJobs((prev) =>
+        wasSaved
+          ? [...prev, jobId]
+          : prev.filter((id) => id !== jobId)
+      )
+      toast.error("Only employees can save vacancies.")
+      return
+    }
+
+    emitSavedVacanciesUpdated()
   }
 
   return (
@@ -107,7 +128,13 @@ export default function VacanciesPage() {
         {/* Main Content */}
         <div className="flex flex-col lg:flex-row gap-6">
           {/* Sidebar */}
-          <FiltersSidebar filters={filters} onFiltersChange={setFilters} />
+          <FiltersSidebar
+            filters={filters}
+            onFiltersChange={setFilters}
+            locationOptions={filterOptions.locations}
+            employmentTypeOptions={filterOptions.employmentTypes}
+            experienceLevelOptions={filterOptions.experienceLevels}
+          />
           
           {/* Job Listings */}
           {jobs.length === 0 ? (
@@ -117,6 +144,7 @@ export default function VacanciesPage() {
               jobs={filteredJobs}
               savedJobs={savedJobs}
               onSaveJob={handleSaveJob}
+              canApply={viewerRole !== "EMPLOYER"}
             />
           )}
         </div>

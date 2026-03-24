@@ -9,21 +9,26 @@ import { revalidatePath } from 'next/cache';
 export async function toggleSaveVacancyAction(vacancyId: string) {
   const session = await getSession();
   if (!session || session.user.role !== 'EMPLOYEE') return { error: 'Unauthorized' };
+  if (!mongoose.Types.ObjectId.isValid(vacancyId)) return { error: 'Invalid vacancy' };
 
   await dbConnect();
-  const existing = await SavedVacancy.findOne({ userId: session.user.id, vacancyId });
+  const objectVacancyId = new mongoose.Types.ObjectId(vacancyId);
+  const existing = await SavedVacancy.findOne({ userId: session.user.id, vacancyId: objectVacancyId });
+  let saved = false;
 
   if (existing) {
     await SavedVacancy.deleteOne({ _id: existing._id });
   } else {
     await SavedVacancy.create({
       userId: session.user.id,
-      vacancyId: new mongoose.Types.ObjectId(vacancyId)
+      vacancyId: objectVacancyId
     });
+    saved = true;
   }
   
   revalidatePath('/dashboard/employee');
-  return { success: true };
+  revalidatePath(`/jobs/${vacancyId}`);
+  return { success: true, saved };
 }
 
 export async function getHomeData() {
@@ -31,6 +36,7 @@ export async function getHomeData() {
   // Populate the employerId to get the company name
   const rawVacancies = await Vacancy.find({}).populate('employerId', 'name').lean();
   const session = await getSession();
+  const viewerRole = session?.user?.role || null;
   
   let savedJobs: string[] = [];
   if (session && session.user.role === 'EMPLOYEE') {
@@ -42,15 +48,26 @@ export async function getHomeData() {
     id: v._id.toString(),
     title: v.title,
     company: v.employerId?.name || "Unknown Company",
-    location: "Remote",
+    companyLogo: v.employerId?.name?.slice(0, 2)?.toUpperCase() || "JC",
+    location: v.workMode === 'REMOTE' ? 'Remote' : [v.city, v.country].filter(Boolean).join(', ') || v.address || "Remote",
     salary: `$${v.salaryMin.toLocaleString()} - ${v.salaryMax.toLocaleString()}`,
-    employmentType: "Full-time",
-    experience: "Any experience",
+    employmentType: v.employmentType || "Full-time",
+    experience: v.experience || "Any experience",
     skills: v.skillsRequired ? v.skillsRequired.split(',').map((s: string) => s.trim()) : [],
-    isRemote: true
+    description: v.description || "No description provided.",
+    postedAt: new Date(v.createdAt).toLocaleDateString(),
+    isRemote: v.workMode === 'REMOTE',
+    isFeatured: false,
   }));
 
-  return { jobs: jobs.reverse(), savedJobs }; // Show newest first
+  // Compute dynamic filter options from actual vacancy data
+  const filterOptions = {
+    locations: [...new Set(jobs.map(j => j.location).filter(Boolean))].sort(),
+    employmentTypes: [...new Set(jobs.map(j => j.employmentType).filter(Boolean))].sort(),
+    experienceLevels: [...new Set(jobs.map(j => j.experience).filter(Boolean))].sort(),
+  };
+
+  return { jobs: jobs.reverse(), savedJobs, filterOptions, viewerRole }; // Show newest first
 }
 
 export async function getSavedVacanciesAction() {

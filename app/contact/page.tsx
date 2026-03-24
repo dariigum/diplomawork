@@ -9,18 +9,50 @@ import { Textarea } from "@/components/ui/textarea"
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
 import { Header } from "@/components/jobs/header"
 
-export default function ContactPage() {
-  const [formData, setFormData] = useState({
-    name: "",
-    email: "",
-    subject: "",
-    message: ""
-  })
+import { sendContactMessageAction } from "@/app/actions/contact"
+import { toast } from "sonner"
 
-  const handleSubmit = (e: React.FormEvent) => {
+export default function ContactPage() {
+  const [isPending, setIsPending] = useState(false)
+  const [isSuccess, setIsSuccess] = useState(false)
+
+  const handleSubmit = async (e: React.FormEvent<HTMLFormElement>) => {
     e.preventDefault()
-    console.log("Contact form submitted:", formData)
-    // Handle form submission
+    setIsPending(true)
+    const formData = new FormData(e.currentTarget)
+    
+    try {
+      await sendContactMessageAction(formData)
+      setIsSuccess(true)
+      toast.success("Message sent successfully!")
+    } catch (error) {
+      toast.error("Failed to send message. Please try again.")
+      console.error(error)
+    } finally {
+      setIsPending(false)
+    }
+  }
+
+  if (isSuccess) {
+    return (
+      <div className="min-h-screen bg-background">
+        <Header savedJobsCount={0} />
+        <main className="container mx-auto px-4 py-32 text-center">
+          <div className="max-w-md mx-auto space-y-4">
+            <div className="w-16 h-16 bg-primary/10 rounded-full flex items-center justify-center mx-auto">
+              <Send className="h-8 w-8 text-primary" />
+            </div>
+            <h1 className="text-3xl font-bold">Message Sent!</h1>
+            <p className="text-muted-foreground">
+              Thank you for reaching out. We&apos;ve received your message and will get back to you at alimzhan.gabit@gmail.com soon.
+            </p>
+            <Button asChild className="mt-6">
+              <Link href="/">Back to Home</Link>
+            </Button>
+          </div>
+        </main>
+      </div>
+    )
   }
 
   return (
@@ -52,9 +84,8 @@ export default function ContactPage() {
                         </label>
                         <Input
                           id="name"
+                          name="name"
                           placeholder="John Doe"
-                          value={formData.name}
-                          onChange={(e) => setFormData({ ...formData, name: e.target.value })}
                           required
                         />
                       </div>
@@ -64,10 +95,9 @@ export default function ContactPage() {
                         </label>
                         <Input
                           id="email"
+                          name="email"
                           type="email"
                           placeholder="john@example.com"
-                          value={formData.email}
-                          onChange={(e) => setFormData({ ...formData, email: e.target.value })}
                           required
                         />
                       </div>
@@ -79,9 +109,8 @@ export default function ContactPage() {
                       </label>
                       <Input
                         id="subject"
+                        name="subject"
                         placeholder="How can we help?"
-                        value={formData.subject}
-                        onChange={(e) => setFormData({ ...formData, subject: e.target.value })}
                         required
                       />
                     </div>
@@ -92,17 +121,16 @@ export default function ContactPage() {
                       </label>
                       <Textarea
                         id="message"
+                        name="message"
                         placeholder="Tell us more about your inquiry..."
                         rows={6}
-                        value={formData.message}
-                        onChange={(e) => setFormData({ ...formData, message: e.target.value })}
                         required
                       />
                     </div>
 
-                    <Button type="submit" className="w-full sm:w-auto">
+                    <Button type="submit" className="w-full sm:w-auto" disabled={isPending}>
                       <Send className="h-4 w-4 mr-2" />
-                      Send Message
+                      {isPending ? "Sending..." : "Send Message"}
                     </Button>
                   </form>
                 </CardContent>

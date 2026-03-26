@@ -7,6 +7,7 @@ import { FiltersSidebar, type FilterState } from "@/components/jobs/filters-side
 import { JobList } from "@/components/jobs/job-list"
 import { getHomeData, toggleSaveVacancyAction } from "@/app/actions/vacancy"
 import { emitSavedVacanciesUpdated } from "@/lib/saved-vacancies-events"
+import { Button } from "@/components/ui/button"
 import { toast } from "sonner"
 
 const initialFilters: FilterState = {
@@ -34,6 +35,8 @@ export default function VacanciesPage() {
     experienceLevels: string[]
   }>({ locations: [], employmentTypes: [], experienceLevels: [] })
   const [isSearching, setIsSearching] = useState(false)
+  const [isLoadingRecommendations, setIsLoadingRecommendations] = useState(false)
+  const [isRecommendationsActive, setIsRecommendationsActive] = useState(false)
 
   const debounceRef = useRef<ReturnType<typeof setTimeout> | null>(null)
 
@@ -127,6 +130,46 @@ export default function VacanciesPage() {
     emitSavedVacanciesUpdated()
   }
 
+  const handleGetRecommendations = async () => {
+    setIsLoadingRecommendations(true)
+    try {
+      const res = await fetch("/api/recommendations", { method: "GET" })
+      if (!res.ok) throw new Error("Failed to fetch recommendations")
+
+      const data = await res.json()
+      const recommended = Array.isArray(data?.recommendedVacancies) ? data.recommendedVacancies : []
+
+      const mappedJobs = recommended.map((v: any) => ({
+        id: v._id?.toString?.() || "",
+        title: v.title || "Untitled vacancy",
+        company: v.employerId?.name || "Unknown Company",
+        companyLogo: v.employerId?.name?.slice(0, 2)?.toUpperCase() || "JC",
+        location: v.workMode === "REMOTE" ? "Remote" : [v.city, v.country].filter(Boolean).join(", ") || v.address || "Remote",
+        salary: `$${(v.salaryMin ?? 0).toLocaleString()} - $${(v.salaryMax ?? 0).toLocaleString()}`,
+        employmentType: v.employmentType || "Full-time",
+        experience: v.experience || "Any experience",
+        skills: v.skillsRequired ? v.skillsRequired.split(",").map((s: string) => s.trim()) : [],
+        description: v.description || "No description provided.",
+        postedAt: v.createdAt ? new Date(v.createdAt).toLocaleDateString() : "",
+        isRemote: v.workMode === "REMOTE",
+        isFeatured: false,
+      }))
+
+      setSearchJobs(mappedJobs)
+      setIsRecommendationsActive(true)
+    } catch (error) {
+      console.error(error)
+      toast.error("Could not load AI recommendations.")
+    } finally {
+      setIsLoadingRecommendations(false)
+    }
+  }
+
+  const handleShowAllJobs = () => {
+    setSearchJobs(null)
+    setIsRecommendationsActive(false)
+  }
+
   return (
     <div className="min-h-screen bg-background">
       <Header savedJobsCount={savedJobs.length} />
@@ -142,6 +185,23 @@ export default function VacanciesPage() {
           {isSearching && (
             <p className="mt-2 text-sm text-muted-foreground">Searching...</p>
           )}
+          <div className="mt-4 flex items-center justify-center lg:justify-start gap-3">
+            <Button
+              type="button"
+              onClick={handleGetRecommendations}
+              disabled={isLoadingRecommendations}
+            >
+              {isLoadingRecommendations ? "Loading..." : "Get AI Recommendations"}
+            </Button>
+            <Button
+              type="button"
+              variant="outline"
+              onClick={handleShowAllJobs}
+              disabled={!isRecommendationsActive}
+            >
+              Show All Jobs
+            </Button>
+          </div>
         </section>
 
         <div className="flex flex-col lg:flex-row gap-6">

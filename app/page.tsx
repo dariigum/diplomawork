@@ -1,6 +1,6 @@
 "use client"
 
-import { useState, useMemo, useEffect } from "react"
+import { useState, useMemo, useEffect, useRef } from "react"
 import { Header } from "@/components/jobs/header"
 import { Footer } from "@/components/jobs/footer"
 import { FiltersSidebar, type FilterState } from "@/components/jobs/filters-sidebar"
@@ -20,37 +20,65 @@ const initialFilters: FilterState = {
 
 export default function VacanciesPage() {
   const [filters, setFilters] = useState<FilterState>(initialFilters)
-  const [jobs, setJobs] = useState<any[]>([])
+
+  // allJobs — полный список без поиска (для фильтров)
+  const [allJobs, setAllJobs] = useState<any[]>([])
+  // searchJobs — результат семантического поиска (null = поиск не активен)
+  const [searchJobs, setSearchJobs] = useState<any[] | null>(null)
+
   const [savedJobs, setSavedJobs] = useState<string[]>([])
   const [viewerRole, setViewerRole] = useState<string | null>(null)
-  const [filterOptions, setFilterOptions] = useState<{ locations: string[], employmentTypes: string[], experienceLevels: string[] }>({
-    locations: [],
-    employmentTypes: [],
-    experienceLevels: [],
-  })
-  
+  const [filterOptions, setFilterOptions] = useState<{
+    locations: string[]
+    employmentTypes: string[]
+    experienceLevels: string[]
+  }>({ locations: [], employmentTypes: [], experienceLevels: [] })
+  const [isSearching, setIsSearching] = useState(false)
+
+  const debounceRef = useRef<ReturnType<typeof setTimeout> | null>(null)
+
+  // Загрузка всех вакансий при старте
   useEffect(() => {
     getHomeData().then(data => {
-      setJobs(data.jobs)
+      setAllJobs(data.jobs)
       setSavedJobs(data.savedJobs)
       setViewerRole(data.viewerRole || null)
       if (data.filterOptions) setFilterOptions(data.filterOptions)
     }).catch(console.error)
   }, [])
 
-  const filteredJobs = useMemo(() => {
-    return jobs.filter((job) => {
-      // Search filter
-      if (filters.search) {
-        const searchLower = filters.search.toLowerCase()
-        const matchesSearch =
-          job.title.toLowerCase().includes(searchLower) ||
-          job.company.toLowerCase().includes(searchLower) ||
-          job.skills.some((skill: string) => skill.toLowerCase().includes(searchLower))
-        if (!matchesSearch) return false
-      }
+  // Семантический поиск с дебаунсом 500ms
+  useEffect(() => {
+    if (debounceRef.current) clearTimeout(debounceRef.current)
 
-      // Location filter
+    if (!filters.search.trim()) {
+      setSearchJobs(null) // сброс — показываем allJobs
+      return
+    }
+
+    debounceRef.current = setTimeout(async () => {
+      setIsSearching(true)
+      try {
+        const data = await getHomeData(filters.search)
+        setSearchJobs(data.jobs)
+      } catch (e) {
+        console.error(e)
+      } finally {
+        setIsSearching(false)
+      }
+    }, 500)
+
+    return () => {
+      if (debounceRef.current) clearTimeout(debounceRef.current)
+    }
+  }, [filters.search])
+
+  // Базовый список: результаты поиска или все вакансии
+  const baseJobs = searchJobs !== null ? searchJobs : allJobs
+
+  // Остальные фильтры работают поверх baseJobs — как было в оригинале
+  const filteredJobs = useMemo(() => {
+    return baseJobs.filter((job) => {
       if (filters.locations.length > 0) {
         const matchesLocation = filters.locations.some(
           (loc) => job.location.includes(loc) || (loc === "Remote" && job.isRemote)
@@ -58,12 +86,10 @@ export default function VacanciesPage() {
         if (!matchesLocation) return false
       }
 
-      // Employment type filter
       if (filters.employmentTypes.length > 0) {
         if (!filters.employmentTypes.includes(job.employmentType)) return false
       }
 
-      // Experience level filter
       if (filters.experienceLevels.length > 0) {
         const matchesExperience = filters.experienceLevels.some((level) =>
           job.experience.includes(level)
@@ -71,7 +97,6 @@ export default function VacanciesPage() {
         if (!matchesExperience) return false
       }
 
-      // Salary range filter
       const salaryMatch = job.salary.match(/\$(\d+),?(\d*)/g)
       if (salaryMatch) {
         const minSalary = parseInt(salaryMatch[0].replace(/[^0-9]/g, "")) / 1000
@@ -80,33 +105,25 @@ export default function VacanciesPage() {
         }
       }
 
-      // Remote only filter
       if (filters.remoteOnly && !job.isRemote) return false
 
       return true
     })
-  }, [filters, jobs])
+  }, [baseJobs, filters.locations, filters.employmentTypes, filters.experienceLevels, filters.salaryRange, filters.remoteOnly])
 
   const handleSaveJob = async (jobId: string) => {
     const wasSaved = savedJobs.includes(jobId)
-
     setSavedJobs((prev) =>
-      wasSaved
-        ? prev.filter((id) => id !== jobId)
-        : [...prev, jobId]
+      wasSaved ? prev.filter((id) => id !== jobId) : [...prev, jobId]
     )
-
     const result = await toggleSaveVacancyAction(jobId)
     if (result?.error) {
       setSavedJobs((prev) =>
-        wasSaved
-          ? [...prev, jobId]
-          : prev.filter((id) => id !== jobId)
+        wasSaved ? [...prev, jobId] : prev.filter((id) => id !== jobId)
       )
       toast.error("Only employees can save vacancies.")
       return
     }
-
     emitSavedVacanciesUpdated()
   }
 
@@ -115,19 +132,19 @@ export default function VacanciesPage() {
       <Header savedJobsCount={savedJobs.length} />
       
       <main className="container mx-auto px-4 lg:px-6 py-6">
-        {/* Hero Section */}
         <section className="mb-8 text-center lg:text-left">
           <h1 className="text-3xl lg:text-4xl font-bold text-foreground text-balance">
             Find Your Dream Job
           </h1>
           <p className="mt-2 text-muted-foreground text-lg max-w-2xl mx-auto lg:mx-0">
-            Discover thousands of job opportunities with all the information you need.
+            Discover thousands of job opportunities with AI-powered recommendations.
           </p>
+          {isSearching && (
+            <p className="mt-2 text-sm text-muted-foreground">Searching...</p>
+          )}
         </section>
 
-        {/* Main Content */}
         <div className="flex flex-col lg:flex-row gap-6">
-          {/* Sidebar */}
           <FiltersSidebar
             filters={filters}
             onFiltersChange={setFilters}
@@ -136,8 +153,7 @@ export default function VacanciesPage() {
             experienceLevelOptions={filterOptions.experienceLevels}
           />
           
-          {/* Job Listings */}
-          {jobs.length === 0 ? (
+          {allJobs.length === 0 && !isSearching ? (
             <p className="text-muted-foreground w-full text-center py-12">No vacancies posted yet.</p>
           ) : (
             <JobList

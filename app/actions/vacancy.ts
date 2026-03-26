@@ -31,9 +31,31 @@ export async function toggleSaveVacancyAction(vacancyId: string) {
   return { success: true, saved };
 }
 
-export async function getHomeData() {
+async function getEmbedding(text: string): Promise<number[]> {
+  try {
+    const res = await fetch(
+      `http://localhost:8000/embed?text=${encodeURIComponent(text)}`,
+      { cache: 'no-store' }
+    )
+    const data = await res.json()
+    return data.embedding as number[]
+  } catch {
+    return []
+  }
+}
+
+function cosineSimilarity(a: number[], b: number[]): number {
+  if (!a?.length || !b?.length || a.length !== b.length) return 0
+  const dot = a.reduce((sum, v, i) => sum + v * b[i], 0)
+  const na = Math.sqrt(a.reduce((sum, v) => sum + v * v, 0))
+  const nb = Math.sqrt(b.reduce((sum, v) => sum + v * v, 0))
+  if (na === 0 || nb === 0) return 0
+  return dot / (na * nb)
+}
+
+export async function getHomeData(searchQuery?: string) {
   await dbConnect();
-  // Populate the employerId to get the company name
+
   const rawVacancies = await Vacancy.find({}).populate('employerId', 'name').lean();
   const session = await getSession();
   const viewerRole = session?.user?.role || null;
@@ -44,7 +66,7 @@ export async function getHomeData() {
     savedJobs = saves.map(s => s.vacancyId.toString());
   }
 
-  const jobs = rawVacancies.map((v: any) => ({
+  const jobs = (rawVacancies as any[]).map((v: any) => ({
     id: v._id.toString(),
     title: v.title,
     company: v.employerId?.name || "Unknown Company",
@@ -58,16 +80,49 @@ export async function getHomeData() {
     postedAt: new Date(v.createdAt).toLocaleDateString(),
     isRemote: v.workMode === 'REMOTE',
     isFeatured: false,
+    _embedding: (v as any).embedding || [],
   }));
 
-  // Compute dynamic filter options from actual vacancy data
   const filterOptions = {
-    locations: [...new Set(jobs.map(j => j.location).filter(Boolean))].sort(),
-    employmentTypes: [...new Set(jobs.map(j => j.employmentType).filter(Boolean))].sort(),
-    experienceLevels: [...new Set(jobs.map(j => j.experience).filter(Boolean))].sort(),
+    locations: [...new Set(jobs.map(j => j.location).filter(Boolean))].sort() as string[],
+    employmentTypes: [...new Set(jobs.map(j => j.employmentType).filter(Boolean))].sort() as string[],
+    experienceLevels: [...new Set(jobs.map(j => j.experience).filter(Boolean))].sort() as string[],
   };
 
-  return { jobs: jobs.reverse(), savedJobs, filterOptions, viewerRole }; // Show newest first
+  // Если есть поисковый запрос — семантическая сортировка через ML
+  if (searchQuery && searchQuery.trim().length > 0) {
+    const queryEmbedding = await getEmbedding(searchQuery)
+
+    if (queryEmbedding.length > 0) {
+      // Считаем similarity для каждой вакансии и фильтруем нерелевантные
+      const scored = jobs
+        .map(job => ({
+          ...job,
+          _score: cosineSimilarity(queryEmbedding, job._embedding)
+        }))
+        .filter(job => {
+          console.log(job.title, job._score)
+          return job._score > 0.2
+        })
+        .sort((a, b) => b._score - a._score)
+
+      const result = scored.map(({ _embedding, _score, ...job }) => job)
+      return { jobs: result, savedJobs, filterOptions, viewerRole }
+    }
+
+    // ML сервис недоступен — fallback на обычный поиск по тексту
+    const q = searchQuery.toLowerCase()
+    const fallback = jobs
+      .filter(job =>
+        job.title.toLowerCase().includes(q) ||
+        job.skills.some((s: string) => s.toLowerCase().includes(q))
+      )
+      .map(({ _embedding, ...job }) => job)
+    return { jobs: fallback, savedJobs, filterOptions, viewerRole }
+  }
+
+  const result = jobs.reverse().map(({ _embedding, ...job }) => job)
+  return { jobs: result, savedJobs, filterOptions, viewerRole }
 }
 
 export async function getSavedVacanciesAction() {

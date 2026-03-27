@@ -12,6 +12,8 @@ export interface Job {
   postedAt: string
   isRemote: boolean
   isFeatured: boolean
+  match?: number
+  reason?: string
 }
 
 export const jobs: Job[] = [

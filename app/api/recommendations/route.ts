@@ -1,6 +1,6 @@
 import dbConnect from '@/lib/db/mongoose';
 import { getSession } from '@/lib/auth';
-import { Resume, SavedVacancy, Vacancy } from '@/lib/db/schema';
+import { Resume, Response as Application, SavedVacancy, Vacancy } from '@/lib/db/schema';
 import { NextResponse } from 'next/server';
 
 async function fetchEmbedding(text: string) {
@@ -55,6 +55,9 @@ export async function GET() {
   const savedVacancies = userId
     ? await SavedVacancy.find({ userId }).populate('vacancyId').lean()
     : [];
+  const appliedVacancies = userId
+    ? await Application.find({ userId }).populate('vacancyId').lean()
+    : [];
 
   const resumes = userId ? await Resume.find({ userId }).lean() : [];
   const resumesText = resumes
@@ -69,18 +72,29 @@ export async function GET() {
   const savedEmbeddings = savedVacancies
     .map((s: any) => s?.vacancyId?.embedding)
     .filter((e: any) => Array.isArray(e) && e.length > 0) as number[][];
+  const appliedEmbeddings = appliedVacancies
+    .map((a: any) => a?.vacancyId?.embedding)
+    .filter((e: any) => Array.isArray(e) && e.length > 0) as number[][];
+  const weightedEmbeddings: number[][] = [
+    ...savedEmbeddings,
+    ...appliedEmbeddings,
+    ...appliedEmbeddings,
+  ];
 
   const resumeEmbedding =
     resumesText && resumesText.length > 0
       ? await fetchEmbedding(resumesText)
       : null;
 
-  const behaviorVector = averageVectors(savedEmbeddings);
+  const behaviorVector = weightedEmbeddings.length > 0
+    ? averageVectors(weightedEmbeddings)
+    : null;
   const hasResume = Array.isArray(resumeEmbedding) && resumeEmbedding.length > 0;
   const hasBehavior = Array.isArray(behaviorVector) && behaviorVector.length > 0;
 
-  const activityScore = savedVacancies.length;
+  const activityScore = savedVacancies.length + appliedVacancies.length * 2;
   const alpha = activityScore > 3 ? 0.7 : 0.3;
+  const resumesTextLower = resumesText.toLowerCase();
 
   const recommendedVacancies = hasResume || hasBehavior
     ? (vacancies as any[])
@@ -97,10 +111,23 @@ export async function GET() {
             : !hasResume
               ? behaviorScore
               : alpha * behaviorScore + (1 - alpha) * resumeScore;
+          const jobSkills = Array.isArray(v.skillsRequired)
+            ? v.skillsRequired
+            : typeof v.skillsRequired === "string"
+              ? v.skillsRequired.split(",").map((s: string) => s.trim()).filter(Boolean)
+              : [];
+          const matchingSkills = jobSkills.filter((skill: string) =>
+            resumesTextLower.includes(skill.toLowerCase())
+          );
+          const reason = matchingSkills.length > 0
+            ? `Matches your skills: ${matchingSkills.join(", ")}`
+            : "Based on your profile and interests";
 
           return {
             ...v,
             _score: finalScore,
+            match: Math.max(0, Math.min(100, Math.round(finalScore * 100))),
+            reason,
           };
         })
         .sort((a, b) => b._score - a._score)

@@ -20,7 +20,7 @@ export async function createVacancyAction(formData: FormData) {
   const country = formData.get('country') as string;
   const city = formData.get('city') as string;
 
-  if (!title || !salaryMinStr || !salaryMaxStr) throw new Error('Missing fields');
+  if (!title) throw new Error('Missing fields');
   if (!['Full-time', 'Part-time', 'Internship'].includes(employmentType)) {
     throw new Error('Invalid employment type');
   }
@@ -32,6 +32,8 @@ export async function createVacancyAction(formData: FormData) {
   }
 
   const vacancyAddress = workMode === 'REMOTE' ? 'Remote' : city;
+  const parsedSalaryMin = salaryMinStr ? parseInt(salaryMinStr, 10) : null;
+  const parsedSalaryMax = salaryMaxStr ? parseInt(salaryMaxStr, 10) : null;
 
   await dbConnect();
   await Vacancy.create({
@@ -39,8 +41,9 @@ export async function createVacancyAction(formData: FormData) {
     title,
     description: description || '',
     skillsRequired: skillsRequired || '',
-    salaryMin: parseInt(salaryMinStr, 10),
-    salaryMax: parseInt(salaryMaxStr, 10),
+    salaryMin: Number.isFinite(parsedSalaryMin) ? parsedSalaryMin : null,
+    salaryMax: Number.isFinite(parsedSalaryMax) ? parsedSalaryMax : null,
+    salaryCurrency: 'KZT',
     employmentType,
     workMode,
     country: country || '',

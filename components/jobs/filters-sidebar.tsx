@@ -1,6 +1,6 @@
 "use client"
 
-import { useState } from "react"
+import { useEffect, useState } from "react"
 import { Search, MapPin, Briefcase, DollarSign, Clock, X } from "lucide-react"
 import { Input } from "@/components/ui/input"
 import { Button } from "@/components/ui/button"
@@ -33,6 +33,12 @@ export interface FilterState {
 }
 
 export function FiltersSidebar({ onFiltersChange, filters, locationOptions = [], employmentTypeOptions = [], experienceLevelOptions = [] }: FiltersSidebarProps) {
+  const [searchInput, setSearchInput] = useState(filters.search)
+
+  useEffect(() => {
+    setSearchInput(filters.search)
+  }, [filters.search])
+
   const activeFiltersCount = 
     filters.locations.length + 
     filters.employmentTypes.length + 
@@ -41,6 +47,7 @@ export function FiltersSidebar({ onFiltersChange, filters, locationOptions = [],
     (filters.salaryRange[0] > 0 || filters.salaryRange[1] < 200 ? 1 : 0)
 
   const clearAllFilters = () => {
+    setSearchInput("")
     onFiltersChange({
       search: "",
       locations: [],
@@ -49,6 +56,10 @@ export function FiltersSidebar({ onFiltersChange, filters, locationOptions = [],
       salaryRange: [0, 200],
       remoteOnly: false
     })
+  }
+
+  const applySearch = () => {
+    onFiltersChange({ ...filters, search: searchInput.trim() })
   }
 
   const toggleArrayFilter = (
@@ -80,15 +91,30 @@ export function FiltersSidebar({ onFiltersChange, filters, locationOptions = [],
       </div>
 
       {/* Search */}
-      <div className="relative mb-5">
+      <form
+        className="relative mb-5"
+        onSubmit={(event) => {
+          event.preventDefault()
+          applySearch()
+        }}
+      >
         <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
         <Input
           placeholder="Search jobs..."
-          value={filters.search}
-          onChange={(e) => onFiltersChange({ ...filters, search: e.target.value })}
-          className="pl-9 bg-muted/50 border-0 focus-visible:ring-1 focus-visible:ring-primary"
+          value={searchInput}
+          onChange={(e) => setSearchInput(e.target.value)}
+          className="bg-muted/50 border-0 pl-9 pr-11 focus-visible:ring-1 focus-visible:ring-primary"
         />
-      </div>
+        <Button
+          type="submit"
+          size="icon"
+          variant="ghost"
+          className="absolute right-1 top-1/2 h-8 w-8 -translate-y-1/2"
+        >
+          <Search className="h-4 w-4" />
+          <span className="sr-only">Search</span>
+        </Button>
+      </form>
 
       {/* Active Filters */}
       {activeFiltersCount > 0 && (

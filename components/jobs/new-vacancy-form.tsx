@@ -157,12 +157,12 @@ export function NewVacancyForm() {
 
             <div className="grid grid-cols-2 gap-4">
               <div className="space-y-2">
-                <label htmlFor="salaryMin" className="text-sm font-medium">Minimum Salary ($)</label>
-                <Input id="salaryMin" name="salaryMin" type="number" placeholder="50000" required />
+                <label htmlFor="salaryMin" className="text-sm font-medium">Minimum Salary (KZT, optional)</label>
+                <Input id="salaryMin" name="salaryMin" type="number" placeholder="50000" />
               </div>
               <div className="space-y-2">
-                <label htmlFor="salaryMax" className="text-sm font-medium">Maximum Salary ($)</label>
-                <Input id="salaryMax" name="salaryMax" type="number" placeholder="100000" required />
+                <label htmlFor="salaryMax" className="text-sm font-medium">Maximum Salary (KZT, optional)</label>
+                <Input id="salaryMax" name="salaryMax" type="number" placeholder="100000" />
               </div>
             </div>
 

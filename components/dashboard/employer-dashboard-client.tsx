@@ -21,14 +21,16 @@ import { Separator } from '@/components/ui/separator';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { Textarea } from '@/components/ui/textarea';
 import type { EmployerChatPayload } from '@/lib/chat-types';
+import { formatSalaryRange } from '@/lib/format-salary';
 import { emitNotificationsUpdated } from '@/lib/notifications-events';
 import { toast } from 'sonner';
 
 interface EmployerVacancyCard {
   id: string;
   title: string;
-  salaryMin: number;
-  salaryMax: number;
+  salaryMin?: number | null;
+  salaryMax?: number | null;
+  salaryCurrency?: string;
   responsesCount: number;
 }
 
@@ -275,7 +277,11 @@ export function EmployerDashboardClient({
                           <div>
                             <p className="font-medium">{vacancy.title}</p>
                             <p className="text-sm text-muted-foreground">
-                              ${vacancy.salaryMin} - ${vacancy.salaryMax}
+                              {formatSalaryRange(
+                                vacancy.salaryMin,
+                                vacancy.salaryMax,
+                                vacancy.salaryCurrency
+                              )}
                             </p>
                           </div>
                           <Button variant="secondary" size="sm" disabled>
@@ -305,11 +311,11 @@ export function EmployerDashboardClient({
         </TabsContent>
 
         <TabsContent value="chat" className="mt-0">
-          <div className="relative left-1/2 w-[calc(100vw-2rem)] -translate-x-1/2 md:w-[calc(100vw-4rem)]">
+          <div className="w-full max-w-none">
             <div className="h-[calc(100dvh-11rem)] min-h-[40rem] overflow-hidden rounded-2xl border border-border bg-card shadow-sm md:h-[calc(100dvh-13rem)]">
               <div className="grid h-full min-h-0 grid-rows-[minmax(22rem,46dvh)_1px_minmax(0,1fr)] md:grid-cols-[18rem_1px_20rem_1px_minmax(0,1fr)] md:grid-rows-1">
                 <div className="grid min-h-0 grid-cols-1 sm:grid-cols-2 md:contents">
-                  <div className="min-h-0 bg-card">
+                  <div className="flex min-h-0 flex-col bg-card">
                     <div className="border-b border-border px-4 py-4">
                       <h2 className="font-semibold text-foreground">Vacancies</h2>
                       <p className="text-sm text-muted-foreground">
@@ -317,7 +323,7 @@ export function EmployerDashboardClient({
                       </p>
                     </div>
 
-                    <ScrollArea className="h-full">
+                    <ScrollArea className="min-h-0 flex-1">
                       <div className="space-y-2 p-3">
                         {chatData.vacancies.length === 0 && !isChatLoading ? (
                           <div className="rounded-xl border border-dashed p-4 text-sm text-muted-foreground">
@@ -364,7 +370,7 @@ export function EmployerDashboardClient({
 
                   <Separator orientation="vertical" className="hidden md:block" />
 
-                  <div className="min-h-0 border-t border-border bg-card sm:border-l sm:border-t-0 md:border-l-0">
+                  <div className="flex min-h-0 flex-col border-t border-border bg-card sm:border-l sm:border-t-0 md:border-l-0">
                     <div className="border-b border-border px-4 py-4">
                       <h2 className="font-semibold text-foreground">Applicants</h2>
                       <p className="text-sm text-muted-foreground">
@@ -372,7 +378,7 @@ export function EmployerDashboardClient({
                       </p>
                     </div>
 
-                    <ScrollArea className="h-full">
+                    <ScrollArea className="min-h-0 flex-1">
                       <div className="space-y-2 p-3">
                         {chatData.applicants.length === 0 && !isChatLoading ? (
                           <div className="rounded-xl border border-dashed p-4 text-sm text-muted-foreground">

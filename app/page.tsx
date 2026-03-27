@@ -1,6 +1,6 @@
 "use client"
 
-import { useState, useMemo, useEffect, useRef } from "react"
+import { useState, useMemo, useEffect } from "react"
 import { Header } from "@/components/jobs/header"
 import { Footer } from "@/components/jobs/footer"
 import { FiltersSidebar, type FilterState } from "@/components/jobs/filters-sidebar"
@@ -9,6 +9,7 @@ import { getHomeData, toggleSaveVacancyAction } from "@/app/actions/vacancy"
 import { emitSavedVacanciesUpdated } from "@/lib/saved-vacancies-events"
 import { Button } from "@/components/ui/button"
 import { toast } from "sonner"
+import { formatSalaryRange, getSalaryFilterValue } from "@/lib/format-salary"
 
 const initialFilters: FilterState = {
   search: "",
@@ -38,8 +39,6 @@ export default function VacanciesPage() {
   const [isLoadingRecommendations, setIsLoadingRecommendations] = useState(false)
   const [isRecommendationsActive, setIsRecommendationsActive] = useState(false)
 
-  const debounceRef = useRef<ReturnType<typeof setTimeout> | null>(null)
-
   // Загрузка всех вакансий при старте
   useEffect(() => {
     getHomeData().then(data => {
@@ -50,29 +49,35 @@ export default function VacanciesPage() {
     }).catch(console.error)
   }, [])
 
-  // Семантический поиск с дебаунсом 500ms
+  // Семантический поиск запускается только после явного submit из FiltersSidebar
   useEffect(() => {
-    if (debounceRef.current) clearTimeout(debounceRef.current)
-
     if (!filters.search.trim()) {
       setSearchJobs(null) // сброс — показываем allJobs
       return
     }
 
-    debounceRef.current = setTimeout(async () => {
+    let cancelled = false
+
+    const runSearch = async () => {
       setIsSearching(true)
       try {
         const data = await getHomeData(filters.search)
-        setSearchJobs(data.jobs)
+        if (!cancelled) {
+          setSearchJobs(data.jobs)
+        }
       } catch (e) {
         console.error(e)
       } finally {
-        setIsSearching(false)
+        if (!cancelled) {
+          setIsSearching(false)
+        }
       }
-    }, 500)
+    }
+
+    runSearch()
 
     return () => {
-      if (debounceRef.current) clearTimeout(debounceRef.current)
+      cancelled = true
     }
   }, [filters.search])
 
@@ -100,10 +105,11 @@ export default function VacanciesPage() {
         if (!matchesExperience) return false
       }
 
-      const salaryMatch = job.salary.match(/\$(\d+),?(\d*)/g)
-      if (salaryMatch) {
-        const minSalary = parseInt(salaryMatch[0].replace(/[^0-9]/g, "")) / 1000
-        if (minSalary < filters.salaryRange[0] || minSalary > filters.salaryRange[1]) {
+      const comparableSalary = getSalaryFilterValue(job.salaryMin, job.salaryMax)
+      const salaryFilterChanged = filters.salaryRange[0] > 0 || filters.salaryRange[1] < 200
+      if (salaryFilterChanged) {
+        if (comparableSalary === null) return false
+        if (comparableSalary / 1000 < filters.salaryRange[0] || comparableSalary / 1000 > filters.salaryRange[1]) {
           return false
         }
       }
@@ -145,7 +151,10 @@ export default function VacanciesPage() {
         company: v.employerId?.name || "Unknown Company",
         companyLogo: v.employerId?.name?.slice(0, 2)?.toUpperCase() || "JC",
         location: v.workMode === "REMOTE" ? "Remote" : [v.city, v.country].filter(Boolean).join(", ") || v.address || "Remote",
-        salary: `$${(v.salaryMin ?? 0).toLocaleString()} - $${(v.salaryMax ?? 0).toLocaleString()}`,
+        salary: formatSalaryRange(v.salaryMin, v.salaryMax, v.salaryCurrency),
+        salaryMin: v.salaryMin ?? null,
+        salaryMax: v.salaryMax ?? null,
+        salaryCurrency: v.salaryCurrency || "",
         employmentType: v.employmentType || "Full-time",
         experience: v.experience || "Any experience",
         skills: v.skillsRequired ? v.skillsRequired.split(",").map((s: string) => s.trim()) : [],

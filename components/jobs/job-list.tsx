@@ -13,6 +13,7 @@ import {
 import { JobCard } from "./job-card"
 import { ApplyModal } from "./apply-modal"
 import type { Job } from "@/lib/job-data"
+import { getSalarySortMax, getSalarySortMin } from "@/lib/format-salary"
 
 interface JobListProps {
   jobs: Job[]
@@ -37,12 +38,12 @@ export function JobList({ jobs, savedJobs, onSaveJob, canApply }: JobListProps) 
   const sortedJobs = [...jobs].sort((a, b) => {
     switch (sortBy) {
       case "salary-high":
-        const aMax = parseInt(a.salary.replace(/[^0-9]/g, "").slice(-6))
-        const bMax = parseInt(b.salary.replace(/[^0-9]/g, "").slice(-6))
+        const aMax = getSalarySortMax(a.salaryMin, a.salaryMax)
+        const bMax = getSalarySortMax(b.salaryMin, b.salaryMax)
         return bMax - aMax
       case "salary-low":
-        const aMin = parseInt(a.salary.replace(/[^0-9]/g, "").slice(0, 6))
-        const bMin = parseInt(b.salary.replace(/[^0-9]/g, "").slice(0, 6))
+        const aMin = getSalarySortMin(a.salaryMin, a.salaryMax)
+        const bMin = getSalarySortMin(b.salaryMin, b.salaryMax)
         return aMin - bMin
       case "relevance":
         return b.isFeatured === a.isFeatured ? 0 : b.isFeatured ? 1 : -1

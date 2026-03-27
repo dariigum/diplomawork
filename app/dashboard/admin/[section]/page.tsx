@@ -9,6 +9,7 @@ import { Badge } from '@/components/ui/badge';
 import { getSession } from '@/lib/auth';
 import dbConnect from '@/lib/db/mongoose';
 import { Article, Response, Resume, SavedVacancy, User, Vacancy } from '@/lib/db/schema';
+import { formatSalaryRange } from '@/lib/format-salary';
 
 const sectionConfig = {
   employees: {
@@ -335,7 +336,11 @@ export default async function AdminSectionPage({
                         </p>
                       </TableCell>
                       <TableCell>
-                        ${vacancy.salaryMin} - ${vacancy.salaryMax}
+                        {formatSalaryRange(
+                          vacancy.salaryMin,
+                          vacancy.salaryMax,
+                          vacancy.salaryCurrency
+                        )}
                       </TableCell>
                       <TableCell>{formatDate(vacancy.createdAt)}</TableCell>
                       <TableCell>
@@ -533,6 +538,7 @@ export default async function AdminSectionPage({
               <TableHeader>
                 <TableRow>
                   <TableHead>Title</TableHead>
+                  <TableHead>Source</TableHead>
                   <TableHead>Category</TableHead>
                   <TableHead>Language</TableHead>
                   <TableHead>Created</TableHead>
@@ -545,6 +551,7 @@ export default async function AdminSectionPage({
                     <TableCell className="max-w-[24rem] whitespace-normal font-medium">
                       {article.title}
                     </TableCell>
+                    <TableCell>{article.sourceSite || '-'}</TableCell>
                     <TableCell>{article.category}</TableCell>
                     <TableCell>
                       <Badge variant="outline">{article.language}</Badge>

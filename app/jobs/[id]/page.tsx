@@ -9,6 +9,7 @@ import { JobDetailActions } from "@/components/jobs/job-detail-actions"
 import dbConnect from "@/lib/db/mongoose"
 import { Vacancy, SavedVacancy } from "@/lib/db/schema"
 import { getSession } from "@/lib/auth"
+import { formatSalaryRange } from "@/lib/format-salary"
 
 export default async function JobDetailsPage({ params }: { params: Promise<{ id: string }> }) {
   const { id } = await params
@@ -99,7 +100,13 @@ export default async function JobDetailsPage({ params }: { params: Promise<{ id:
                       )}
                     </div>
 
-                    <p className="text-xl font-semibold text-foreground mt-4">${jobRecord.salaryMin.toLocaleString()} - ${jobRecord.salaryMax.toLocaleString()}</p>
+                    <p className="text-xl font-semibold text-foreground mt-4">
+                      {formatSalaryRange(
+                        jobRecord.salaryMin,
+                        jobRecord.salaryMax,
+                        jobRecord.salaryCurrency
+                      )}
+                    </p>
                   </div>
                 </div>
               </CardContent>
@@ -156,7 +163,7 @@ export default async function JobDetailsPage({ params }: { params: Promise<{ id:
 
           {/* Sidebar */}
           <div className="space-y-6">
-            <div className="sticky top-24 space-y-6 self-start">
+            <div className="space-y-6 self-start">
               {/* Apply Card */}
               <Card>
                 <CardContent className="p-6 space-y-4">

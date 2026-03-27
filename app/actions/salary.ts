@@ -11,13 +11,14 @@ export async function getAvgSalaryForSkills(skills: string[]) {
   
   const matched = allVacancies.filter(v => {
     const vSkills = v.skillsRequired.toLowerCase();
-    return skills.some(s => vSkills.includes(s.toLowerCase()));
+    const hasSalary = typeof v.salaryMin === 'number' || typeof v.salaryMax === 'number';
+    return hasSalary && skills.some(s => vSkills.includes(s.toLowerCase()));
   });
   
   if (matched.length === 0) return null;
   
-  const avgMin = matched.reduce((acc, v) => acc + v.salaryMin, 0) / matched.length;
-  const avgMax = matched.reduce((acc, v) => acc + v.salaryMax, 0) / matched.length;
+  const avgMin = matched.reduce((acc, v) => acc + (v.salaryMin || 0), 0) / matched.length;
+  const avgMax = matched.reduce((acc, v) => acc + (v.salaryMax || 0), 0) / matched.length;
   const totalAvg = (avgMin + avgMax) / 2;
   
   return {

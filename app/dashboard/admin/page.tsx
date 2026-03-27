@@ -3,6 +3,8 @@ import { logoutAction } from '@/app/actions/auth';
 import { getSession } from '@/lib/auth';
 import dbConnect from '@/lib/db/mongoose';
 import { Article, Response, Resume, SavedVacancy, User, Vacancy } from '@/lib/db/schema';
+import { getLatestHeadHunterImportJobSnapshot } from '@/lib/headhunter-sync-job';
+import { HeadHunterSyncPanel } from '@/components/admin/headhunter-sync-panel';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 
@@ -11,6 +13,7 @@ export default async function AdminDashboard() {
   if (!session || session.user.role !== 'ADMIN') return null;
 
   await dbConnect();
+  const initialHeadHunterJob = await getLatestHeadHunterImportJobSnapshot();
 
   const [
     usersCount,
@@ -73,6 +76,8 @@ export default async function AdminDashboard() {
           </Link>
         ))}
       </div>
+
+      <HeadHunterSyncPanel initialJob={initialHeadHunterJob} />
 
       <div className="flex justify-end border-t border-border pt-6">
         <form action={logoutAction}>

@@ -11,6 +11,7 @@ import type {
   EmployerChatPayload,
 } from '@/lib/chat-types';
 import dbConnect from '@/lib/db/mongoose';
+import { formatSalaryRange } from '@/lib/format-salary';
 import { ChatMessage, Response, Vacancy } from '@/lib/db/schema';
 
 const MESSAGE_PREVIEW_LIMIT = 90;
@@ -21,10 +22,8 @@ function formatDate(date: unknown) {
   return Number.isNaN(value.getTime()) ? null : value.toISOString();
 }
 
-function formatSalaryLabel(min?: number, max?: number) {
-  const safeMin = typeof min === 'number' ? min.toLocaleString() : '0';
-  const safeMax = typeof max === 'number' ? max.toLocaleString() : '0';
-  return `$${safeMin} - $${safeMax}`;
+function formatSalaryLabel(min?: number | null, max?: number | null, currency?: string | null) {
+  return formatSalaryRange(min, max, currency);
 }
 
 function buildPreview(content: string) {
@@ -58,7 +57,7 @@ async function getResponseContext(responseId: string) {
     .populate('resumeId', 'title')
     .populate({
       path: 'vacancyId',
-      select: 'title salaryMin salaryMax employerId',
+      select: 'title salaryMin salaryMax salaryCurrency employerId',
       populate: { path: 'employerId', select: 'name email role' },
     })
     .lean() as any;
@@ -84,7 +83,11 @@ async function getResponseContext(responseId: string) {
     vacancy: {
       id: response.vacancyId._id.toString(),
       title: response.vacancyId.title || 'Untitled vacancy',
-      salaryLabel: formatSalaryLabel(response.vacancyId.salaryMin, response.vacancyId.salaryMax),
+      salaryLabel: formatSalaryLabel(
+        response.vacancyId.salaryMin,
+        response.vacancyId.salaryMax,
+        response.vacancyId.salaryCurrency
+      ),
     },
     resumeTitle: response.resumeId?.title || 'Resume',
     status: response.status,
@@ -144,7 +147,7 @@ export async function getEmployeeChatDataAction(
   const responses = await Response.find({ userId: session.user.id })
     .populate({
       path: 'vacancyId',
-      select: 'title salaryMin salaryMax employerId',
+      select: 'title salaryMin salaryMax salaryCurrency employerId',
       populate: { path: 'employerId', select: 'name' },
     })
     .sort({ createdAt: -1 })
@@ -191,7 +194,11 @@ export async function getEmployeeChatDataAction(
         responseId,
         vacancyId: response.vacancyId._id.toString(),
         vacancyTitle: response.vacancyId.title || 'Untitled vacancy',
-        salaryLabel: formatSalaryLabel(response.vacancyId.salaryMin, response.vacancyId.salaryMax),
+        salaryLabel: formatSalaryLabel(
+          response.vacancyId.salaryMin,
+          response.vacancyId.salaryMax,
+          response.vacancyId.salaryCurrency
+        ),
         companyId: response.vacancyId.employerId._id.toString(),
         companyName: response.vacancyId.employerId.name || 'Employer',
         status: response.status,
@@ -243,7 +250,7 @@ export async function getEmployerChatDataAction(
   await dbConnect();
 
   const vacancies = await Vacancy.find({ employerId: session.user.id })
-    .select('title salaryMin salaryMax createdAt')
+    .select('title salaryMin salaryMax salaryCurrency createdAt')
     .sort({ createdAt: -1 })
     .lean() as any[];
 
@@ -304,7 +311,11 @@ export async function getEmployerChatDataAction(
     return {
       vacancyId: vacancy._id.toString(),
       title: vacancy.title || 'Untitled vacancy',
-      salaryLabel: formatSalaryLabel(vacancy.salaryMin, vacancy.salaryMax),
+      salaryLabel: formatSalaryLabel(
+        vacancy.salaryMin,
+        vacancy.salaryMax,
+        vacancy.salaryCurrency
+      ),
       applicantsCount: applicants.length,
       unreadCount,
     };

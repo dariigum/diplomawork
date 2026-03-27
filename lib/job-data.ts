@@ -5,6 +5,9 @@ export interface Job {
   companyLogo: string
   location: string
   salary: string
+  salaryMin?: number | null
+  salaryMax?: number | null
+  salaryCurrency?: string
   experience: string
   employmentType: string
   skills: string[]

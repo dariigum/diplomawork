@@ -5,6 +5,7 @@ import dbConnect from '@/lib/db/mongoose';
 import { Vacancy, SavedVacancy } from '@/lib/db/schema';
 import { getSession } from '@/lib/auth';
 import { revalidatePath } from 'next/cache';
+import { formatSalaryRange } from '@/lib/format-salary';
 
 export async function toggleSaveVacancyAction(vacancyId: string) {
   const session = await getSession();
@@ -72,7 +73,10 @@ export async function getHomeData(searchQuery?: string) {
     company: v.employerId?.name || "Unknown Company",
     companyLogo: v.employerId?.name?.slice(0, 2)?.toUpperCase() || "JC",
     location: v.workMode === 'REMOTE' ? 'Remote' : [v.city, v.country].filter(Boolean).join(', ') || v.address || "Remote",
-    salary: `$${v.salaryMin.toLocaleString()} - ${v.salaryMax.toLocaleString()}`,
+    salary: formatSalaryRange(v.salaryMin, v.salaryMax, v.salaryCurrency),
+    salaryMin: v.salaryMin ?? null,
+    salaryMax: v.salaryMax ?? null,
+    salaryCurrency: v.salaryCurrency || '',
     employmentType: v.employmentType || "Full-time",
     experience: v.experience || "Any experience",
     skills: v.skillsRequired ? v.skillsRequired.split(',').map((s: string) => s.trim()) : [],
@@ -141,6 +145,10 @@ export async function getSavedVacanciesAction() {
     id: s.vacancyId._id.toString(),
     title: s.vacancyId.title,
     company: s.vacancyId.employerId?.name || "Unknown Company",
-    salary: `$${s.vacancyId.salaryMin.toLocaleString()} - $${s.vacancyId.salaryMax.toLocaleString()}`
+    salary: formatSalaryRange(
+      s.vacancyId.salaryMin,
+      s.vacancyId.salaryMax,
+      s.vacancyId.salaryCurrency
+    )
   }));
 }

@@ -1,7 +1,9 @@
 import { NextRequest, NextResponse } from 'next/server';
-import { revalidatePath } from 'next/cache';
 import { getSession } from '@/lib/auth';
-import { syncHeadHunterVacancies } from '@/lib/headhunter-sync';
+import {
+  getLatestHeadHunterImportJobSnapshot,
+  startHeadHunterSyncJob,
+} from '@/lib/headhunter-sync-job';
 
 export const runtime = 'nodejs';
 
@@ -30,7 +32,7 @@ export async function POST(request: NextRequest) {
   }
 
   try {
-    const result = await syncHeadHunterVacancies({
+    const response = await startHeadHunterSyncJob({
       text: typeof body.text === 'string' ? body.text : undefined,
       areaIds: Array.isArray(body.areaIds)
         ? body.areaIds.filter((value): value is string => typeof value === 'string')
@@ -51,16 +53,30 @@ export async function POST(request: NextRequest) {
             : undefined,
     });
 
-    revalidatePath('/');
-    revalidatePath('/companies');
-    revalidatePath('/dashboard/employer');
-    revalidatePath('/dashboard/admin');
-
-    return NextResponse.json(result);
+    return NextResponse.json(response, { status: response.alreadyRunning ? 200 : 202 });
   } catch (error) {
     return NextResponse.json(
       {
         error: error instanceof Error ? error.message : 'Failed to sync HeadHunter vacancies',
+      },
+      { status: 500 }
+    );
+  }
+}
+
+export async function GET(request: NextRequest) {
+  const session = await getSession();
+  if (!isSyncAuthorized(request, session?.user?.role)) {
+    return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
+  }
+
+  try {
+    const job = await getLatestHeadHunterImportJobSnapshot();
+    return NextResponse.json({ job });
+  } catch (error) {
+    return NextResponse.json(
+      {
+        error: error instanceof Error ? error.message : 'Failed to read HeadHunter sync status',
       },
       { status: 500 }
     );

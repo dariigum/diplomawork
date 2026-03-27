@@ -1,9 +1,9 @@
 "use client"
 import { useState, useMemo } from "react"
-import Link from "next/link"
-import { FileText, Video, BookOpen, Users, ArrowRight, Clock } from "lucide-react"
+import { FileText, Video, BookOpen, Users, ArrowRight, Clock, ExternalLink } from "lucide-react"
 import { Card, CardContent } from "@/components/ui/card"
 import { Badge } from "@/components/ui/badge"
+import { ARTICLE_PLACEHOLDER_URL } from "@/lib/resources/curated-articles"
 
 interface Article {
   id: string
@@ -15,6 +15,7 @@ interface Article {
   readTime: string
   imageUrl: string
   sourceUrl?: string
+  sourceSite: string
   createdAt: string
 }
 
@@ -33,8 +34,7 @@ export default function ResourcesClient({ initialArticles }: { initialArticles: 
 
   const languages = [
     { code: 'ru', label: 'Русский' },
-    { code: 'en', label: 'English' },
-    { code: 'es', label: 'Español' }
+    { code: 'en', label: 'English' }
   ]
 
   const filteredArticles = useMemo(() => {
@@ -111,25 +111,44 @@ export default function ResourcesClient({ initialArticles }: { initialArticles: 
             {filteredArticles.map((article) => (
               <a href={article.sourceUrl || "#"} target="_blank" rel="noopener noreferrer" key={article.id} className="block group h-full">
                 <Card className="overflow-hidden group-hover:border-primary/50 group-hover:shadow-lg transition-all flex flex-col h-full cursor-pointer bg-card">
-                  <div className="h-40 bg-muted relative">
-                    {/* Decorative placeholder */}
-                    <div className="absolute inset-0 bg-gradient-to-br from-primary/20 to-secondary/20" />
+                  <div className="relative h-44 overflow-hidden bg-muted">
+                    <img
+                      src={article.imageUrl || ARTICLE_PLACEHOLDER_URL}
+                      alt={article.title}
+                      className="h-full w-full object-cover transition-transform duration-300 group-hover:scale-[1.03]"
+                      loading="lazy"
+                      onError={(event) => {
+                        event.currentTarget.src = ARTICLE_PLACEHOLDER_URL
+                      }}
+                    />
+                    <div className="absolute inset-0 bg-gradient-to-t from-background/75 via-background/10 to-transparent" />
+                    <div className="absolute left-4 top-4 flex items-center gap-2">
+                      <Badge variant="secondary">{article.category}</Badge>
+                      <Badge variant="outline" className="bg-background/90">
+                        {article.sourceSite}
+                      </Badge>
+                    </div>
                   </div>
                   <CardContent className="p-5 flex-1 flex flex-col">
-                    <Badge variant="secondary" className="mb-3 w-fit group-hover:bg-secondary/80 transition-colors">{article.category}</Badge>
                     <h3 className="font-bold text-lg text-foreground line-clamp-2 mb-2 group-hover:text-primary transition-colors">
                       {article.title}
                     </h3>
                     <p className="text-sm text-muted-foreground line-clamp-3 mb-4 flex-1">
                       {article.summary}
                     </p>
-                    <div className="flex items-center justify-between text-xs text-muted-foreground font-medium mt-auto pt-4 border-t border-border">
-                      <div className="flex items-center gap-1.5">
-                        <Clock className="h-3.5 w-3.5" />
-                        <span>{article.readTime}</span>
+                    <div className="mt-auto space-y-3 border-t border-border pt-4">
+                      <div className="flex items-center gap-2 text-xs text-muted-foreground">
+                        <ExternalLink className="h-3.5 w-3.5" />
+                        <span>Source: {article.sourceSite}</span>
                       </div>
-                      <div className="flex items-center gap-1 text-primary font-semibold">
-                        Read <ArrowRight className="h-3 w-3" />
+                      <div className="flex items-center justify-between text-xs text-muted-foreground font-medium">
+                        <div className="flex items-center gap-1.5">
+                          <Clock className="h-3.5 w-3.5" />
+                          <span>{article.readTime}</span>
+                        </div>
+                        <div className="flex items-center gap-1 text-primary font-semibold">
+                          Read <ArrowRight className="h-3 w-3" />
+                        </div>
                       </div>
                     </div>
                   </CardContent>

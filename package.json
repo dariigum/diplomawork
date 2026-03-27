@@ -7,7 +7,9 @@
     "build": "next build",
     "start": "next start",
     "lint": "eslint .",
-    "sync:hh": "tsx scripts/sync-hh-vacancies.ts"
+    "sync:hh": "tsx scripts/sync-hh-vacancies.ts",
+    "sync:resources": "tsx scripts/sync-resources.ts",
+    "backfill:vacancy-currency": "tsx scripts/backfill-vacancy-currency.ts"
   },
   "dependencies": {
     "@hookform/resolvers": "^3.9.1",

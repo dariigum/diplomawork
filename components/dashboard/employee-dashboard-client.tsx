@@ -25,6 +25,7 @@ import { ScrollArea } from '@/components/ui/scroll-area';
 import { Separator } from '@/components/ui/separator';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import type { EmployeeChatPayload } from '@/lib/chat-types';
+import { formatSalaryRange } from '@/lib/format-salary';
 import { emitNotificationsUpdated } from '@/lib/notifications-events';
 import { toast } from 'sonner';
 
@@ -38,8 +39,9 @@ interface EmployeeResumeCard {
 interface EmployeeSavedVacancyCard {
   id: string;
   title: string;
-  salaryMin: number;
-  salaryMax: number;
+  salaryMin?: number | null;
+  salaryMax?: number | null;
+  salaryCurrency?: string;
 }
 
 interface EmployeeResponseCard {
@@ -47,8 +49,9 @@ interface EmployeeResponseCard {
   status: string;
   vacancyId: string;
   vacancyTitle: string;
-  salaryMin: number;
-  salaryMax: number;
+  salaryMin?: number | null;
+  salaryMax?: number | null;
+  salaryCurrency?: string;
   resumeTitle: string;
 }
 
@@ -392,7 +395,11 @@ export function EmployeeDashboardClient({
                           <div>
                             <p className="font-medium">{vacancy.title}</p>
                             <p className="text-sm text-muted-foreground">
-                              ${vacancy.salaryMin} - ${vacancy.salaryMax}
+                              {formatSalaryRange(
+                                vacancy.salaryMin,
+                                vacancy.salaryMax,
+                                vacancy.salaryCurrency
+                              )}
                             </p>
                           </div>
                           <Button variant="outline" size="sm" asChild>
@@ -423,7 +430,11 @@ export function EmployeeDashboardClient({
                           <div>
                             <p className="font-medium">{response.vacancyTitle}</p>
                             <p className="text-sm text-muted-foreground">
-                              ${response.salaryMin} - ${response.salaryMax}
+                              {formatSalaryRange(
+                                response.salaryMin,
+                                response.salaryMax,
+                                response.salaryCurrency
+                              )}
                             </p>
                           </div>
                           <span className="rounded-full bg-secondary px-2 py-1 text-xs text-secondary-foreground">
@@ -467,10 +478,10 @@ export function EmployeeDashboardClient({
         </TabsContent>
 
         <TabsContent value="chat" className="mt-0">
-          <div className="relative left-1/2 w-[calc(100vw-2rem)] -translate-x-1/2 md:w-[calc(100vw-4rem)]">
+          <div className="w-full max-w-none">
             <div className="h-[calc(100dvh-11rem)] min-h-[36rem] overflow-hidden rounded-2xl border border-border bg-card shadow-sm md:h-[calc(100dvh-13rem)]">
               <div className="grid h-full min-h-0 grid-rows-[minmax(18rem,42dvh)_1px_minmax(0,1fr)] md:grid-cols-[21rem_1px_minmax(0,1fr)] md:grid-rows-1">
-                <div className="min-h-0 bg-card">
+                <div className="flex min-h-0 flex-col bg-card">
                   <div className="border-b border-border px-4 py-4">
                     <h2 className="font-semibold text-foreground">Applied Vacancies</h2>
                     <p className="text-sm text-muted-foreground">
@@ -478,7 +489,7 @@ export function EmployeeDashboardClient({
                     </p>
                   </div>
 
-                  <ScrollArea className="h-full">
+                  <ScrollArea className="min-h-0 flex-1">
                     <div className="space-y-2 p-3">
                       {chatData.threads.length === 0 && !isChatLoading ? (
                         <div className="rounded-xl border border-dashed p-4 text-sm text-muted-foreground">

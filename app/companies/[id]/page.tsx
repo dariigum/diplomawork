@@ -6,6 +6,7 @@ import { Header } from "@/components/jobs/header"
 import dbConnect from "@/lib/db/mongoose"
 import { User, Vacancy, SavedVacancy } from "@/lib/db/schema"
 import { getSession } from "@/lib/auth"
+import { formatSalaryRange } from "@/lib/format-salary"
 
 export default async function CompanyProfilePage({ params }: { params: Promise<{ id: string }> }) {
   const { id } = await params;
@@ -104,7 +105,9 @@ export default async function CompanyProfilePage({ params }: { params: Promise<{
                         </div>
                       </div>
                       <div className="mt-4 pt-4 border-t border-border flex items-center justify-between">
-                         <span className="font-medium text-foreground">${job.salaryMin.toLocaleString()} - ${job.salaryMax.toLocaleString()}</span>
+                         <span className="font-medium text-foreground">
+                           {formatSalaryRange(job.salaryMin, job.salaryMax, job.salaryCurrency)}
+                         </span>
                          <span className="text-primary flex items-center gap-1 text-sm font-medium">View Job <ExternalLink className="h-3 w-3"/></span>
                       </div>
                     </CardContent>

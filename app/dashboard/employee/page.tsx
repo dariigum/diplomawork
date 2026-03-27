@@ -26,7 +26,7 @@ export default async function EmployeeDashboard({ searchParams }: EmployeeDashbo
     .populate('vacancyId')
     .lean() as any[];
   const userResponses = await Response.find({ userId: session.user.id })
-    .populate('vacancyId', 'title salaryMin salaryMax')
+    .populate('vacancyId', 'title salaryMin salaryMax salaryCurrency')
     .populate('resumeId', 'title')
     .sort({ createdAt: -1 })
     .lean() as any[];
@@ -52,6 +52,7 @@ export default async function EmployeeDashboard({ searchParams }: EmployeeDashbo
           title: record.vacancyId.title,
           salaryMin: record.vacancyId.salaryMin,
           salaryMax: record.vacancyId.salaryMax,
+          salaryCurrency: record.vacancyId.salaryCurrency || '',
         }))}
       responses={userResponses
         .filter((response) => response.vacancyId)
@@ -62,6 +63,7 @@ export default async function EmployeeDashboard({ searchParams }: EmployeeDashbo
           vacancyTitle: response.vacancyId.title,
           salaryMin: response.vacancyId.salaryMin,
           salaryMax: response.vacancyId.salaryMax,
+          salaryCurrency: response.vacancyId.salaryCurrency || '',
           resumeTitle: response.resumeId?.title || 'Custom resume',
         }))}
       initialTab={initialTab}

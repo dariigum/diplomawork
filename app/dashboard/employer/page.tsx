@@ -51,6 +51,7 @@ export default async function EmployerDashboard({ searchParams }: EmployerDashbo
         title: vacancy.title,
         salaryMin: vacancy.salaryMin,
         salaryMax: vacancy.salaryMax,
+        salaryCurrency: vacancy.salaryCurrency || '',
         responsesCount: countMap.get(vacancy._id.toString()) || 0,
       }))}
       initialTab={initialTab}

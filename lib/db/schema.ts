@@ -82,10 +82,12 @@ export interface IVacancy extends Document {
   title: string;
   description: string;
   skillsRequired: string;
-  salaryMin: number;
-  salaryMax: number;
+  salaryMin?: number | null;
+  salaryMax?: number | null;
+  salaryCurrency?: string;
   experience?: string;
   employmentType?: string;
+  workFormat?: string;
   workMode?: 'REMOTE' | 'ONSITE';
   country?: string;
   city?: string;
@@ -105,10 +107,12 @@ const VacancySchema = new Schema<IVacancy>({
   title: { type: String, required: true },
   description: { type: String, required: true },
   skillsRequired: { type: String, required: true },
-  salaryMin: { type: Number, required: true },
-  salaryMax: { type: Number, required: true },
+  salaryMin: { type: Number, default: null },
+  salaryMax: { type: Number, default: null },
+  salaryCurrency: { type: String, default: 'KZT' },
   experience: { type: String, default: 'Any experience' },
   employmentType: { type: String, default: 'Full-time' },
+  workFormat: { type: String, default: '' },
   workMode: { type: String, enum: ['REMOTE', 'ONSITE'], default: 'REMOTE' },
   country: { type: String, default: '' },
   city: { type: String, default: '' },
@@ -165,10 +169,11 @@ export interface IArticle extends Document {
   summary: string;
   content: string;
   category: string;
-  language: string; // 'en', 'ru', 'es'
+  language: string; // 'en', 'ru'
   readTime: string;
   imageUrl?: string;
   sourceUrl?: string;
+  sourceSite?: string;
   createdAt: Date;
 }
 
@@ -181,6 +186,7 @@ const ArticleSchema = new Schema<IArticle>({
   readTime: { type: String, required: true },
   imageUrl: { type: String },
   sourceUrl: { type: String },
+  sourceSite: { type: String },
   createdAt: { type: Date, default: Date.now }
 });
 
@@ -220,3 +226,84 @@ ChatMessageSchema.index({ vacancyId: 1, responseId: 1, createdAt: -1 });
 
 export const ChatMessage: Model<IChatMessage> =
   mongoose.models.ChatMessage || mongoose.model<IChatMessage>('ChatMessage', ChatMessageSchema);
+
+export interface IHeadHunterImportLogEntry {
+  timestamp: Date;
+  level: 'INFO' | 'SUCCESS' | 'WARNING' | 'ERROR';
+  message: string;
+}
+
+export interface IHeadHunterImportJob extends Document {
+  key: string;
+  status: 'IDLE' | 'RUNNING' | 'COMPLETED' | 'FAILED';
+  startedAt?: Date | null;
+  finishedAt?: Date | null;
+  limitBytes: number;
+  totalBytes: number;
+  progressPercent: number;
+  downloadedCount: number;
+  processedCount: number;
+  readyCount: number;
+  importedCount: number;
+  updatedCount: number;
+  employersCreatedCount: number;
+  skippedWithoutSalaryCount: number;
+  deletedByAgeCount: number;
+  deletedBySizeCount: number;
+  errorCount: number;
+  currentQuery?: string;
+  currentPage?: number;
+  stopReason?: string;
+  lastError?: string;
+  searchTerms: string[];
+  logs: IHeadHunterImportLogEntry[];
+  createdAt: Date;
+  updatedAt: Date;
+}
+
+const HeadHunterImportLogEntrySchema = new Schema<IHeadHunterImportLogEntry>(
+  {
+    timestamp: { type: Date, required: true },
+    level: { type: String, enum: ['INFO', 'SUCCESS', 'WARNING', 'ERROR'], required: true },
+    message: { type: String, required: true },
+  },
+  { _id: false }
+);
+
+const HeadHunterImportJobSchema = new Schema<IHeadHunterImportJob>(
+  {
+    key: { type: String, required: true, unique: true },
+    status: {
+      type: String,
+      enum: ['IDLE', 'RUNNING', 'COMPLETED', 'FAILED'],
+      default: 'IDLE',
+      required: true,
+    },
+    startedAt: { type: Date, default: null },
+    finishedAt: { type: Date, default: null },
+    limitBytes: { type: Number, required: true, default: 0 },
+    totalBytes: { type: Number, required: true, default: 0 },
+    progressPercent: { type: Number, required: true, default: 0 },
+    downloadedCount: { type: Number, required: true, default: 0 },
+    processedCount: { type: Number, required: true, default: 0 },
+    readyCount: { type: Number, required: true, default: 0 },
+    importedCount: { type: Number, required: true, default: 0 },
+    updatedCount: { type: Number, required: true, default: 0 },
+    employersCreatedCount: { type: Number, required: true, default: 0 },
+    skippedWithoutSalaryCount: { type: Number, required: true, default: 0 },
+    deletedByAgeCount: { type: Number, required: true, default: 0 },
+    deletedBySizeCount: { type: Number, required: true, default: 0 },
+    errorCount: { type: Number, required: true, default: 0 },
+    currentQuery: { type: String, default: '' },
+    currentPage: { type: Number, default: 0 },
+    stopReason: { type: String, default: '' },
+    lastError: { type: String, default: '' },
+    searchTerms: [{ type: String }],
+    logs: { type: [HeadHunterImportLogEntrySchema], default: [] },
+  },
+  { timestamps: true }
+);
+
+export const HeadHunterImportJob: Model<IHeadHunterImportJob> =
+  mongoose.models.HeadHunterImportJob ||
+  mongoose.model<IHeadHunterImportJob>('HeadHunterImportJob', HeadHunterImportJobSchema);

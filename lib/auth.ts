@@ -31,7 +31,7 @@ export async function getSession() {
   }
 }
 
-export async function setSession(user: { id: string; role: string; email: string }) {
+export async function setSession(user: { id: string; role: string; email: string; username?: string }) {
   const expires = new Date(Date.now() + 7 * 24 * 60 * 60 * 1000); // 1 week
   const session = await encrypt({ user, expires });
   

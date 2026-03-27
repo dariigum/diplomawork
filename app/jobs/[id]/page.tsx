@@ -156,71 +156,73 @@ export default async function JobDetailsPage({ params }: { params: Promise<{ id:
 
           {/* Sidebar */}
           <div className="space-y-6">
-            {/* Apply Card */}
-            <Card className="sticky top-24">
-              <CardContent className="p-6 space-y-4">
-                <JobDetailActions
-                  job={{
-                    id,
-                    title: jobRecord.title,
-                    company: company.name,
-                    location: jobRecord.workMode === 'REMOTE' ? 'Remote' : `${jobRecord.city || jobRecord.address}${jobRecord.country ? `, ${jobRecord.country}` : ''}`,
-                  }}
-                  initialSaved={isSaved}
-                  canApply={session?.user?.role !== 'EMPLOYER'}
-                />
-                <p className="text-xs text-center text-muted-foreground">
-                  Posted {new Date(jobRecord.createdAt).toLocaleDateString()}
-                </p>
-              </CardContent>
-            </Card>
+            <div className="sticky top-24 space-y-6 self-start">
+              {/* Apply Card */}
+              <Card>
+                <CardContent className="p-6 space-y-4">
+                  <JobDetailActions
+                    job={{
+                      id,
+                      title: jobRecord.title,
+                      company: company.name,
+                      location: jobRecord.workMode === 'REMOTE' ? 'Remote' : `${jobRecord.city || jobRecord.address}${jobRecord.country ? `, ${jobRecord.country}` : ''}`,
+                    }}
+                    initialSaved={isSaved}
+                    canApply={session?.user?.role !== 'EMPLOYER'}
+                  />
+                  <p className="text-xs text-center text-muted-foreground">
+                    Posted {new Date(jobRecord.createdAt).toLocaleDateString()}
+                  </p>
+                </CardContent>
+              </Card>
 
-            {/* Company Info */}
-            <Card>
-              <CardHeader>
-                <CardTitle>About the Company</CardTitle>
-              </CardHeader>
-              <CardContent className="space-y-4">
-                <div className="flex items-center gap-3">
-                  <div className="w-12 h-12 rounded-lg bg-muted flex items-center justify-center text-lg font-semibold text-muted-foreground">
-                    {company?.logoUrl || "🏢"}
-                  </div>
-                  <div>
-                    <h3 className="font-semibold text-foreground">{company.name}</h3>
-                    <p className="text-sm text-muted-foreground">{company.industry || "Technology"}</p>
-                  </div>
-                </div>
-
-                <div className="space-y-3 text-sm">
-                  <div className="flex items-center gap-3 text-muted-foreground">
-                    <Building2 className="h-4 w-4" />
-                    <span>{company.employees || "51-200 employees"}</span>
-                  </div>
-                  <div className="flex items-center gap-3 text-muted-foreground">
-                    <MapPin className="h-4 w-4" />
-                    <span>{company.location || "Multiple Locations"}</span>
-                  </div>
-                  {company.website && (
-                    <div className="flex items-center gap-3 text-muted-foreground">
-                      <Globe className="h-4 w-4" />
-                      <a href={company.website} target="_blank" rel="noopener noreferrer" className="hover:text-foreground hover:underline">
-                        {company.website}
-                      </a>
+              {/* Company Info */}
+              <Card>
+                <CardHeader>
+                  <CardTitle>About the Company</CardTitle>
+                </CardHeader>
+                <CardContent className="space-y-4">
+                  <div className="flex items-center gap-3">
+                    <div className="w-12 h-12 rounded-lg bg-muted flex items-center justify-center text-lg font-semibold text-muted-foreground">
+                      {company?.logoUrl || "🏢"}
                     </div>
-                  )}
-                  <div className="flex items-center gap-3 text-muted-foreground">
-                    <Calendar className="h-4 w-4" />
-                    <span>Active Hiring</span>
+                    <div>
+                      <h3 className="font-semibold text-foreground">{company.name}</h3>
+                      <p className="text-sm text-muted-foreground">{company.industry || "Technology"}</p>
+                    </div>
                   </div>
-                </div>
 
-                <Link href={`/companies/${company._id.toString()}`}>
-                  <Button variant="outline" className="w-full mt-2">
-                    View Company Profile
-                  </Button>
-                </Link>
-              </CardContent>
-            </Card>
+                  <div className="space-y-3 text-sm">
+                    <div className="flex items-center gap-3 text-muted-foreground">
+                      <Building2 className="h-4 w-4" />
+                      <span>{company.employees || "51-200 employees"}</span>
+                    </div>
+                    <div className="flex items-center gap-3 text-muted-foreground">
+                      <MapPin className="h-4 w-4" />
+                      <span>{company.location || "Multiple Locations"}</span>
+                    </div>
+                    {company.website && (
+                      <div className="flex items-center gap-3 text-muted-foreground">
+                        <Globe className="h-4 w-4" />
+                        <a href={company.website} target="_blank" rel="noopener noreferrer" className="hover:text-foreground hover:underline">
+                          {company.website}
+                        </a>
+                      </div>
+                    )}
+                    <div className="flex items-center gap-3 text-muted-foreground">
+                      <Calendar className="h-4 w-4" />
+                      <span>Active Hiring</span>
+                    </div>
+                  </div>
+
+                  <Link href={`/companies/${company._id.toString()}`}>
+                    <Button variant="outline" className="w-full mt-2">
+                      View Company Profile
+                    </Button>
+                  </Link>
+                </CardContent>
+              </Card>
+            </div>
 
             {/* Report */}
             <button className="flex items-center gap-2 text-sm text-muted-foreground hover:text-foreground transition-colors mx-auto">

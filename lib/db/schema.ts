@@ -2,9 +2,10 @@ import mongoose, { Schema, Document, Model } from 'mongoose';
 
 export interface IUser extends Document {
   email: string;
+  username?: string;
   passwordHash: string;
   name: string;
-  role: 'EMPLOYEE' | 'EMPLOYER';
+  role: 'EMPLOYEE' | 'EMPLOYER' | 'ADMIN';
   industry?: string;
   description?: string;
   location?: string;
@@ -16,9 +17,10 @@ export interface IUser extends Document {
 
 const UserSchema = new Schema<IUser>({
   email: { type: String, required: true, unique: true },
+  username: { type: String, unique: true, sparse: true, lowercase: true, trim: true },
   passwordHash: { type: String, required: true },
   name: { type: String, required: true },
-  role: { type: String, enum: ['EMPLOYEE', 'EMPLOYER'], required: true },
+  role: { type: String, enum: ['EMPLOYEE', 'EMPLOYER', 'ADMIN'], required: true },
   industry: { type: String },
   description: { type: String },
   location: { type: String },
@@ -157,3 +159,38 @@ const ArticleSchema = new Schema<IArticle>({
 });
 
 export const Article: Model<IArticle> = mongoose.models.Article || mongoose.model<IArticle>('Article', ArticleSchema);
+
+export interface IChatMessage extends Document {
+  responseId: mongoose.Types.ObjectId | IResponse;
+  vacancyId: mongoose.Types.ObjectId | IVacancy;
+  employerId: mongoose.Types.ObjectId | IUser;
+  employeeId: mongoose.Types.ObjectId | IUser;
+  senderId: mongoose.Types.ObjectId | IUser;
+  recipientId: mongoose.Types.ObjectId | IUser;
+  encryptedContent: string;
+  iv: string;
+  authTag: string;
+  createdAt: Date;
+  readAt?: Date | null;
+}
+
+const ChatMessageSchema = new Schema<IChatMessage>({
+  responseId: { type: Schema.Types.ObjectId, ref: 'Response', required: true },
+  vacancyId: { type: Schema.Types.ObjectId, ref: 'Vacancy', required: true },
+  employerId: { type: Schema.Types.ObjectId, ref: 'User', required: true },
+  employeeId: { type: Schema.Types.ObjectId, ref: 'User', required: true },
+  senderId: { type: Schema.Types.ObjectId, ref: 'User', required: true },
+  recipientId: { type: Schema.Types.ObjectId, ref: 'User', required: true },
+  encryptedContent: { type: String, required: true },
+  iv: { type: String, required: true },
+  authTag: { type: String, required: true },
+  createdAt: { type: Date, default: Date.now },
+  readAt: { type: Date, default: null },
+});
+
+ChatMessageSchema.index({ responseId: 1, createdAt: 1 });
+ChatMessageSchema.index({ recipientId: 1, readAt: 1, createdAt: -1 });
+ChatMessageSchema.index({ vacancyId: 1, responseId: 1, createdAt: -1 });
+
+export const ChatMessage: Model<IChatMessage> =
+  mongoose.models.ChatMessage || mongoose.model<IChatMessage>('ChatMessage', ChatMessageSchema);

@@ -24,6 +24,9 @@ export async function middleware(request: NextRequest) {
 
   // Redirect authenticated users away from public routes like login/signup
   if (isPublicRoute && session) {
+    if (session.user?.role === 'ADMIN') {
+      return NextResponse.redirect(new URL('/dashboard/admin', request.nextUrl));
+    }
     if (session.user?.role === 'EMPLOYER') {
       return NextResponse.redirect(new URL('/dashboard/employer', request.nextUrl));
     }
@@ -31,11 +34,24 @@ export async function middleware(request: NextRequest) {
   }
   
   // Role-based protection within the dashboard
+  if (path.startsWith('/dashboard/admin') && session?.user?.role !== 'ADMIN') {
+    if (session?.user?.role === 'EMPLOYER') {
+      return NextResponse.redirect(new URL('/dashboard/employer', request.nextUrl));
+    }
+    return NextResponse.redirect(new URL('/dashboard/employee', request.nextUrl));
+  }
+  
   if (path.startsWith('/dashboard/employee') && session?.user?.role !== 'EMPLOYEE') {
+    if (session?.user?.role === 'ADMIN') {
+      return NextResponse.redirect(new URL('/dashboard/admin', request.nextUrl));
+    }
     return NextResponse.redirect(new URL('/dashboard/employer', request.nextUrl));
   }
   
   if (path.startsWith('/dashboard/employer') && session?.user?.role !== 'EMPLOYER') {
+    if (session?.user?.role === 'ADMIN') {
+      return NextResponse.redirect(new URL('/dashboard/admin', request.nextUrl));
+    }
     return NextResponse.redirect(new URL('/dashboard/employee', request.nextUrl));
   }
 

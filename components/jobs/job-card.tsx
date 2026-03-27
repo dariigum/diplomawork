@@ -19,6 +19,23 @@ interface JobCardProps {
 
 export function JobCard({ job, onApply, onSave, isSaved, canApply }: JobCardProps) {
   const [isHovered, setIsHovered] = useState(false)
+  const matchValue = typeof job.match === "number" ? job.match : null
+  const colorClass =
+    matchValue !== null
+      ? matchValue > 75
+        ? "bg-green-500"
+        : matchValue > 50
+          ? "bg-yellow-500"
+          : "bg-red-500"
+      : ""
+  const textColorClass =
+    matchValue !== null
+      ? matchValue > 75
+        ? "text-green-600"
+        : matchValue > 50
+          ? "text-yellow-600"
+          : "text-red-500"
+      : ""
 
   return (
     <Card
@@ -121,6 +138,37 @@ export function JobCard({ job, onApply, onSave, isSaved, canApply }: JobCardProp
             <p className="text-sm text-muted-foreground mt-3 line-clamp-2">
               {job.description}
             </p>
+            {(typeof job.match === "number" || job.reason) && (
+              <div className="bg-muted rounded-xl p-2.5 mt-3 space-y-1">
+                {typeof job.match === "number" && (
+                  <div className="space-y-1.5">
+                    <div
+                      className={`text-base font-semibold ${textColorClass}`}
+                    >
+                      <div className="flex items-center gap-2">
+                        <span>⭐ {job.match}% Match</span>
+                        {job.match > 80 && (
+                          <span className="text-xs text-green-600 font-medium">
+                            🔥 Top Match
+                          </span>
+                        )}
+                      </div>
+                    </div>
+                    <div className="mt-2 h-2 rounded-full bg-muted">
+                      <div
+                        className={`h-2 rounded-full ${colorClass} transition-all duration-300`}
+                        style={{ width: `${Math.min(job.match, 100)}%` }}
+                      />
+                    </div>
+                  </div>
+                )}
+                {job.reason && (
+                  <div className="text-sm text-muted-foreground">
+                    💡 {job.reason}
+                  </div>
+                )}
+              </div>
+            )}
 
             {/* Footer */}
             <div className="flex items-center justify-between mt-4 pt-4 border-t border-border">

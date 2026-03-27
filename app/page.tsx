@@ -153,6 +153,8 @@ export default function VacanciesPage() {
         postedAt: v.createdAt ? new Date(v.createdAt).toLocaleDateString() : "",
         isRemote: v.workMode === "REMOTE",
         isFeatured: false,
+        match: v.match,
+        reason: v.reason,
       }))
 
       setSearchJobs(mappedJobs)

@@ -6,12 +6,15 @@ export interface IUser extends Document {
   passwordHash: string;
   name: string;
   role: 'EMPLOYEE' | 'EMPLOYER' | 'ADMIN';
+  source?: 'LOCAL' | 'HEADHUNTER';
+  externalId?: string;
   industry?: string;
   description?: string;
   location?: string;
   employees?: string;
   logoUrl?: string;
   website?: string;
+  importedAt?: Date;
   createdAt: Date;
 }
 
@@ -21,14 +24,22 @@ const UserSchema = new Schema<IUser>({
   passwordHash: { type: String, required: true },
   name: { type: String, required: true },
   role: { type: String, enum: ['EMPLOYEE', 'EMPLOYER', 'ADMIN'], required: true },
+  source: { type: String, enum: ['LOCAL', 'HEADHUNTER'], default: 'LOCAL' },
+  externalId: { type: String, trim: true },
   industry: { type: String },
   description: { type: String },
   location: { type: String },
   employees: { type: String },
   logoUrl: { type: String },
   website: { type: String },
+  importedAt: { type: Date },
   createdAt: { type: Date, default: Date.now },
 });
+
+UserSchema.index(
+  { source: 1, externalId: 1 },
+  { unique: true, partialFilterExpression: { externalId: { $type: 'string' } } }
+);
 
 export const User: Model<IUser> = mongoose.models.User || mongoose.model<IUser>('User', UserSchema);
 
@@ -66,6 +77,8 @@ export const Resume: Model<IResume> = mongoose.models.Resume || mongoose.model<I
 
 export interface IVacancy extends Document {
   employerId: mongoose.Types.ObjectId | IUser;
+  source?: 'LOCAL' | 'HEADHUNTER';
+  externalId?: string;
   title: string;
   description: string;
   skillsRequired: string;
@@ -77,6 +90,9 @@ export interface IVacancy extends Document {
   country?: string;
   city?: string;
   address?: string;
+  sourceUrl?: string;
+  externalPublishedAt?: Date;
+  importedAt?: Date;
   requirements?: string[];
   responsibilities?: string[];
   createdAt: Date;
@@ -84,6 +100,8 @@ export interface IVacancy extends Document {
 
 const VacancySchema = new Schema<IVacancy>({
   employerId: { type: Schema.Types.ObjectId, ref: 'User', required: true },
+  source: { type: String, enum: ['LOCAL', 'HEADHUNTER'], default: 'LOCAL' },
+  externalId: { type: String, trim: true },
   title: { type: String, required: true },
   description: { type: String, required: true },
   skillsRequired: { type: String, required: true },
@@ -95,10 +113,18 @@ const VacancySchema = new Schema<IVacancy>({
   country: { type: String, default: '' },
   city: { type: String, default: '' },
   address: { type: String, default: 'Remote' },
+  sourceUrl: { type: String, default: '' },
+  externalPublishedAt: { type: Date },
+  importedAt: { type: Date },
   requirements: [{ type: String }],
   responsibilities: [{ type: String }],
   createdAt: { type: Date, default: Date.now }
 });
+
+VacancySchema.index(
+  { source: 1, externalId: 1 },
+  { unique: true, partialFilterExpression: { externalId: { $type: 'string' } } }
+);
 
 export const Vacancy: Model<IVacancy> = mongoose.models.Vacancy || mongoose.model<IVacancy>('Vacancy', VacancySchema);
 

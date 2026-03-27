@@ -57,6 +57,7 @@ export default async function EmployerDashboard({ searchParams }: EmployerDashbo
       initialTab={initialTab}
       initialVacancyId={initialVacancyId}
       initialResponseId={initialResponseId}
+      viewerRole={session.user.role}
     />
   );
 }

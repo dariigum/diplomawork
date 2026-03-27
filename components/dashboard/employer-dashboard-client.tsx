@@ -47,6 +47,13 @@ interface EmployerDashboardClientProps {
   initialTab: 'profile' | 'chat';
   initialVacancyId: string | null;
   initialResponseId: string | null;
+  viewerRole: 'EMPLOYEE' | 'EMPLOYER' | 'ADMIN';
+}
+
+function applicantMatchPercentClass(percent: number): string {
+  if (percent > 75) return 'text-green-600';
+  if (percent >= 50) return 'text-amber-600';
+  return 'text-red-600';
 }
 
 export function EmployerDashboardClient({
@@ -55,7 +62,9 @@ export function EmployerDashboardClient({
   initialTab,
   initialVacancyId,
   initialResponseId,
+  viewerRole,
 }: EmployerDashboardClientProps) {
+  const isEmployer = viewerRole === 'EMPLOYER';
   const router = useRouter();
   const [activeTab, setActiveTab] = useState<'profile' | 'chat'>(initialTab);
   const [chatData, setChatData] = useState<EmployerChatPayload>({
@@ -174,6 +183,10 @@ export function EmployerDashboardClient({
   );
   const selectedApplicant = chatData.applicants.find(
     (applicant) => applicant.responseId === chatData.selectedResponseId
+  );
+
+  const sortedApplicants = [...chatData.applicants].sort(
+    (a, b) => b.matchPercent - a.matchPercent
   );
 
   return (
@@ -380,12 +393,12 @@ export function EmployerDashboardClient({
 
                     <ScrollArea className="min-h-0 flex-1">
                       <div className="space-y-2 p-3">
-                        {chatData.applicants.length === 0 && !isChatLoading ? (
+                        {sortedApplicants.length === 0 && !isChatLoading ? (
                           <div className="rounded-xl border border-dashed p-4 text-sm text-muted-foreground">
                             No applicants for this vacancy yet.
                           </div>
                         ) : (
-                          chatData.applicants.map((applicant) => {
+                          sortedApplicants.map((applicant) => {
                             const isActive = applicant.responseId === chatData.selectedResponseId;
 
                             return (
@@ -395,15 +408,45 @@ export function EmployerDashboardClient({
                                 onClick={() => void handleApplicantSelect(applicant.responseId)}
                                 className={`w-full rounded-xl border p-4 text-left transition-colors ${
                                   isActive
-                                    ? 'border-primary bg-primary/5'
-                                    : 'border-border hover:border-primary/40 hover:bg-muted/30'
+                                    ? 'border-primary bg-primary/5 hover:bg-primary/10'
+                                    : 'border-border hover:border-primary/40 hover:bg-muted/40'
                                 }`}
                               >
                                 <div className="flex items-start justify-between gap-3">
                                   <div className="min-w-0">
-                                    <p className="truncate font-medium text-foreground">
-                                      {applicant.employeeName}
-                                    </p>
+                                    <div className="flex flex-wrap items-center gap-x-2 gap-y-1">
+                                      <p className="truncate font-medium text-foreground">
+                                        {applicant.employeeName}
+                                      </p>
+                                      {isEmployer && applicant.matchPercent >= 80 && (
+                                        <span className="text-xs bg-green-100 text-green-700 px-2 py-0.5 rounded shrink-0">
+                                          ⭐ Top match
+                                        </span>
+                                      )}
+                                    </div>
+                                    {isEmployer && (
+                                      <div className="flex items-center gap-2 mt-1">
+                                        <span className="text-sm text-muted-foreground">Match:</span>
+                                        <span
+                                          className={`text-lg font-semibold ${applicantMatchPercentClass(
+                                            applicant.matchPercent
+                                          )}`}
+                                        >
+                                          {applicant.matchPercent}%
+                                        </span>
+                                        <span className="text-xs text-muted-foreground">(AI)</span>
+                                      </div>
+                                    )}
+                                    {isEmployer && applicant.matchedSkills?.length > 0 && (
+                                      <p className="text-xs text-muted-foreground mt-1 line-clamp-2">
+                                        Matches: {applicant.matchedSkills.join(', ')}
+                                      </p>
+                                    )}
+                                    {isEmployer && (applicant.matchedSkills?.length ?? 0) === 0 && (
+                                      <p className="text-xs text-muted-foreground mt-1">
+                                        Limited skill match
+                                      </p>
+                                    )}
                                     <p className="mt-1 truncate text-xs text-muted-foreground">
                                       {applicant.employeeEmail}
                                     </p>
@@ -452,11 +495,39 @@ export function EmployerDashboardClient({
                           <Link href={`/jobs/${selectedVacancy.vacancyId}`}>Details</Link>
                         </Button>
                       </div>
-                      <div className="rounded-xl border border-border bg-muted/20 p-3">
-                        <div className="flex items-center gap-2 text-sm font-medium text-foreground">
-                          <Users className="h-4 w-4 text-primary" />
-                          {selectedApplicant.employeeName}
+                      <div className="rounded-xl border border-border bg-muted/20 p-3 transition-colors hover:bg-muted/40">
+                        <div className="flex flex-wrap items-center gap-2 text-sm font-medium text-foreground">
+                          <Users className="h-4 w-4 shrink-0 text-primary" />
+                          <span>{selectedApplicant.employeeName}</span>
+                          {isEmployer && selectedApplicant.matchPercent >= 80 && (
+                            <span className="text-xs font-normal bg-green-100 text-green-700 px-2 py-0.5 rounded">
+                              ⭐ Top match
+                            </span>
+                          )}
                         </div>
+                        {isEmployer && (
+                          <div className="flex items-center gap-2 mt-1">
+                            <span className="text-sm text-muted-foreground">Match:</span>
+                            <span
+                              className={`text-lg font-semibold ${applicantMatchPercentClass(
+                                selectedApplicant.matchPercent
+                              )}`}
+                            >
+                              {selectedApplicant.matchPercent}%
+                            </span>
+                            <span className="text-xs text-muted-foreground">(AI)</span>
+                          </div>
+                        )}
+                        {isEmployer && selectedApplicant.matchedSkills?.length > 0 && (
+                          <p className="text-xs text-muted-foreground mt-1">
+                            Matches: {selectedApplicant.matchedSkills.join(', ')}
+                          </p>
+                        )}
+                        {isEmployer && (selectedApplicant.matchedSkills?.length ?? 0) === 0 && (
+                          <p className="text-xs text-muted-foreground mt-1">
+                            Limited skill match
+                          </p>
+                        )}
                         <p className="mt-1 text-sm text-muted-foreground">
                           {selectedApplicant.employeeEmail}
                         </p>

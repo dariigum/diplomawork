@@ -47,6 +47,76 @@ function toObjectId(id: string) {
   return new mongoose.Types.ObjectId(id);
 }
 
+/** Normalized tokens from comma/semicolon/newline-separated skills text */
+function parseSkillsList(text: unknown): string[] {
+  if (typeof text !== 'string' || !text.trim()) return [];
+  return text
+    .split(/[,;\n]+/)
+    .map((s) => s.trim().toLowerCase())
+    .filter(Boolean);
+}
+
+/** Extra tokens from job title (single string) for overlap with vacancy skill tags */
+function titleTokens(title: unknown): string[] {
+  if (typeof title !== 'string' || !title.trim()) return [];
+  return title
+    .toLowerCase()
+    .split(/[\s,;/]+/)
+    .map((t) => t.replace(/[^a-z0-9.+#-]/g, ''))
+    .filter((t) => t.length > 1);
+}
+
+function candidateSkillTokens(resume: { skills?: string; title?: string } | null | undefined): Set<string> {
+  const set = new Set<string>();
+  for (const s of parseSkillsList(resume?.skills)) set.add(s);
+  for (const t of titleTokens(resume?.title)) set.add(t);
+  return set;
+}
+
+/**
+ * Skill-tag overlap vs vacancy required skills (no ML/embed calls).
+ * similarity = |overlap| / |vacancySkills|; 0 if vacancy has no parsed skills.
+ */
+function vacancyApplicantSkillSimilarity(
+  vacancySkillsRequired: unknown,
+  resume: { skills?: string; title?: string } | null | undefined
+): number {
+  const vacancySkills = parseSkillsList(vacancySkillsRequired);
+  if (vacancySkills.length === 0) return 0;
+  const candidateSet = candidateSkillTokens(resume);
+  const overlap = vacancySkills.filter((skill) => candidateSet.has(skill));
+  return overlap.length / vacancySkills.length;
+}
+
+const MATCH_EXPLAIN_SKILLS_LIMIT = 3;
+
+/** Vacancy skill tags that the candidate also satisfies (same tokens as similarity overlap), capped for UI */
+function topMatchedSkillsForApplicant(
+  vacancySkillsRequired: unknown,
+  resume: { skills?: string; title?: string } | null | undefined
+): string[] {
+  const vacancySkills = parseSkillsList(vacancySkillsRequired);
+  if (vacancySkills.length === 0) return [];
+  const candidateSet = candidateSkillTokens(resume);
+  return vacancySkills
+    .filter((skill) => candidateSet.has(skill))
+    .slice(0, MATCH_EXPLAIN_SKILLS_LIMIT);
+}
+
+const MATCH_EXPLAIN_SKILL_LIMIT = 3;
+
+/** Vacancy skill tags that also appear on the candidate resume (same rules as similarity overlap). */
+function topMatchedVacancySkills(
+  vacancySkillsRequired: unknown,
+  resume: { skills?: string; title?: string } | null | undefined,
+  limit: number
+): string[] {
+  const vacancySkills = parseSkillsList(vacancySkillsRequired);
+  if (vacancySkills.length === 0) return [];
+  const candidateSet = candidateSkillTokens(resume);
+  return vacancySkills.filter((skill) => candidateSet.has(skill)).slice(0, limit);
+}
+
 async function getResponseContext(responseId: string) {
   if (!mongoose.Types.ObjectId.isValid(responseId)) return null;
 
@@ -250,7 +320,7 @@ export async function getEmployerChatDataAction(
   await dbConnect();
 
   const vacancies = await Vacancy.find({ employerId: session.user.id })
-    .select('title salaryMin salaryMax salaryCurrency createdAt')
+    .select('title salaryMin salaryMax salaryCurrency createdAt skillsRequired')
     .sort({ createdAt: -1 })
     .lean() as any[];
 
@@ -258,7 +328,7 @@ export async function getEmployerChatDataAction(
   const responses = vacancyIds.length > 0
     ? await Response.find({ vacancyId: { $in: vacancyIds } })
         .populate('userId', 'name email')
-        .populate('resumeId', 'title')
+        .populate('resumeId', 'title skills')
         .sort({ createdAt: -1 })
         .lean()
     : [];
@@ -326,9 +396,27 @@ export async function getEmployerChatDataAction(
       ? selectedVacancyId
       : vacancyViews[0]?.vacancyId) || null;
 
+  const vacancyRowForMatch = resolvedVacancyId
+    ? vacancies.find((v) => v._id.toString() === resolvedVacancyId)
+    : null;
+
+  const vacancySkillsCount = parseSkillsList(vacancyRowForMatch?.skillsRequired).length;
+
   const applicants = resolvedVacancyId
     ? ((vacancyResponseMap.get(resolvedVacancyId) || []) as any[]).map((response) => {
         const meta = metaByResponse.get(response._id.toString());
+        const similarity = vacancyApplicantSkillSimilarity(
+          vacancyRowForMatch?.skillsRequired,
+          response.resumeId
+        );
+        const matchPercent =
+          vacancySkillsCount === 0
+            ? 50
+            : Math.max(10, Math.round(similarity * 100));
+        const matchedSkills = topMatchedSkillsForApplicant(
+          vacancyRowForMatch?.skillsRequired,
+          response.resumeId
+        );
         return {
           responseId: response._id.toString(),
           employeeId: response.userId?._id?.toString() || '',
@@ -339,6 +427,8 @@ export async function getEmployerChatDataAction(
           latestMessagePreview: meta?.latestMessagePreview || null,
           latestMessageAt: meta?.latestMessageAt || null,
           unreadCount: meta?.unreadCount || 0,
+          matchPercent,
+          matchedSkills,
         };
       })
     : [];

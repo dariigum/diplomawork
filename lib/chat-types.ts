@@ -39,6 +39,10 @@ export interface EmployerChatApplicant {
   latestMessagePreview: string | null;
   latestMessageAt: string | null;
   unreadCount: number;
+  /** Similarity vs selected vacancy (0–100), employer-only payload */
+  matchPercent: number;
+  /** Up to 3 vacancy skill tags that overlap candidate resume/title, employer-only */
+  matchedSkills: string[];
 }
 
 export interface EmployerChatVacancy {

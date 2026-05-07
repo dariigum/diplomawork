@@ -5,6 +5,8 @@ import { User, Vacancy } from '@/lib/db/schema';
 import { getSession } from '@/lib/auth';
 import { revalidatePath } from 'next/cache';
 import { redirect } from 'next/navigation';
+import { getEmbedding } from '@/lib/ml';
+import { buildVacancyEmbeddingText } from '@/lib/embedding-text';
 
 export async function createVacancyAction(formData: FormData) {
   const session = await getSession();
@@ -33,6 +35,20 @@ export async function createVacancyAction(formData: FormData) {
 
   const vacancyAddress = workMode === 'REMOTE' ? 'Remote' : city;
 
+  let embedding: number[] | undefined = undefined;
+  try {
+    const text = buildVacancyEmbeddingText({
+      title,
+      description,
+      skillsRequired,
+      requirements: [],
+      responsibilities: [],
+    });
+    embedding = await getEmbedding(text);
+  } catch (e) {
+    console.warn('[JobFlow] ML service unavailable, vacancy saved without embedding.', e);
+  }
+
   await dbConnect();
   await Vacancy.create({
     employerId: session.user.id,
@@ -46,6 +62,7 @@ export async function createVacancyAction(formData: FormData) {
     country: country || '',
     city: city || '',
     address: vacancyAddress,
+    ...(embedding ? { embedding } : {}),
   });
 
   revalidatePath('/dashboard/employer');

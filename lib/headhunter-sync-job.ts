@@ -14,7 +14,7 @@ import type {
   HeadHunterImportSnapshot,
 } from '@/lib/headhunter-import-types'
 
-const HEADHUNTER_IMPORT_JOB_KEY = 'default'
+export const HEADHUNTER_IMPORT_JOB_KEY = 'default'
 
 type StartHeadHunterSyncOptions = {
   text?: string

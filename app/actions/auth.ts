@@ -4,9 +4,11 @@ import dbConnect from '@/lib/db/mongoose';
 import { User } from '@/lib/db/schema';
 import { setSession, hashPassword, comparePassword } from '@/lib/auth';
 
+const ADMIN_LOGIN = 'admin';
 const ADMIN_EMAIL = 'admin@admin';
 const LEGACY_ADMIN_EMAIL = 'admin';
 const ADMIN_PASSWORD = 'yaycat123';
+const RESERVED_ADMIN_IDENTIFIERS = new Set([ADMIN_LOGIN, ADMIN_EMAIL, LEGACY_ADMIN_EMAIL]);
 
 function normalizeLoginEmail(rawEmail: string) {
   return rawEmail.trim().toLowerCase();
@@ -17,22 +19,18 @@ function normalizeUsername(rawUsername: string) {
 }
 
 async function ensureAdminUser() {
-  let adminUser = await User.findOne({ email: ADMIN_EMAIL });
+  let adminUser = await User.findOne({
+    $or: [
+      { email: ADMIN_EMAIL },
+      { email: LEGACY_ADMIN_EMAIL },
+      { username: ADMIN_LOGIN },
+    ],
+  });
 
   if (!adminUser) {
-    const legacyAdmin = await User.findOne({ email: LEGACY_ADMIN_EMAIL });
-
-    if (legacyAdmin) {
-      legacyAdmin.email = ADMIN_EMAIL;
-      legacyAdmin.name = 'Admin';
-      legacyAdmin.role = 'ADMIN';
-      legacyAdmin.passwordHash = await hashPassword(ADMIN_PASSWORD);
-      await legacyAdmin.save();
-      return legacyAdmin;
-    }
-
     adminUser = await User.create({
       email: ADMIN_EMAIL,
+      username: ADMIN_LOGIN,
       passwordHash: await hashPassword(ADMIN_PASSWORD),
       name: 'Admin',
       role: 'ADMIN',
@@ -43,6 +41,16 @@ async function ensureAdminUser() {
 
   let shouldSave = false;
   const hasAdminPassword = await comparePassword(ADMIN_PASSWORD, adminUser.passwordHash);
+
+  if (adminUser.email !== ADMIN_EMAIL) {
+    adminUser.email = ADMIN_EMAIL;
+    shouldSave = true;
+  }
+
+  if (adminUser.username !== ADMIN_LOGIN) {
+    adminUser.username = ADMIN_LOGIN;
+    shouldSave = true;
+  }
 
   if (adminUser.role !== 'ADMIN') {
     adminUser.role = 'ADMIN';
@@ -75,7 +83,7 @@ export async function signupAction(formData: FormData) {
   const companyName = formData.get('companyName') as string;
 
   if (!email || !password || !firstName) return { error: 'Missing required fields' };
-  if (email === ADMIN_EMAIL || email === LEGACY_ADMIN_EMAIL) {
+  if (RESERVED_ADMIN_IDENTIFIERS.has(email)) {
     return { error: 'This email is reserved.' };
   }
 
@@ -134,7 +142,7 @@ export async function loginAction(formData: FormData) {
 
   try {
     await dbConnect();
-    if (identifier === ADMIN_EMAIL) {
+    if (RESERVED_ADMIN_IDENTIFIERS.has(identifier)) {
       if (password !== ADMIN_PASSWORD) {
         return { error: 'Invalid credentials' };
       }

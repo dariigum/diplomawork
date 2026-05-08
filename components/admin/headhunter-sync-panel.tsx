@@ -24,6 +24,61 @@ import { Progress } from '@/components/ui/progress'
 import { ScrollArea } from '@/components/ui/scroll-area'
 import { Spinner } from '@/components/ui/spinner'
 
+type HeadHunterBrowserImportSettings = {
+  cutoffDate: string
+  dateTo: string
+  areaIds: string[]
+  perPage: number
+  maxPages: number | null
+  searchTerms: string[]
+}
+
+type HeadHunterSearchItem = {
+  id: string
+  name?: string
+  employer?: {
+    id?: string
+    name?: string
+    alternate_url?: string
+  } | null
+  salary?: {
+    from?: number | null
+    to?: number | null
+    currency?: string | null
+  } | null
+  area?: {
+    id?: string
+    name?: string
+  } | null
+  published_at?: string
+  created_at?: string
+  alternate_url?: string
+}
+
+type HeadHunterVacancyDetail = HeadHunterSearchItem & {
+  description?: string
+  key_skills?: Array<{ name?: string }>
+  address?: {
+    city?: string | null
+    raw?: string | null
+  } | null
+  employment?: { name?: string } | null
+  experience?: { name?: string } | null
+  schedule?: { id?: string; name?: string } | null
+}
+
+type HeadHunterSearchResponse = {
+  items: HeadHunterSearchItem[]
+  pages: number
+}
+
+type HeadHunterSyncMutationResponse = HeadHunterImportApiResponse & {
+  error?: string
+  settings?: HeadHunterBrowserImportSettings
+  stopRequested?: boolean
+  mode?: 'browser' | 'server'
+}
+
 function formatMegabytes(bytes: number) {
   return `${(bytes / (1024 * 1024)).toFixed(2)} MB`
 }
@@ -78,10 +133,11 @@ export function HeadHunterSyncPanel({
 }) {
   const [job, setJob] = useState<HeadHunterImportSnapshot | null>(initialJob)
   const [isStarting, setIsStarting] = useState(false)
+  const [isClientImporting, setIsClientImporting] = useState(false)
   const [isLogOpen, setIsLogOpen] = useState(false)
   const logBottomRef = useRef<HTMLDivElement | null>(null)
 
-  const isRunning = job?.status === 'RUNNING'
+  const isRunning = job?.status === 'RUNNING' || isClientImporting
 
   const pollStatus = useEffectEvent(async () => {
     try {
@@ -115,30 +171,148 @@ export function HeadHunterSyncPanel({
 
   const recentLogs = useMemo(() => (job?.logs || []).slice(-5), [job?.logs])
 
+  function formatHeadHunterBrowserError(status: number, errorText: string) {
+    if (status === 403 && /"type"\s*:\s*"forbidden"/i.test(errorText)) {
+      return [
+        'HeadHunter blocked browser requests from the current environment (403 forbidden).',
+        'This usually means ddos-guard rejected the import.',
+        'If it keeps happening, open hh.ru in the same browser, confirm access there, or configure a registered HH app token in HH_API_TOKEN on the server.',
+      ].join(' ')
+    }
+
+    return `HeadHunter request failed (${status}): ${errorText}`
+  }
+
+  async function fetchHeadHunterJson<T>(url: string): Promise<T> {
+    const response = await fetch(url, {
+      method: 'GET',
+      mode: 'cors',
+      cache: 'no-store',
+      headers: {
+        Accept: 'application/json',
+      },
+    })
+
+    if (!response.ok) {
+      const errorText = await response.text()
+      throw new Error(formatHeadHunterBrowserError(response.status, errorText))
+    }
+
+    return response.json() as Promise<T>
+  }
+
+  async function mutateSyncRoute(payload: Record<string, unknown>) {
+    const response = await fetch('/api/headhunter/sync', {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+      },
+      body: JSON.stringify(payload),
+    })
+
+    const data = (await response.json()) as HeadHunterSyncMutationResponse
+    if (!response.ok) {
+      throw new Error(data.error || 'Failed to update HeadHunter import')
+    }
+
+    if (data.job) {
+      setJob(data.job)
+    }
+
+    return data
+  }
+
+  async function runBrowserAssistedImport(settings: HeadHunterBrowserImportSettings) {
+    const seenVacancyIds = new Set<string>()
+
+    try {
+      for (const searchTerm of settings.searchTerms) {
+        let page = 0
+        let totalPages = 1
+
+        while (page < totalPages && (settings.maxPages === null || page < settings.maxPages)) {
+          const searchParams = new URLSearchParams({
+            page: String(page),
+            per_page: String(settings.perPage),
+            order_by: 'publication_time',
+            date_from: settings.cutoffDate,
+            date_to: settings.dateTo,
+            text: searchTerm,
+          })
+
+          for (const areaId of settings.areaIds) {
+            searchParams.append('area', areaId)
+          }
+
+          const searchResponse = await fetchHeadHunterJson<HeadHunterSearchResponse>(
+            `https://api.hh.ru/vacancies?${searchParams.toString()}`
+          )
+          totalPages = searchResponse.pages || 0
+
+          const records: Array<{ item: HeadHunterSearchItem; detail: HeadHunterVacancyDetail }> = []
+          for (const item of searchResponse.items) {
+            if (seenVacancyIds.has(item.id)) {
+              continue
+            }
+
+            seenVacancyIds.add(item.id)
+            const detail = await fetchHeadHunterJson<HeadHunterVacancyDetail>(
+              `https://api.hh.ru/vacancies/${item.id}`
+            )
+            records.push({ item, detail })
+          }
+
+          const chunkSize = 10
+          for (let index = 0; index < records.length; index += chunkSize) {
+            const chunk = records.slice(index, index + chunkSize)
+            const data = await mutateSyncRoute({
+              action: 'ingest_client',
+              settings,
+              currentQuery: searchTerm,
+              currentPage: page + 1,
+              records: chunk,
+            })
+
+            if (data.stopRequested) {
+              page = totalPages
+              break
+            }
+          }
+
+          page += 1
+        }
+      }
+
+      await mutateSyncRoute({ action: 'finalize_client' })
+      toast.success('HeadHunter import completed')
+    } catch (error) {
+      const message = error instanceof Error ? error.message : 'HeadHunter browser-assisted import failed'
+      await mutateSyncRoute({ action: 'fail_client', message }).catch(() => undefined)
+      toast.error(message)
+    } finally {
+      setIsClientImporting(false)
+      void pollStatus()
+    }
+  }
+
   async function handleStartImport() {
     setIsStarting(true)
     setIsLogOpen(true)
 
     try {
-      const response = await fetch('/api/headhunter/sync', {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-        },
-        body: JSON.stringify({}),
-      })
-
-      const data = (await response.json()) as HeadHunterImportApiResponse & { error?: string }
-      if (!response.ok) {
-        throw new Error(data.error || 'Failed to start HeadHunter import')
-      }
-
-      setJob(data.job)
+      const data = await mutateSyncRoute({ action: 'prepare_client' })
 
       if (data.alreadyRunning) {
         toast.message('HeadHunter import is already running')
+      } else if (data.mode === 'server') {
+        toast.success('HeadHunter server import started')
+        void pollStatus()
+      } else if (!data.settings) {
+        throw new Error('HeadHunter import settings were not returned by the server')
       } else {
-        toast.success('HeadHunter import started')
+        setIsClientImporting(true)
+        toast.success('HeadHunter browser-assisted import started')
+        void runBrowserAssistedImport(data.settings)
       }
     } catch (error) {
       const message = error instanceof Error ? error.message : 'Failed to start HeadHunter import'

@@ -2,6 +2,7 @@ import { getSession } from '@/lib/auth';
 import { redirect } from 'next/navigation';
 import { Header } from '@/components/jobs/header';
 import dbConnect from '@/lib/db/mongoose';
+import { isDatabaseUnavailableError } from '@/lib/db/error-utils';
 import { SavedVacancy } from '@/lib/db/schema';
 
 export default async function DashboardLayout({ children }: { children: React.ReactNode }) {
@@ -10,8 +11,16 @@ export default async function DashboardLayout({ children }: { children: React.Re
 
   let savedJobsCount = 0;
   if (session.user.role === 'EMPLOYEE') {
-    await dbConnect();
-    savedJobsCount = await SavedVacancy.countDocuments({ userId: session.user.id });
+    try {
+      await dbConnect();
+      savedJobsCount = await SavedVacancy.countDocuments({ userId: session.user.id });
+    } catch (error) {
+      if (!isDatabaseUnavailableError(error)) {
+        throw error;
+      }
+
+      console.warn('Dashboard layout could not load saved vacancies because MongoDB is unavailable.');
+    }
   }
 
   return (

@@ -1,0 +1,290 @@
+<!DOCTYPE html>
+<html >
+  <head>
+    <meta http-equiv="content-type" content="text/html; charset=utf-8" />
+    <meta content='width=device-width,initial-scale=1,user-scalable=no' name='viewport'>
+
+    <title>Хабр</title>
+
+    
+    
+
+    
+
+    <link href="https://habr.com/oldassets/69bbe89a/styles/services.bundle.css" rel="stylesheet" media="all" />
+    
+
+    <script src="https://habr.com/oldassets/69bbe89a/javascripts/libs/jquery-1.8.3.min.js"></script>
+
+    
+    <script>
+  window.create_callback_for_blocked = function(key) {
+    return function() {
+      googletag.cmd.push(function () {
+        googletag.display(key);
+      });
+    }
+  }
+
+  window.habr_blockers_checker = new function() {
+    var result;
+    var callbacksQueue = [];
+    var calledOnce = false;
+
+    function fireCallbacks() {
+      callbacksQueue.forEach(function(callback) {
+        callback(result);
+      });
+      callbacksQueue = [];
+    }
+
+    this.detect = function(imgUrl, callback) {
+      var checksRemain = 2;
+      var detected = false;
+      var error1 = false;
+      var error2 = false;
+
+      if (typeof callback !== 'function') {
+        return;
+      };
+
+      callbacksQueue.push(callback);
+
+      if (typeof result !== 'undefined') {
+        fireCallbacks();
+      };
+
+      if (calledOnce) {
+        return;
+      }
+      calledOnce = true;
+
+      imgUrl += '?ch=*&rn=*';
+
+      function beforeCheck(timeout) {
+        if (checksRemain === 0 || timeout > 1E3) {
+          result = checksRemain === 0 && detected;
+          fireCallbacks();
+        } else {
+          setTimeout(function() {
+            beforeCheck(timeout * 2)
+          }, timeout * 2);
+        }
+      }
+
+      function checkImages() {
+        if (--checksRemain) {
+          return;
+        };
+        detected = !error1 && error2;
+      }
+
+      var random = Math.random() * 11;
+
+      var img1 = new Image;
+      img1.onload = checkImages;
+      img1.onerror = function() {
+        error1 = true;
+        checkImages()
+      };
+      img1.src = imgUrl.replace(/\*/, 1).replace(/\*/, random);
+
+      var img2 = new Image;
+      img2.onload = checkImages;
+      img2.onerror = function() {
+        error2 = true;
+        checkImages()
+      };
+      img2.src = imgUrl.replace(/\*/, 2).replace(/\*/, random);
+
+      beforeCheck(250, callback)
+    };
+
+    this.detectWrapper = function(callback) {
+      return this.detect('/images/px.gif', callback);
+    };
+  };
+
+  window.display_dfp_slot = function(key) {
+    if (window.habr_blockers_checker) {
+      window.habr_blockers_checker.detectWrapper(window.create_callback_for_blocked(key));
+    } else {
+      window.create_callback_for_blocked(key)();
+    }
+  };
+</script>
+
+    <script async src="https://www.googletagmanager.com/gtag/js?id=G-S28W1WC23F"></script>
+<script type="text/javascript">
+  window.dataLayer = window.dataLayer || [];
+  function gtag(){dataLayer.push(arguments);}
+
+  function stripUrl(currentUrl, queryParam) {
+   return currentUrl.replace(/\?([^#]*)/, function(_, search) {
+      var result = search.split('&').map(function(param) {
+        var regexp = new RegExp(`^${queryParam}`);
+        if (regexp.test(param)) {
+          return '';
+        }
+        return param;
+      }).filter(Boolean).join('&');
+      return result ? '?' + result : '';
+    });
+  }
+
+  (function() {
+    if (location.search.indexOf('cv') != -1 && history.replaceState) {
+      var currentUrl = location.toString();
+      var strippedUrl = stripUrl(currentUrl, 'cv');
+      history.replaceState({}, '', strippedUrl);
+    }
+  })();
+
+  function callGA(usesABP) {
+    if (typeof window.adb1 === 'undefined') { window.adb1 = 'yes';}
+    if (usesABP) { window.adb1 = 'aa'; }
+
+    
+    var user_type = 'guest';
+    
+
+    
+    var page_type = "other";
+    
+
+    function createGaInitialOptions() {
+      
+      var uid = null;
+      
+
+      var options = { send_page_view: false };
+
+      if (uid) {
+        options.uid = uid;
+      }
+
+      return options;
+    }
+
+    
+    var user_type = 'guest';
+    
+
+    function removeUtms(){
+      var location = window.location;
+      if (location.search.indexOf('utm_') != -1 && history.replaceState) {
+        var currentUrl = location.toString();
+        var strippedUrl = stripUrl(currentUrl, 'utm_');
+        history.replaceState({}, '', strippedUrl);
+      }
+    };
+
+    gtag('js', new Date());
+    gtag('config', 'G-S28W1WC23F', createGaInitialOptions());
+    gtag('set', 'transport', 'beacon');
+
+    gtag('set', 'user_properties', {
+      user_type: user_type,
+      habr_version: 'oldtop',
+      user_lang: 'ru'
+    });
+
+    gtag('set', 'hostname', window.location.host);
+
+    gtag('set', 'page', window.location.href)
+    gtag('event', 'page_view', {
+      page_location: window.location.href,
+      event_callback: removeUtms
+    });
+  }
+
+  if (window.habr_blockers_checker) {
+    window.habr_blockers_checker.detectWrapper(callGA);
+  } else {
+    callGA(false)
+  }
+</script>
+
+    <link rel="apple-touch-icon" sizes="180x180" href="https://habr.com/oldassets/69bbe89a/images/apple-touch-icon.png">
+<link rel="icon" type="image/png" sizes="32x32" href="https://habr.com/oldassets/69bbe89a/images/favicon-32x32.png">
+<link rel="icon" type="image/png" sizes="16x16" href="https://habr.com/oldassets/69bbe89a/images/favicon-16x16.png">
+<link rel="manifest" href="https://habr.com/oldassets/69bbe89a/site.webmanifest">
+<link rel="mask-icon" href="https://habr.com/oldassets/69bbe89a/images/safari-pinned-tab.svg" color="#77a2b6">
+<meta name="application-name" content="Хабр"/>
+<meta name="msapplication-TileColor" content="#77a2b6">
+<meta name="theme-color" content="#77a2b6">
+
+  </head>
+
+  <body>
+    <div id="layout">
+      
+  <div class="main">
+    <h1>Страница не найдена</h1>
+    <p>Страница устарела, была удалена или не существовала вовсе</p>
+    <div class="buttons">
+      <a href="https://habr.com/ru/" class="button">Вернуться на главную</a>
+    </div>
+  </div>
+
+    </div>
+
+    <script type="text/javascript">
+  // global vars
+  var g_base_url = 'habr.com/ru';
+  var g_base_fullurl = 'https://habr.com/';
+  var g_tmid_fullurl = 'https://account.habr.com/';
+  var g_is_guest = false;
+  var g_show_xpanel = false;
+  var g_is_enableShortcuts = '1';
+  var g_is_ugc_post = '';
+  var g_is_company_post = '';
+  var g_current_hl = 'ru';
+  var g_current_fl = 'ru';
+
+  
+</script>
+
+
+    
+
+    
+    
+
+<!-- Yandex.Metrika counter -->
+<script type="text/javascript">
+(function(m,e,t,r,i,k,a){
+  m[i]=m[i]||function(){(m[i].a=m[i].a||[]).push(arguments)};
+  m[i].l=1*new Date();
+  k=e.createElement(t),a=e.getElementsByTagName(t)[0],k.async=1,k.src=r,a.parentNode.insertBefore(k,a)
+})(window, document, "script", "https://mc.yandex.ru/metrika/tag.js", "ym");
+
+  
+    ym(55903699, "init", {
+      clickmap:true
+      , trackLinks:true
+      , accurateTrackBounce:true
+    });
+  
+  
+</script>
+<noscript>
+  <div>
+    
+      <img src="https://mc.yandex.ru/watch/55903699" style="position:absolute; left:-9999px;" alt="" />
+      
+    
+  </div>
+</noscript>
+<!-- /Yandex.Metrika counter -->
+
+    <img src="https://vk.com/rtrg?p=VK-RTRG-421343-57vKE" style="position:fixed; left:-999px;" alt=""/>
+    
+<!-- Facebook Pixel Code -->
+<img height="1" width="1" style="display:none" src="https://www.facebook.com/tr?id=317458588730613&ev=PageView&noscript=1"/>
+<!-- End Facebook Pixel Code -->
+
+
+    
+  </body>
+</html>

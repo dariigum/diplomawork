@@ -116,7 +116,7 @@ const STACK_KEYWORDS = [
   'CI/CD',
 ]
 
-interface HeadHunterEmployer {
+export interface HeadHunterEmployer {
   id?: string
   name?: string
   alternate_url?: string
@@ -142,7 +142,7 @@ interface HeadHunterSkill {
   name?: string
 }
 
-interface HeadHunterVacancySearchItem {
+export interface HeadHunterVacancySearchItem {
   id: string
   name?: string
   employer?: HeadHunterEmployer | null
@@ -153,7 +153,7 @@ interface HeadHunterVacancySearchItem {
   alternate_url?: string
 }
 
-interface HeadHunterVacancyDetail extends HeadHunterVacancySearchItem {
+export interface HeadHunterVacancyDetail extends HeadHunterVacancySearchItem {
   description?: string
   key_skills?: HeadHunterSkill[]
   address?: HeadHunterAddress | null
@@ -162,7 +162,7 @@ interface HeadHunterVacancyDetail extends HeadHunterVacancySearchItem {
   schedule?: { id?: string; name?: string } | null
 }
 
-interface HeadHunterSearchResponse {
+export interface HeadHunterSearchResponse {
   items: HeadHunterVacancySearchItem[]
   pages: number
 }
@@ -217,6 +217,35 @@ export interface SyncHeadHunterVacanciesOptions {
   onProgress?: (progress: SyncHeadHunterVacanciesProgress) => Promise<void> | void
 }
 
+export interface HeadHunterImportClientSettings {
+  cutoffDate: string
+  dateTo: string
+  areaIds: string[]
+  perPage: number
+  maxPages: number | null
+  searchTerms: string[]
+}
+
+type ResolvedHeadHunterImportSettings = {
+  cutoffDate: Date
+  now: Date
+  areaIds: string[]
+  perPage: number
+  maxPages: number | null
+  searchTerms: string[]
+}
+
+export type ImportFetchedHeadHunterVacancyResult = {
+  processed: boolean
+  imported: boolean
+  updated: boolean
+  employersCreated: number
+  totalContentBytes: number
+  title?: string
+  employerName?: string
+  stopReason?: string
+}
+
 type LeanVacancy = Awaited<ReturnType<typeof Vacancy.findOne>> extends { lean(): infer T } ? T : any
 type LeanEmployer = Awaited<ReturnType<typeof User.findOne>> extends { lean(): infer T } ? T : any
 
@@ -259,6 +288,51 @@ function normalizeSearchTerms(input?: string[]) {
         : DEFAULT_IT_SEARCH_TERMS
 
   return [...new Set(configured.map((value) => value.trim()).filter(Boolean))]
+}
+
+export function resolveHeadHunterImportSettings(
+  options: SyncHeadHunterVacanciesOptions = {},
+  referenceDate = new Date()
+): ResolvedHeadHunterImportSettings {
+  const cutoffDate = new Date(referenceDate.getTime() - HEADHUNTER_LOOKBACK_DAYS * 24 * 60 * 60 * 1000)
+  const requestedAreaIds = normalizeAreaIds(
+    options.areaIds && options.areaIds.length > 0
+      ? options.areaIds
+      : process.env.HH_IMPORT_AREA_IDS
+        ? process.env.HH_IMPORT_AREA_IDS.split(',')
+        : DEFAULT_KAZAKHSTAN_PRIORITY_AREA_IDS
+  )
+  const areaIds = requestedAreaIds.length > 0 ? requestedAreaIds : DEFAULT_KAZAKHSTAN_PRIORITY_AREA_IDS
+  const configuredPerPage = toFinitePositiveNumber(options.perPage ?? null)
+  const perPage = Math.max(1, Math.min(configuredPerPage || DEFAULT_PER_PAGE, 100))
+  const maxPages =
+    toFinitePositiveNumber(options.maxPages ?? null) ||
+    toFinitePositiveNumber(process.env.HH_IMPORT_MAX_PAGES ? Number(process.env.HH_IMPORT_MAX_PAGES) : null)
+  const searchTerms = options.text?.trim()
+    ? normalizeSearchTerms([options.text.trim()])
+    : normalizeSearchTerms(options.searchTerms)
+
+  return {
+    cutoffDate,
+    now: referenceDate,
+    areaIds,
+    perPage,
+    maxPages,
+    searchTerms,
+  }
+}
+
+export function serializeHeadHunterImportSettings(
+  settings: ResolvedHeadHunterImportSettings
+): HeadHunterImportClientSettings {
+  return {
+    cutoffDate: settings.cutoffDate.toISOString(),
+    dateTo: settings.now.toISOString(),
+    areaIds: settings.areaIds,
+    perPage: settings.perPage,
+    maxPages: settings.maxPages,
+    searchTerms: settings.searchTerms,
+  }
 }
 
 function toFinitePositiveNumber(value: number | null | undefined) {
@@ -359,10 +433,23 @@ async function fetchHeadHunterJson<T>(path: string, searchParams?: URLSearchPara
 
   if (!response.ok) {
     const errorText = await response.text()
-    throw new Error(`HeadHunter request failed (${response.status}): ${errorText}`)
+    throw new Error(formatHeadHunterRequestError(response.status, errorText))
   }
 
   return response.json() as Promise<T>
+}
+
+export function formatHeadHunterRequestError(status: number, errorText: string) {
+  if (status === 403 && /"type"\s*:\s*"forbidden"/i.test(errorText)) {
+    return [
+      'HeadHunter request failed (403 forbidden).',
+      'HH API blocked automated access from the current server or IP, most likely via ddos-guard.',
+      'Try running the browser-assisted import from the admin panel or configure a registered HH app token in HH_API_TOKEN.',
+      `HH response: ${errorText}`,
+    ].join(' ')
+  }
+
+  return `HeadHunter request failed (${status}): ${errorText}`
 }
 
 async function computeCollectionBytes(model: any, match: Record<string, unknown>) {
@@ -386,13 +473,17 @@ async function computeCollectionBytes(model: any, match: Record<string, unknown>
   }
 }
 
-async function getHeadHunterContentBytes() {
+export async function getHeadHunterContentBytes() {
   const [vacancyBytes, employerBytes] = await Promise.all([
     computeCollectionBytes(Vacancy, { source: 'HEADHUNTER' }),
     computeCollectionBytes(User, { role: 'EMPLOYER', source: 'HEADHUNTER' }),
   ])
 
   return vacancyBytes + employerBytes
+}
+
+export async function countHeadHunterReadyVacancies() {
+  return Vacancy.countDocuments({ source: 'HEADHUNTER' })
 }
 
 async function deleteVacancyIdsCascade(vacancyIds: mongoose.Types.ObjectId[]) {
@@ -441,7 +532,7 @@ async function deleteVacancyIdsCascade(vacancyIds: mongoose.Types.ObjectId[]) {
   return vacancyIds.length
 }
 
-async function pruneHeadHunterVacanciesOlderThan(cutoffDate: Date) {
+export async function pruneHeadHunterVacanciesOlderThan(cutoffDate: Date) {
   let deleted = 0
 
   while (true) {
@@ -467,7 +558,7 @@ async function pruneHeadHunterVacanciesOlderThan(cutoffDate: Date) {
   return deleted
 }
 
-async function pruneHeadHunterVacanciesToSizeLimit(limitBytes: number) {
+export async function pruneHeadHunterVacanciesToSizeLimit(limitBytes: number) {
   let totalBytes = await getHeadHunterContentBytes()
   let deleted = 0
 
@@ -593,6 +684,127 @@ async function restoreVacancySnapshot(snapshot: LeanVacancy | null, vacancyId: m
   await Vacancy.replaceOne({ _id: vacancyId }, snapshot, { upsert: true })
 }
 
+export async function importFetchedHeadHunterVacancy({
+  item,
+  detail,
+  cutoffDate,
+  now,
+  placeholderPasswordHash,
+}: {
+  item: HeadHunterVacancySearchItem
+  detail: HeadHunterVacancyDetail
+  cutoffDate: Date
+  now: Date
+  placeholderPasswordHash: string
+}): Promise<ImportFetchedHeadHunterVacancyResult> {
+  const salaryFrom = detail.salary?.from ?? item.salary?.from ?? detail.salary?.to ?? item.salary?.to
+  const salaryTo = detail.salary?.to ?? item.salary?.to ?? detail.salary?.from ?? item.salary?.from
+
+  const location = getLocation(detail, item)
+  const remote = detectRemote(detail, location)
+  const stack = extractStack(detail, item)
+  const description = htmlToPlainText(detail.description)
+  const salaryCurrency =
+    normalizeCurrencyCode(detail.salary?.currency || item.salary?.currency || '') ||
+    DEFAULT_SALARY_CURRENCY
+  const createdAtValue =
+    detail.created_at ||
+    item.created_at ||
+    detail.published_at ||
+    item.published_at ||
+    now.toISOString()
+  const publishedAtValue =
+    detail.published_at ||
+    item.published_at ||
+    detail.created_at ||
+    item.created_at ||
+    createdAtValue
+
+  const createdDate = parseDate(createdAtValue) || now
+  const publishedDate = parseDate(publishedAtValue) || createdDate
+
+  if (publishedDate < cutoffDate) {
+    return {
+      processed: false,
+      imported: false,
+      updated: false,
+      employersCreated: 0,
+      totalContentBytes: await getHeadHunterContentBytes(),
+    }
+  }
+
+  const employerResult = await findOrCreateHeadHunterEmployer(
+    detail.employer,
+    location,
+    item.id,
+    placeholderPasswordHash
+  )
+
+  const previousVacancy = await Vacancy.findOne({
+    source: 'HEADHUNTER',
+    externalId: item.id,
+  }).lean()
+
+  const vacancyPayload = {
+    employerId: employerResult.employer._id,
+    source: 'HEADHUNTER' as const,
+    externalId: item.id,
+    title: detail.name?.trim() || item.name?.trim() || 'Untitled vacancy',
+    description,
+    skillsRequired: stack.join(', '),
+    salaryMin: salaryFrom ?? salaryTo ?? null,
+    salaryMax: salaryTo ?? salaryFrom ?? null,
+    salaryCurrency,
+    experience: detail.experience?.name || 'Not specified',
+    employmentType: detail.employment?.name || 'Full-time',
+    workFormat: detail.schedule?.name || (remote ? 'Remote' : 'Onsite'),
+    workMode: remote ? 'REMOTE' : 'ONSITE',
+    country: '',
+    city: location,
+    address: location || (remote ? 'Remote' : ''),
+    sourceUrl: detail.alternate_url || item.alternate_url || '',
+    externalPublishedAt: publishedDate,
+    importedAt: new Date(),
+    createdAt: createdDate,
+    requirements: stack.length > 0 ? stack : undefined,
+  }
+
+  const savedVacancy = await Vacancy.findOneAndUpdate(
+    { source: 'HEADHUNTER', externalId: item.id },
+    { $set: vacancyPayload },
+    { upsert: true, new: true, setDefaultsOnInsert: true }
+  )
+
+  const isUpdate = Boolean(previousVacancy)
+  const totalContentBytes = await getHeadHunterContentBytes()
+
+  if (totalContentBytes > HEADHUNTER_IMPORT_LIMIT_BYTES) {
+    await restoreVacancySnapshot(previousVacancy, savedVacancy._id)
+    await restoreEmployerSnapshot(employerResult.previousSnapshot, employerResult.employer._id)
+
+    const rolledBackBytes = await getHeadHunterContentBytes()
+    return {
+      processed: false,
+      imported: false,
+      updated: false,
+      employersCreated: 0,
+      totalContentBytes: rolledBackBytes,
+      stopReason:
+        `Storage limit reached at ${toMegabytes(rolledBackBytes)} MB. The last incomplete vacancy was rolled back.`,
+    }
+  }
+
+  return {
+    processed: true,
+    imported: !isUpdate,
+    updated: isUpdate,
+    employersCreated: employerResult.created ? 1 : 0,
+    totalContentBytes,
+    title: vacancyPayload.title,
+    employerName: employerResult.employer.name,
+  }
+}
+
 function createInitialProgress(limitBytes: number): SyncHeadHunterVacanciesProgress {
   return {
     downloadedCount: 0,
@@ -634,28 +846,15 @@ export async function syncHeadHunterVacancies(
 ): Promise<SyncHeadHunterVacanciesResult> {
   await dbConnect()
 
-  const cutoffDate = new Date(Date.now() - HEADHUNTER_LOOKBACK_DAYS * 24 * 60 * 60 * 1000)
-  const requestedAreaIds = normalizeAreaIds(
-    options.areaIds && options.areaIds.length > 0
-      ? options.areaIds
-      : process.env.HH_IMPORT_AREA_IDS
-        ? process.env.HH_IMPORT_AREA_IDS.split(',')
-        : DEFAULT_KAZAKHSTAN_PRIORITY_AREA_IDS
-  )
-  const normalizedAreaIds =
-    requestedAreaIds.length > 0 ? requestedAreaIds : DEFAULT_KAZAKHSTAN_PRIORITY_AREA_IDS
-  const configuredPerPage = toFinitePositiveNumber(options.perPage ?? null)
-  const perPage = Math.max(1, Math.min(configuredPerPage || DEFAULT_PER_PAGE, 100))
-  const configuredMaxPages =
-    toFinitePositiveNumber(options.maxPages ?? null) ||
-    toFinitePositiveNumber(
-      process.env.HH_IMPORT_MAX_PAGES ? Number(process.env.HH_IMPORT_MAX_PAGES) : null
-    )
-  const searchTerms = options.text?.trim()
-    ? normalizeSearchTerms([options.text.trim()])
-    : normalizeSearchTerms(options.searchTerms)
-
-  const now = new Date()
+  const settings = resolveHeadHunterImportSettings(options)
+  const {
+    cutoffDate,
+    areaIds: normalizedAreaIds,
+    perPage,
+    maxPages: configuredMaxPages,
+    searchTerms,
+    now,
+  } = settings
   const placeholderPasswordHash = await bcrypt.hash(
     process.env.HH_IMPORTED_EMPLOYER_PASSWORD || 'headhunter-imported-employer',
     10
@@ -683,7 +882,7 @@ export async function syncHeadHunterVacancies(
     )
   }
 
-  progress.readyCount = await Vacancy.countDocuments({ source: 'HEADHUNTER' })
+  progress.readyCount = await countHeadHunterReadyVacancies()
   progress.totalContentBytes = await getHeadHunterContentBytes()
   await emitProgress()
 
@@ -736,118 +935,41 @@ export async function syncHeadHunterVacancies(
 
         try {
           const detail = await fetchHeadHunterJson<HeadHunterVacancyDetail>(`/vacancies/${item.id}`)
-          const salaryFrom =
-            detail.salary?.from ?? item.salary?.from ?? detail.salary?.to ?? item.salary?.to
-          const salaryTo =
-            detail.salary?.to ?? item.salary?.to ?? detail.salary?.from ?? item.salary?.from
+          const result = await importFetchedHeadHunterVacancy({
+            item,
+            detail,
+            cutoffDate,
+            now,
+            placeholderPasswordHash,
+          })
 
-          const location = getLocation(detail, item)
-          const remote = detectRemote(detail, location)
-          const stack = extractStack(detail, item)
-          const description = htmlToPlainText(detail.description)
-          const salaryCurrency =
-            normalizeCurrencyCode(detail.salary?.currency || item.salary?.currency || '') ||
-            DEFAULT_SALARY_CURRENCY
-          const createdAtValue =
-            detail.created_at ||
-            item.created_at ||
-            detail.published_at ||
-            item.published_at ||
-            now.toISOString()
-          const publishedAtValue =
-            detail.published_at ||
-            item.published_at ||
-            detail.created_at ||
-            item.created_at ||
-            createdAtValue
+          progress.totalContentBytes = result.totalContentBytes
 
-          const createdDate = parseDate(createdAtValue) || now
-          const publishedDate = parseDate(publishedAtValue) || createdDate
-
-          if (publishedDate < cutoffDate) {
-            continue
-          }
-
-          const employerResult = await findOrCreateHeadHunterEmployer(
-            detail.employer,
-            location,
-            item.id,
-            placeholderPasswordHash
-          )
-
-          if (employerResult.created) {
-            progress.employersCreatedCount += 1
-          }
-
-          const previousVacancy = await Vacancy.findOne({
-            source: 'HEADHUNTER',
-            externalId: item.id,
-          }).lean()
-
-          const vacancyPayload = {
-            employerId: employerResult.employer._id,
-            source: 'HEADHUNTER' as const,
-            externalId: item.id,
-            title: detail.name?.trim() || item.name?.trim() || 'Untitled vacancy',
-            description,
-            skillsRequired: stack.join(', '),
-            salaryMin: salaryFrom ?? salaryTo ?? null,
-            salaryMax: salaryTo ?? salaryFrom ?? null,
-            salaryCurrency,
-            experience: detail.experience?.name || 'Not specified',
-            employmentType: detail.employment?.name || 'Full-time',
-            workFormat: detail.schedule?.name || (remote ? 'Remote' : 'Onsite'),
-            workMode: remote ? 'REMOTE' : 'ONSITE',
-            country: '',
-            city: location,
-            address: location || (remote ? 'Remote' : ''),
-            sourceUrl: detail.alternate_url || item.alternate_url || '',
-            externalPublishedAt: publishedDate,
-            importedAt: new Date(),
-            createdAt: createdDate,
-            requirements: stack.length > 0 ? stack : undefined,
-          }
-
-          const savedVacancy = await Vacancy.findOneAndUpdate(
-            { source: 'HEADHUNTER', externalId: item.id },
-            { $set: vacancyPayload },
-            { upsert: true, new: true, setDefaultsOnInsert: true }
-          )
-
-          const isUpdate = Boolean(previousVacancy)
-          if (isUpdate) {
-            progress.updatedCount += 1
-          } else {
-            progress.importedCount += 1
-            progress.readyCount += 1
-          }
-
-          progress.processedCount += 1
-          progress.totalContentBytes = await getHeadHunterContentBytes()
-
-          if (progress.totalContentBytes > HEADHUNTER_IMPORT_LIMIT_BYTES) {
-            await restoreVacancySnapshot(previousVacancy, savedVacancy._id)
-            await restoreEmployerSnapshot(employerResult.previousSnapshot, employerResult.employer._id)
-
-            if (isUpdate) {
-              progress.updatedCount -= 1
-            } else {
-              progress.importedCount -= 1
-              progress.readyCount -= 1
-            }
-            progress.processedCount -= 1
-            progress.totalContentBytes = await getHeadHunterContentBytes()
-            progress.stopReason =
-              `Storage limit reached at ${toMegabytes(progress.totalContentBytes)} MB. The last incomplete vacancy was rolled back.`
+          if (result.stopReason) {
+            progress.stopReason = result.stopReason
             stoppedByLimit = true
             await emitLog('WARNING', progress.stopReason)
             await emitProgress()
             break
           }
 
+          if (!result.processed) {
+            continue
+          }
+
+          progress.employersCreatedCount += result.employersCreated
+          if (result.updated) {
+            progress.updatedCount += 1
+          } else if (result.imported) {
+            progress.importedCount += 1
+            progress.readyCount += 1
+          }
+
+          progress.processedCount += 1
+
           await emitLog(
-            isUpdate ? 'INFO' : 'SUCCESS',
-            `${isUpdate ? 'Updated' : 'Imported'} vacancy "${vacancyPayload.title}" for employer "${employerResult.employer.name}".`
+            result.updated ? 'INFO' : 'SUCCESS',
+            `${result.updated ? 'Updated' : 'Imported'} vacancy "${result.title}" for employer "${result.employerName}".`
           )
           await emitProgress()
         } catch (error) {

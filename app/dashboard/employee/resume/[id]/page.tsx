@@ -63,17 +63,6 @@ export default async function EditResumePage({ params }: EditResumePageProps) {
               <label htmlFor="cvLink" className="text-sm font-medium">CV Link (e.g. Google Drive)</label>
               <Input id="cvLink" name="cvLink" defaultValue={resume.cvLink} placeholder="https://..." />
             </div>
-
-            <div className="space-y-2">
-              <label htmlFor="cvFile" className="text-sm font-medium">Upload CV (PDF)</label>
-              <Input id="cvFile" name="cvFile" type="file" accept=".pdf" />
-              {resume.cvFile && (
-                <p className="text-xs text-muted-foreground mt-1">
-                  Current file: <a href={resume.cvFile} target="_blank" rel="noopener noreferrer" className="text-primary hover:underline">View current CV</a>
-                </p>
-              )}
-            </div>
-
             <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
               <div className="space-y-2">
                 <label htmlFor="phone" className="text-sm font-medium">Phone</label>

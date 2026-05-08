@@ -170,7 +170,11 @@ export default function SalaryClient({ userSkills, isAuthenticated }: Props) {
 
   const useMyProfile = () => {
     const unique = Array.from(
-      new Map(safeUserSkills.map((s) => [normalizeSkill(s), formatSkill(s)]).filter(([k]) => Boolean(k))).values()
+      new Map<string, string>(
+        safeUserSkills
+          .map((skill): [string, string] => [normalizeSkill(skill), formatSkill(skill)])
+          .filter((entry): entry is [string, string] => Boolean(entry[0]))
+      ).values()
     )
     if (unique.length === 0) {
       return

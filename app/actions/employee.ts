@@ -16,7 +16,9 @@ async function saveFile(file: File) {
   const arrayBuffer = await file.arrayBuffer();
   const buffer = Buffer.from(arrayBuffer);
   const fileName = `${Date.now()}-${file.name.replace(/\s+/g, '-')}`;
-  const uploadPath = path.join(process.cwd(), 'public/uploads/resumes', fileName);
+  const uploadDir = path.join(process.cwd(), 'public', 'uploads', 'resumes');
+  const uploadPath = path.join(uploadDir, fileName);
+  await fs.promises.mkdir(uploadDir, { recursive: true });
   await fs.promises.writeFile(uploadPath, buffer);
   return `/uploads/resumes/${fileName}`;
 }

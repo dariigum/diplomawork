@@ -36,6 +36,7 @@ export interface IResume extends Document {
   skills: string;
   experience: string;
   education: string;
+  embedding?: number[];
   cvLink?: string;
   cvFile?: string;
   phone?: string;
@@ -51,6 +52,7 @@ const ResumeSchema = new Schema<IResume>({
   skills: { type: String, required: true },
   experience: { type: String, required: true },
   education: { type: String, required: true },
+  embedding: { type: [Number], required: false },
   cvLink: { type: String },
   cvFile: { type: String },
   phone: { type: String },
@@ -67,6 +69,7 @@ export interface IVacancy extends Document {
   title: string;
   description: string;
   skillsRequired: string;
+  embedding?: number[];
   salaryMin: number;
   salaryMax: number;
   experience?: string;
@@ -85,6 +88,7 @@ const VacancySchema = new Schema<IVacancy>({
   title: { type: String, required: true },
   description: { type: String, required: true },
   skillsRequired: { type: String, required: true },
+  embedding: { type: [Number], required: false },
   salaryMin: { type: Number, required: true },
   salaryMax: { type: Number, required: true },
   experience: { type: String, default: 'Any experience' },

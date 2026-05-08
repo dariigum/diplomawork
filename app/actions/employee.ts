@@ -6,6 +6,8 @@ import { Response, Resume, SavedVacancy, User, Vacancy } from '@/lib/db/schema';
 import { clearSession, getSession } from '@/lib/auth';
 import { revalidatePath } from 'next/cache';
 import { redirect } from 'next/navigation';
+import { getEmbedding } from '@/lib/ml';
+import { buildResumeEmbeddingText } from '@/lib/embedding-text';
 import fs from 'fs';
 import path from 'path';
 
@@ -41,6 +43,14 @@ export async function createResumeAction(formData: FormData) {
     cvFilePath = await saveFile(cvFile);
   }
 
+  let embedding: number[] | undefined = undefined;
+  try {
+    const text = buildResumeEmbeddingText({ title, skills, experience, education });
+    embedding = await getEmbedding(text);
+  } catch (e) {
+    console.warn('[JobFlow] ML service unavailable, resume saved without embedding.', e);
+  }
+
   await dbConnect();
   await Resume.create({
     userId: session.user.id,
@@ -48,6 +58,7 @@ export async function createResumeAction(formData: FormData) {
     skills,
     experience: experience || '',
     education: education || '',
+    ...(embedding ? { embedding } : {}),
     cvLink: cvLink || '',
     cvFile: cvFilePath || '',
     phone: phone || '',
@@ -95,6 +106,13 @@ export async function updateResumeAction(formData: FormData) {
     linkedin: linkedin || '', 
     github: github || '' 
   };
+
+  try {
+    const text = buildResumeEmbeddingText({ title, skills, experience, education });
+    updateData.embedding = await getEmbedding(text);
+  } catch (e) {
+    console.warn('[JobFlow] ML service unavailable, resume updated without embedding refresh.', e);
+  }
   
   if (cvFilePath) {
     updateData.cvFile = cvFilePath;
@@ -221,12 +239,21 @@ export async function submitVacancyResponseAction(formData: FormData) {
       cvFilePath = savedPath || '';
     }
 
+    let embedding: number[] | undefined = undefined;
+    try {
+      const text = buildResumeEmbeddingText({ title, skills, experience, education });
+      embedding = await getEmbedding(text);
+    } catch (e) {
+      console.warn('[JobFlow] ML service unavailable, resume saved without embedding.', e);
+    }
+
     const createdResume = await Resume.create({
       userId: session.user.id,
       title,
       skills,
       experience: experience || '',
       education: education || '',
+      ...(embedding ? { embedding } : {}),
       cvLink: cvLink || '',
       cvFile: cvFilePath,
       phone: phone || '',

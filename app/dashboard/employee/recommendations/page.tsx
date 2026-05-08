@@ -41,6 +41,17 @@ export default async function EmployeeRecommendationsPage() {
                 Personalized AI job discovery: same pipeline as your diploma stack (FastAPI embedder → MongoDB → ranking).
               </span>
             </p>
+            <div className="flex flex-wrap gap-2 pt-2">
+              <Badge variant="outline" className="rounded-full text-xs font-normal bg-background/50">
+                Cosine-ranked list
+              </Badge>
+              <Badge variant="secondary" className="rounded-full text-xs font-normal">
+                Explainable match %
+              </Badge>
+              <Badge variant="outline" className="rounded-full text-xs font-normal opacity-90">
+                Top-N via ?limit=
+              </Badge>
+            </div>
           </div>
           <Button variant="outline" className="shrink-0 border-border/80 bg-background/60 backdrop-blur-sm" asChild>
             <Link href="/dashboard/employee">← Dashboard</Link>

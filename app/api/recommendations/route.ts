@@ -1,4 +1,4 @@
-import { NextResponse } from 'next/server'
+import { NextRequest, NextResponse } from 'next/server'
 import mongoose from 'mongoose'
 import dbConnect from '@/lib/db/mongoose'
 import { getSession } from '@/lib/auth'
@@ -60,7 +60,19 @@ function buildExplanation(score: number, matched: string[]): string {
   return `Ranked by AI semantic similarity between your profile and this vacancy (embedding space). Match strength: ${pct}% — explore the summary and skills below to see fit.`
 }
 
-export async function GET() {
+const DEFAULT_LIMIT = 10
+const MAX_LIMIT = 50
+
+export async function GET(request: NextRequest) {
+  const rawLimit = request.nextUrl.searchParams.get('limit')
+  let requestedLimit = DEFAULT_LIMIT
+  if (rawLimit !== null && rawLimit !== '') {
+    const parsed = Number.parseInt(rawLimit, 10)
+    if (Number.isFinite(parsed)) {
+      requestedLimit = Math.min(MAX_LIMIT, Math.max(1, parsed))
+    }
+  }
+
   const session = await getSession()
   if (!session?.user?.id) {
     return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
@@ -92,7 +104,7 @@ export async function GET() {
     .join(' ')
 
   try {
-    const recs = await getTopRecommendations({ userId: session.user.id, limit: 10 })
+    const recs = await getTopRecommendations({ userId: session.user.id, limit: requestedLimit })
     if (recs.length === 0) {
       return NextResponse.json([], { status: 200 })
     }

@@ -4,6 +4,7 @@ import dbConnect from "@/lib/db/mongoose";
 import { Response, User, Resume, SavedVacancy } from "@/lib/db/schema";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
+import { EmployeeDashboardAiPreview } from "@/components/recommendations/employee-dashboard-ai-preview";
 import { deleteEmployeeAccountAction, deleteResumeAction } from "@/app/actions/employee";
 
 export default async function EmployeeDashboard() {
@@ -24,19 +25,7 @@ export default async function EmployeeDashboard() {
     <div className="space-y-8">
       <h1 className="text-3xl font-bold">Employee Dashboard</h1>
 
-      <Card className="border-primary/25 bg-gradient-to-r from-primary/[0.06] to-transparent overflow-hidden">
-        <CardHeader className="flex flex-row items-start justify-between gap-4 pb-2">
-          <div>
-            <CardTitle className="text-lg">AI job recommendations</CardTitle>
-            <p className="text-sm text-muted-foreground mt-1 max-w-xl">
-              Semantic matches from your resume embedding — powered by SBERT vectors and cosine similarity.
-            </p>
-          </div>
-          <Button asChild size="sm" className="shrink-0">
-            <Link href="/dashboard/employee/recommendations">Open AI matches</Link>
-          </Button>
-        </CardHeader>
-      </Card>
+      <EmployeeDashboardAiPreview />
       
       <div className="grid grid-cols-1 md:grid-cols-2 gap-8">
         <Card>

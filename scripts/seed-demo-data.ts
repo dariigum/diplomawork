@@ -186,6 +186,7 @@ async function seedDemo() {
     skills: DEMO_RESUME_SEED.skills,
     experience: DEMO_RESUME_SEED.experience,
     education: DEMO_RESUME_SEED.education,
+    activeForAi: true,
     ...(resumeEmbedding && resumeEmbedding.length > 0 ? { embedding: resumeEmbedding } : {}),
   });
 

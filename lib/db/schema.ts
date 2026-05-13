@@ -37,6 +37,8 @@ export interface IResume extends Document {
   experience: string;
   education: string;
   embedding?: number[];
+  /** Exactly one resume per user should be true — used for AI / semantic recommendations. */
+  activeForAi?: boolean;
   cvLink?: string;
   cvFile?: string;
   phone?: string;
@@ -53,6 +55,7 @@ const ResumeSchema = new Schema<IResume>({
   experience: { type: String, required: true },
   education: { type: String, required: true },
   embedding: { type: [Number], required: false },
+  activeForAi: { type: Boolean, default: false },
   cvLink: { type: String },
   cvFile: { type: String },
   phone: { type: String },
@@ -61,6 +64,8 @@ const ResumeSchema = new Schema<IResume>({
   github: { type: String },
   createdAt: { type: Date, default: Date.now }
 });
+
+ResumeSchema.index({ userId: 1, activeForAi: 1 });
 
 export const Resume: Model<IResume> = mongoose.models.Resume || mongoose.model<IResume>('Resume', ResumeSchema);
 

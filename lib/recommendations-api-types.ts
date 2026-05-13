@@ -10,5 +10,14 @@ export type RecommendationApiItem = {
   score: number
   description: string
   matchedSkills: string[]
-  explanation: string
+  /** Cosine / embedding ranking only — not keyword overlap. */
+  semanticMatchNote: string
+  /** Optional plain-text overlap hints from resume vs JD phrases; does not affect `score`. */
+  textOverlapNote: string | null
+}
+
+/** Error JSON for non-2xx GET /api/recommendations (not used for 200 + []). */
+export type RecommendationsApiErrorBody = {
+  error: string
+  code: 'NO_EMBEDDING' | 'RANKING_SERVICE_ERROR'
 }

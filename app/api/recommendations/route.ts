@@ -4,6 +4,7 @@ import dbConnect from '@/lib/db/mongoose'
 import { getSession } from '@/lib/auth'
 import { Resume, Vacancy } from '@/lib/db/schema'
 import { getTopRecommendations } from '@/lib/recommendation'
+import { getActiveResumeLeanForUser } from '@/lib/active-resume'
 import type { RecommendationApiItem } from '@/lib/recommendations-api-types'
 
 function truncateText(text: string, max: number): string {
@@ -51,13 +52,15 @@ function matchedSkillsFromResumeAndVacancy(
   return out
 }
 
-function buildExplanation(score: number, matched: string[]): string {
+function buildSemanticMatchNote(score: number): string {
   const pct = Math.round(score * 100)
-  if (matched.length > 0) {
-    const list = matched.slice(0, 5).join(', ')
-    return `Recommended because your resume overlaps key areas required for this role (${list}). Semantic similarity score: ${pct}% match.`
-  }
-  return `Ranked by AI semantic similarity between your profile and this vacancy (embedding space). Match strength: ${pct}% — explore the summary and skills below to see fit.`
+  return `Ordered by embedding cosine similarity only. This listing is at ${pct}% on the same [0–100] scale as the bar above (geometry in vector space, not a calibrated probability).`
+}
+
+function buildTextOverlapNote(matched: string[]): string | null {
+  if (matched.length === 0) return null
+  const list = matched.slice(0, 5).join(', ')
+  return `Separate text check: your resume text lines up with these JD phrases — ${list}. This hint is for readability only; it does not change the embedding score or sort order.`
 }
 
 const DEFAULT_LIMIT = 10
@@ -84,14 +87,20 @@ export async function GET(request: NextRequest) {
 
   await dbConnect()
 
-  const resume = await Resume.findOne({ userId: session.user.id }).sort({ createdAt: -1 }).lean()
+  const resume = (await getActiveResumeLeanForUser(session.user.id)) as any
   if (!resume) {
     return NextResponse.json({ error: 'No resume found. Create a resume to get recommendations.' }, { status: 404 })
   }
 
-  // If embedding is missing we return empty list (graceful response).
   if (!Array.isArray((resume as any).embedding) || (resume as any).embedding.length === 0) {
-    return NextResponse.json([], { status: 200 })
+    return NextResponse.json(
+      {
+        error:
+          'Your resume is saved but has no embedding vector yet. Save again from the resume editor while the embedding service is online.',
+        code: 'NO_EMBEDDING',
+      },
+      { status: 422 },
+    )
   }
 
   const resumeBlob = [
@@ -132,14 +141,21 @@ export async function GET(request: NextRequest) {
         score: r.score,
         description: description || 'No short description available for this listing.',
         matchedSkills,
-        explanation: buildExplanation(r.score, matchedSkills),
+        semanticMatchNote: buildSemanticMatchNote(r.score),
+        textOverlapNote: buildTextOverlapNote(matchedSkills),
       }
     })
 
     return NextResponse.json(enriched, { status: 200 })
   } catch (e) {
     console.warn('[JobFlow] Recommendations generation failed.', e)
-    return NextResponse.json([], { status: 200 })
+    return NextResponse.json(
+      {
+        error: 'Recommendation ranking could not be completed. Try again shortly.',
+        code: 'RANKING_SERVICE_ERROR',
+      },
+      { status: 503 },
+    )
   }
 }
 

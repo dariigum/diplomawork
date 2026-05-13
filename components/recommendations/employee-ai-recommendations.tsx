@@ -13,7 +13,6 @@ import {
   TrendingUp,
   Layers,
   Percent,
-  Lightbulb,
   Activity,
   ChevronDown,
   Workflow,
@@ -31,19 +30,32 @@ const INITIAL_LIMIT = 3
 const MID_LIMIT = 5
 const MAX_LIMIT = 50
 
+/** Shared metric card shell — aligned with dashboard AI surfaces. */
+const METRIC_CARD =
+  'group/metric relative overflow-hidden rounded-xl border border-border/55 bg-gradient-to-br shadow-sm transition-all duration-300 ease-out hover:shadow-lg hover:border-primary/30 hover:-translate-y-0.5'
+
+const PROGRESS_ENHANCED =
+  'h-2.5 bg-primary/12 rounded-full [&_[data-slot=progress-indicator]]:transition-transform [&_[data-slot=progress-indicator]]:duration-700 [&_[data-slot=progress-indicator]]:ease-out'
+
 type LoadState =
   | { kind: 'idle' }
   | { kind: 'loading'; pendingLimit: number }
   | { kind: 'ok'; data: RecommendationApiItem[]; apiLimit: number }
   | { kind: 'empty'; lastLimit: number }
+  | { kind: 'no_embedding'; message: string }
   | { kind: 'error'; status: number; message: string }
 
 const LOADING_MESSAGES = [
   'Analyzing semantic vectors…',
   'Comparing embeddings…',
-  'Ranking AI matches…',
-  'Generating recommendation insights…',
+  'Ranking matches…',
+  'Fetching ranked results…',
 ] as const
+
+async function readErrorMessage(res: Response): Promise<string> {
+  const body = (await res.json().catch(() => null)) as { error?: unknown } | null
+  return typeof body?.error === 'string' ? body.error : `Request failed (${res.status}).`
+}
 
 function scoreToPercent(score: number): number {
   if (!Number.isFinite(score)) return 0
@@ -57,12 +69,12 @@ function computeStats(data: RecommendationApiItem[]) {
       count: 0,
       topMatch: 0,
       skillsDetected: 0,
-      avgConfidence: 0,
+      meanSemanticMatch: 0,
     }
   }
   const percents = data.map((d) => scoreToPercent(d.score))
   const topMatch = Math.max(...percents)
-  const avgConfidence = Math.round((data.reduce((acc, d) => acc + d.score, 0) / n) * 100)
+  const meanSemanticMatch = Math.round((data.reduce((acc, d) => acc + d.score, 0) / n) * 100)
   const skillSet = new Set<string>()
   for (const item of data) {
     for (const s of item.matchedSkills) skillSet.add(s)
@@ -71,7 +83,7 @@ function computeStats(data: RecommendationApiItem[]) {
     count: n,
     topMatch,
     skillsDetected: skillSet.size,
-    avgConfidence,
+    meanSemanticMatch,
   }
 }
 
@@ -109,6 +121,24 @@ export function EmployeeAiRecommendations() {
         status: 404,
         message: typeof body.error === 'string' ? body.error : 'Create a resume first to unlock recommendations.',
       })
+      return
+    }
+
+    if (res.status === 422) {
+      const message = await readErrorMessage(res)
+      setState({ kind: 'no_embedding', message })
+      return
+    }
+
+    if (res.status === 503) {
+      const message = await readErrorMessage(res)
+      setState({ kind: 'error', status: 503, message })
+      return
+    }
+
+    if (!res.ok) {
+      const message = await readErrorMessage(res)
+      setState({ kind: 'error', status: res.status, message })
       return
     }
 
@@ -157,11 +187,11 @@ export function EmployeeAiRecommendations() {
     return (
       <div className="space-y-8 md:space-y-10 animate-in fade-in duration-300">
         <div className="flex flex-wrap items-center gap-2 text-xs">
-          <Badge variant="outline" className="gap-1 rounded-full border-primary/35">
+          <Badge variant="outline" className="gap-1 rounded-full border-primary/35 shadow-sm transition-colors hover:border-primary/50">
             <Zap className="h-3 w-3" />
             Not keyword search
           </Badge>
-          <Badge variant="secondary" className="rounded-full gap-1">
+          <Badge variant="secondary" className="rounded-full gap-1 shadow-sm transition-colors hover:bg-secondary/90">
             <Workflow className="h-3 w-3" />
             Embedding → cosine ranking
           </Badge>
@@ -171,11 +201,16 @@ export function EmployeeAiRecommendations() {
           {[0, 1, 2, 3].map((i) => (
             <Card
               key={i}
-              className="border-border/60 overflow-hidden bg-gradient-to-b from-muted/50 to-background/80 backdrop-blur-sm shadow-sm"
+              className={cn(
+                METRIC_CARD,
+                'from-muted/45 to-background/95 border-dashed border-border/50',
+                'animate-in fade-in slide-in-from-bottom-1 duration-500',
+              )}
+              style={{ animationDelay: `${i * 75}ms` }}
             >
               <CardHeader className="pb-2 space-y-2">
-                <Skeleton className="h-3 w-24" />
-                <Skeleton className="h-9 w-20" />
+                <Skeleton className="h-3 w-24 rounded-md" />
+                <Skeleton className="h-9 w-20 rounded-md" />
               </CardHeader>
             </Card>
           ))}
@@ -183,8 +218,9 @@ export function EmployeeAiRecommendations() {
 
         <div
           className={cn(
-            'relative overflow-hidden rounded-2xl border border-primary/25',
+            'relative overflow-hidden rounded-2xl border border-primary/25 ring-1 ring-primary/[0.06]',
             'bg-gradient-to-br from-primary/[0.1] via-violet-600/[0.07] to-cyan-500/[0.08] p-6 md:p-8 shadow-md',
+            'transition-shadow duration-300 hover:shadow-lg',
           )}
         >
           <div className="relative flex flex-col gap-3 sm:flex-row sm:items-center">
@@ -194,31 +230,33 @@ export function EmployeeAiRecommendations() {
             <div className="min-w-0 flex-1">
               <p className="font-semibold text-lg text-foreground transition-all duration-300">{loadingMessage}</p>
               <p className="text-sm text-muted-foreground mt-1.5 leading-relaxed">
-                Server-side cosine similarity across SBERT embeddings — vacancy vectors ranked against your resume vector.
+                Server-side cosine similarity across SBERT embeddings — vacancies ranked against your resume vector. No
+                client-side scoring.
               </p>
             </div>
           </div>
         </div>
 
-        <div className="grid gap-5 sm:grid-cols-2">
+        <div className="grid gap-4 sm:grid-cols-2">
           {Array.from({ length: loadingSkeletonCount }, (_, i) => (
             <Card
               key={i}
               className={cn(
-                'overflow-hidden border-border/65 shadow-md/50',
+                'overflow-hidden rounded-2xl border-border/60 shadow-md ring-1 ring-border/30',
                 'transition-all duration-500 ease-out',
+                'animate-in fade-in slide-in-from-bottom-1 duration-500',
               )}
-              style={{ animationDelay: `${i * 75}ms` }}
+              style={{ animationDelay: `${i * 80}ms` }}
             >
               <CardHeader className="space-y-2 pb-2">
-                <Skeleton className="h-6 w-[85%]" />
-                <Skeleton className="h-4 w-2/5" />
-                <Skeleton className="h-2 w-full rounded-full" />
+                <Skeleton className="h-6 w-[85%] rounded-md" />
+                <Skeleton className="h-4 w-2/5 rounded-md" />
+                <Skeleton className="h-2 w-full rounded-full bg-primary/10" />
               </CardHeader>
               <CardContent className="space-y-2 pt-0">
-                <Skeleton className="h-14 w-full rounded-xl" />
-                <Skeleton className="h-3 w-full" />
-                <Skeleton className="h-3 w-4/5" />
+                <Skeleton className="h-14 w-full rounded-xl bg-muted/80" />
+                <Skeleton className="h-3 w-full rounded-md" />
+                <Skeleton className="h-3 w-4/5 rounded-md" />
               </CardContent>
             </Card>
           ))}
@@ -229,8 +267,9 @@ export function EmployeeAiRecommendations() {
 
   if (state.kind === 'error') {
     const isNoResume = state.status === 404
+    const isPipelineDown = state.status === 503
     return (
-      <Card className="border-destructive/25 bg-gradient-to-br from-destructive/[0.05] via-background to-violet-500/[0.04] overflow-hidden shadow-lg">
+      <Card className="rounded-2xl border-destructive/25 bg-gradient-to-br from-destructive/[0.05] via-background to-violet-500/[0.04] overflow-hidden shadow-lg ring-1 ring-destructive/10 transition-shadow duration-300 hover:shadow-xl">
         <CardHeader className="pb-4">
           <div className="flex items-start gap-4">
             <div className="flex h-12 w-12 shrink-0 items-center justify-center rounded-2xl bg-destructive/12 ring-1 ring-destructive/20">
@@ -238,22 +277,30 @@ export function EmployeeAiRecommendations() {
             </div>
             <div className="min-w-0 space-y-2">
               <CardTitle className="text-xl">
-                {isNoResume ? 'Semantic profile not ready' : 'AI recommendations unavailable'}
+                {isNoResume
+                  ? 'Add a resume to start matching'
+                  : isPipelineDown
+                    ? 'Matching service unavailable'
+                    : 'Recommendations unavailable'}
               </CardTitle>
               <p className="text-sm text-muted-foreground leading-relaxed">{state.message}</p>
               <p className="text-sm leading-relaxed text-foreground/85 border-l-2 border-primary/35 pl-3 mt-4">
                 {isNoResume ? (
                   <>
-                    AI semantic matching requires an{' '}
-                    <strong className="text-foreground font-medium">active resume record</strong> so we can build your
-                    profile text, request an embedding from the ML service, and store the vector for cosine ranking.
+                    Semantic ranking needs a saved resume so we can build profile text, request an embedding from the ML
+                    service, and store your vector for cosine ranking.
                   </>
                 ) : state.status === 401 ? (
-                  <>Sign in as a job seeker to access your semantic matches.</>
+                  <>Sign in as a job seeker to load your matches.</>
+                ) : isPipelineDown ? (
+                  <>
+                    The server could not finish ranking (database or embedding pipeline). This is not an empty shortlist —
+                    try again after services recover. Scores always come from stored vectors, not the browser.
+                  </>
                 ) : (
                   <>
-                    Confirm MongoDB and the FastAPI embedding service are running. Ranking is deterministic from stored
-                    vectors — no mock scores are applied client-side.
+                    Check that MongoDB and the FastAPI embedding service are running. If you are signed in correctly,
+                    retry — rankings stay deterministic from stored vectors.
                   </>
                 )}
               </p>
@@ -267,7 +314,7 @@ export function EmployeeAiRecommendations() {
                     <Link href="/dashboard/employee/resume/new">{isNoResume ? 'Create resume' : 'Resume editor'}</Link>
                   </Button>
                 )}
-                <Button variant="ghost" size="sm" type="button" onClick={() => fetchRecommendations(INITIAL_LIMIT)}>
+                <Button variant="ghost" size="sm" type="button" onClick={() => fetchRecommendations(INITIAL_LIMIT)} className="rounded-full transition-colors">
                   <RefreshCw className="h-4 w-4 mr-1.5" />
                   Retry
                 </Button>
@@ -279,14 +326,59 @@ export function EmployeeAiRecommendations() {
     )
   }
 
+  if (state.kind === 'no_embedding') {
+    return (
+      <div className="space-y-8 animate-in fade-in duration-300">
+        <div className="flex flex-wrap gap-2">
+          <Badge variant="outline" className="rounded-full shadow-sm">
+            Cosine-ranked
+          </Badge>
+          <Badge variant="secondary" className="rounded-full shadow-sm">
+            Embedding required
+          </Badge>
+        </div>
+        <Card className="relative overflow-hidden rounded-2xl border border-amber-500/35 bg-card/80 backdrop-blur-md shadow-lg ring-1 ring-amber-500/10 transition-shadow duration-300 hover:shadow-xl">
+          <div className="pointer-events-none absolute inset-0 bg-gradient-to-br from-amber-500/[0.06] via-transparent to-primary/[0.04]" />
+          <CardHeader className="relative pb-2">
+            <div className="flex flex-col gap-5 sm:flex-row sm:items-start">
+              <div className="flex h-16 w-16 shrink-0 items-center justify-center rounded-2xl bg-amber-500/12 text-amber-700 dark:text-amber-300 ring-1 ring-amber-500/25 shadow-inner">
+                <Cpu className="h-8 w-8" />
+              </div>
+              <div className="space-y-3 max-w-2xl">
+                <CardTitle className="text-xl sm:text-2xl tracking-tight">Resume not embedded yet</CardTitle>
+                <p className="text-sm text-muted-foreground leading-relaxed">{state.message}</p>
+                <p className="text-sm text-foreground/85 leading-relaxed border-l-2 border-amber-500/40 pl-3">
+                  Your profile is on file, but we do not have a vector to compare against vacancies — so ranking cannot
+                  start. Re-save from the resume editor while the embedding API is reachable.
+                </p>
+              </div>
+            </div>
+          </CardHeader>
+          <CardContent className="relative flex flex-wrap gap-2 pb-8">
+            <Button asChild variant="outline" size="sm">
+              <Link href="/dashboard/employee">Dashboard</Link>
+            </Button>
+            <Button asChild size="sm">
+              <Link href="/dashboard/employee/resume/new">Open resume editor</Link>
+            </Button>
+            <Button variant="secondary" size="sm" type="button" onClick={() => fetchRecommendations(INITIAL_LIMIT)}>
+              <RefreshCw className="h-4 w-4 mr-1.5" />
+              Check again
+            </Button>
+          </CardContent>
+        </Card>
+      </div>
+    )
+  }
+
   if (state.kind === 'empty') {
     return (
       <div className="space-y-8 animate-in fade-in duration-300">
         <div className="flex flex-wrap gap-2">
-          <Badge variant="outline" className="rounded-full">Cosine-ranked</Badge>
-          <Badge variant="secondary" className="rounded-full">Embedding-based</Badge>
+          <Badge variant="outline" className="rounded-full shadow-sm">Cosine-ranked</Badge>
+          <Badge variant="secondary" className="rounded-full shadow-sm">Embedding-based</Badge>
         </div>
-        <Card className="relative overflow-hidden border border-dashed border-primary/30 bg-card/70 backdrop-blur-md shadow-xl">
+        <Card className="relative overflow-hidden rounded-2xl border border-dashed border-primary/30 bg-card/70 backdrop-blur-md shadow-xl ring-1 ring-primary/[0.07] transition-shadow duration-300 hover:shadow-xl">
           <div className="pointer-events-none absolute inset-0 bg-gradient-to-br from-violet-500/[0.07] via-transparent to-cyan-500/[0.06]" />
           <CardHeader className="relative pb-2">
             <div className="flex flex-col gap-5 sm:flex-row sm:items-start">
@@ -294,22 +386,20 @@ export function EmployeeAiRecommendations() {
                 <Cpu className="h-8 w-8" />
               </div>
               <div className="space-y-3 max-w-2xl">
-                <CardTitle className="text-xl sm:text-2xl tracking-tight">No ranked vacancies to show yet</CardTitle>
+                <CardTitle className="text-xl sm:text-2xl tracking-tight">No ranked vacancies in this window</CardTitle>
                 <p className="text-sm text-muted-foreground leading-relaxed">
-                  This can mean{' '}
-                  <strong className="text-foreground/90 font-medium">your resume embedding is missing</strong> (ML service
-                  was down when saving) — or cosine similarity stayed at zero versus current vacancies — or vacancy vectors
-                  are not in MongoDB yet.
+                  Ranking ran successfully, but nothing cleared the current cosine threshold, or indexed vacancies are
+                  still missing vectors.
                 </p>
                 <ul className="text-sm space-y-2 text-muted-foreground list-none pl-0">
                   <li className="flex gap-2">
                     <span className="text-primary font-semibold">•</span>
-                    Edit and save your resume while the embedding API is reachable to index your semantic profile.
+                    Confirm open roles have embeddings saved; re-run your data or seed script with the encoder online.
                   </li>
                   <li className="flex gap-2">
                     <span className="text-primary font-semibold">•</span>
-                    For demos run <code className="rounded-md bg-muted px-1.5 py-0.5 text-[0.72rem]">npm run seed:demo</code>{' '}
-                    with embeddings enabled, then reopen this page (server still sorts by cosine only).
+                    For local demos: <code className="rounded-md bg-muted px-1.5 py-0.5 text-[0.72rem]">npm run seed:demo</code>{' '}
+                    with embeddings enabled, then refresh (sorting stays cosine-only on the server).
                   </li>
                 </ul>
               </div>
@@ -340,117 +430,118 @@ export function EmployeeAiRecommendations() {
   return (
     <div className="space-y-10 md:space-y-12 animate-in fade-in duration-500">
       <div className="flex flex-wrap items-center gap-2">
-        <Badge variant="outline" className="gap-1.5 rounded-full border-emerald-500/35 text-emerald-800 dark:text-emerald-200">
+        <Badge variant="outline" className="gap-1.5 rounded-full border-emerald-500/35 text-emerald-800 dark:text-emerald-200 shadow-sm transition-colors hover:border-emerald-500/50">
           <Activity className="h-3 w-3" />
           Live semantic ranking
         </Badge>
-        <Badge variant="secondary" className="rounded-full gap-1">
+        <Badge variant="secondary" className="rounded-full gap-1 shadow-sm transition-colors hover:bg-secondary/90">
           <Zap className="h-3 w-3" />
           Not keyword search
         </Badge>
-        <Badge variant="outline" className="rounded-full opacity-90">
+        <Badge variant="outline" className="rounded-full opacity-90 shadow-sm">
           Top {stats?.count ?? 0} • limit {apiLimit}
         </Badge>
       </div>
 
       {stats && (
         <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-4">
-          <Card className="border-border/65 bg-gradient-to-br from-primary/[0.1] to-background shadow-md hover:shadow-lg transition-shadow">
+          <Card className={cn(METRIC_CARD, 'from-primary/[0.12] to-background')}>
             <CardHeader className="pb-2 flex flex-row items-center justify-between space-y-0">
-              <span className="text-xs font-medium uppercase tracking-wide text-muted-foreground">Matches in view</span>
-              <Target className="h-4 w-4 text-primary" />
+              <span className="text-[0.65rem] font-semibold uppercase tracking-wide text-muted-foreground">Matches in view</span>
+              <Target className="h-4 w-4 text-primary transition-transform group-hover/metric:scale-110" />
             </CardHeader>
             <CardContent>
-              <p className="text-3xl font-bold tabular-nums tracking-tight">{stats.count}</p>
-              <p className="text-xs text-muted-foreground mt-1">Server-ranked slice (semantic score DESC)</p>
+              <p className="text-3xl font-bold tabular-nums tracking-tight text-foreground">{stats.count}</p>
+              <p className="text-xs text-muted-foreground mt-1.5 leading-snug">Server-ranked slice (semantic score DESC)</p>
             </CardContent>
           </Card>
-          <Card className="border-border/65 bg-gradient-to-br from-emerald-500/[0.1] to-background shadow-md hover:shadow-lg transition-shadow">
+          <Card className={cn(METRIC_CARD, 'from-emerald-500/[0.12] to-background')}>
             <CardHeader className="pb-2 flex flex-row items-center justify-between space-y-0">
-              <span className="text-xs font-medium uppercase tracking-wide text-muted-foreground">Top cosine match</span>
-              <TrendingUp className="h-4 w-4 text-emerald-600 dark:text-emerald-400" />
+              <span className="text-[0.65rem] font-semibold uppercase tracking-wide text-muted-foreground">Top cosine match</span>
+              <TrendingUp className="h-4 w-4 text-emerald-600 dark:text-emerald-400 transition-transform group-hover/metric:scale-110" />
             </CardHeader>
             <CardContent>
-              <p className="text-3xl font-bold tabular-nums">{stats.topMatch}%</p>
-              <p className="text-xs text-muted-foreground mt-1">From real similarity curve</p>
+              <p className="text-3xl font-bold tabular-nums text-foreground">{stats.topMatch}%</p>
+              <p className="text-xs text-muted-foreground mt-1.5 leading-snug">Best cosine-based score in this batch</p>
             </CardContent>
           </Card>
-          <Card className="border-border/65 bg-gradient-to-br from-violet-500/[0.1] to-background shadow-md hover:shadow-lg transition-shadow">
+          <Card className={cn(METRIC_CARD, 'from-violet-500/[0.12] to-background')}>
             <CardHeader className="pb-2 flex flex-row items-center justify-between space-y-0">
-              <span className="text-xs font-medium uppercase tracking-wide text-muted-foreground">Explainability hits</span>
-              <Layers className="h-4 w-4 text-violet-600 dark:text-violet-400" />
+              <span className="text-[0.65rem] font-semibold uppercase tracking-wide text-muted-foreground">Text overlap hints</span>
+              <Layers className="h-4 w-4 text-violet-600 dark:text-violet-400 transition-transform group-hover/metric:scale-110" />
             </CardHeader>
             <CardContent>
-              <p className="text-3xl font-bold tabular-nums">{stats.skillsDetected}</p>
-              <p className="text-xs text-muted-foreground mt-1">Overlaps resume ↔ JD text</p>
+              <p className="text-3xl font-bold tabular-nums text-foreground">{stats.skillsDetected}</p>
+              <p className="text-xs text-muted-foreground mt-1.5 leading-snug">Distinct JD phrases flagged in your resume text</p>
             </CardContent>
           </Card>
-          <Card className="border-border/65 bg-gradient-to-br from-cyan-500/[0.1] to-background shadow-md hover:shadow-lg transition-shadow">
+          <Card className={cn(METRIC_CARD, 'from-cyan-500/[0.12] to-background')}>
             <CardHeader className="pb-2 flex flex-row items-center justify-between space-y-0">
-              <span className="text-xs font-medium uppercase tracking-wide text-muted-foreground">Avg. confidence</span>
-              <Percent className="h-4 w-4 text-cyan-600 dark:text-cyan-400" />
+              <span className="text-[0.65rem] font-semibold uppercase tracking-wide text-muted-foreground">Mean semantic match</span>
+              <Percent className="h-4 w-4 text-cyan-600 dark:text-cyan-400 transition-transform group-hover/metric:scale-110" />
             </CardHeader>
             <CardContent>
-              <p className="text-3xl font-bold tabular-nums">{stats.avgConfidence}%</p>
-              <p className="text-xs text-muted-foreground mt-1">Mean of cosine-derived scores</p>
+              <p className="text-3xl font-bold tabular-nums text-foreground">{stats.meanSemanticMatch}%</p>
+              <p className="text-xs text-muted-foreground mt-1.5 leading-snug">Average cosine-based score for rows in view</p>
             </CardContent>
           </Card>
         </div>
       )}
 
-      <div className="flex flex-col sm:flex-row sm:items-end sm:justify-between gap-4 pb-2 border-b border-border/50">
-        <div className="space-y-1 max-w-xl">
-          <p className="text-sm font-medium text-foreground">Results</p>
+      <div className="flex flex-col sm:flex-row sm:items-end sm:justify-between gap-4 pb-3 border-b border-border/50">
+        <div className="space-y-1 max-w-xl min-w-0">
+          <p className="text-sm font-semibold text-foreground tracking-tight">Results</p>
           <p className="text-sm text-muted-foreground leading-relaxed">
-            Showing the top <strong className="text-foreground">{data.length}</strong> semantic matches fetched with{' '}
-            <code className="rounded bg-muted px-1 py-px text-[0.72rem]">?limit={apiLimit}</code> — order preserved from
+            Showing the top <strong className="text-foreground font-medium">{data.length}</strong> semantic matches fetched with{' '}
+            <code className="rounded-md bg-muted/80 px-1.5 py-0.5 text-[0.72rem]">?limit={apiLimit}</code> — order preserved from
             backend cosine ranking only.
           </p>
         </div>
-        <div className="flex flex-wrap items-center gap-2">
+        <div className="flex flex-wrap items-center gap-2 shrink-0">
           {hasMoreLikelyFive && (
-            <Button variant="secondary" size="sm" type="button" className="gap-1 rounded-full shadow-sm" onClick={() => fetchRecommendations(MID_LIMIT)}>
+            <Button variant="secondary" size="sm" type="button" className="gap-1 rounded-full shadow-sm transition-all duration-200 hover:shadow-md active:scale-[0.98]" onClick={() => fetchRecommendations(MID_LIMIT)}>
               Show top <span className="font-semibold">{MID_LIMIT}</span>
               <ChevronDown className="h-4 w-4 opacity-70" />
             </Button>
           )}
           {hasMoreLikelyMax && (
-            <Button variant="secondary" size="sm" type="button" className="gap-1 rounded-full shadow-sm" onClick={() => fetchRecommendations(MAX_LIMIT)}>
+            <Button variant="secondary" size="sm" type="button" className="gap-1 rounded-full shadow-sm transition-all duration-200 hover:shadow-md active:scale-[0.98]" onClick={() => fetchRecommendations(MAX_LIMIT)}>
               Show all (up to {MAX_LIMIT})
               <ChevronDown className="h-4 w-4 opacity-70" />
             </Button>
           )}
-          <Button variant="outline" size="sm" type="button" onClick={refresh} className="gap-2 rounded-full">
+          <Button variant="outline" size="sm" type="button" onClick={refresh} className="gap-2 rounded-full transition-all duration-200 hover:border-primary/35 hover:bg-muted/40 active:scale-[0.98]">
             <RefreshCw className="h-4 w-4" />
             Refresh same window
           </Button>
         </div>
       </div>
 
-      <div className="grid gap-6 lg:grid-cols-2">
+      <div className="grid gap-5 sm:gap-6 lg:grid-cols-2">
         {data.map((item, idx) => {
           const pct = scoreToPercent(item.score)
           return (
             <Card
               key={item.vacancyId}
               className={cn(
-                'group relative overflow-hidden border-border/70 transition-all duration-300',
-                'shadow-md hover:shadow-xl hover:border-primary/30 hover:-translate-y-1',
+                'group/card relative overflow-hidden rounded-2xl border-border/65 transition-all duration-300 ease-out',
+                'shadow-md hover:shadow-xl hover:border-primary/35 hover:-translate-y-1',
+                'active:scale-[0.995]',
                 idx === 0 &&
-                  'ring-2 ring-primary/35 bg-gradient-to-b from-primary/[0.06] via-background to-background shadow-lg',
+                  'ring-2 ring-primary/30 bg-gradient-to-b from-primary/[0.08] via-background to-background shadow-lg',
               )}
             >
               {idx === 0 && (
                 <div className="absolute top-4 right-4 z-10">
-                  <Badge className="rounded-full bg-primary text-primary-foreground shadow-md gap-1">
+                  <Badge className="rounded-full bg-primary text-primary-foreground shadow-md gap-1 transition-transform group-hover/card:scale-[1.02]">
                     <Sparkles className="h-3 w-3" />
                     #1 semantic pick
                   </Badge>
                 </div>
               )}
-              <div className="pointer-events-none absolute inset-x-0 top-0 h-[2px] bg-gradient-to-r from-transparent via-primary/50 to-transparent opacity-40 group-hover:opacity-80 transition-opacity" />
+              <div className="pointer-events-none absolute inset-x-0 top-0 h-[2px] bg-gradient-to-r from-transparent via-primary/50 to-transparent opacity-50 group-hover/card:opacity-90 transition-opacity duration-300" />
 
-              <CardHeader className="pb-3 space-y-4 pr-24">
+              <CardHeader className="pb-3 space-y-4 pr-14 sm:pr-24">
                 <div className="min-w-0 space-y-1.5">
                   <h2 className="font-semibold text-xl leading-snug tracking-tight line-clamp-2 text-foreground">
                     {item.title}
@@ -465,11 +556,11 @@ export function EmployeeAiRecommendations() {
                   <div className="flex items-center justify-between text-[0.7rem] font-semibold uppercase tracking-wider text-muted-foreground">
                     <span className="flex items-center gap-1.5">
                       <Activity className="h-3.5 w-3.5" />
-                      AI match strength
+                      Semantic match score
                     </span>
                     <span className="text-lg font-bold text-foreground tabular-nums">{pct}%</span>
                   </div>
-                  <Progress value={pct} className="h-2.5 bg-primary/15 rounded-full" />
+                  <Progress value={pct} className={PROGRESS_ENHANCED} />
                   <p className="text-[0.7rem] text-muted-foreground">
                     Cosine similarity → display = <code className="text-[0.65rem]">round(score×100)</code>
                   </p>
@@ -484,45 +575,57 @@ export function EmployeeAiRecommendations() {
                   <p className="text-sm text-muted-foreground leading-relaxed line-clamp-4">{item.description}</p>
                 </div>
 
-                <div className="rounded-xl border border-primary/25 bg-gradient-to-br from-primary/[0.07] to-transparent p-4 space-y-4 shadow-inner">
-                  <div className="flex items-center gap-2 border-b border-border/40 pb-2">
-                    <Lightbulb className="h-5 w-5 text-primary shrink-0" />
-                    <h3 className="font-semibold text-sm tracking-tight">Why this recommendation matches you</h3>
+                <div className="rounded-xl border border-primary/25 bg-gradient-to-br from-primary/[0.07] to-transparent p-4 space-y-4 shadow-inner transition-colors duration-300 group-hover/card:border-primary/35">
+                  <div className="rounded-lg border border-primary/30 bg-background/60 p-3.5 space-y-2">
+                    <div className="flex items-center gap-2">
+                      <Activity className="h-4 w-4 text-primary shrink-0" />
+                      <h3 className="font-semibold text-sm tracking-tight">Semantic match (embedding)</h3>
+                    </div>
+                    <p className="text-muted-foreground leading-relaxed text-[0.9rem]">{item.semanticMatchNote}</p>
                   </div>
 
-                  {item.matchedSkills.length > 0 && (
-                    <div>
-                      <p className="text-xs font-medium text-muted-foreground mb-2">
-                        Matched because your profile includes
-                      </p>
-                      <div className="flex flex-wrap gap-1.5">
-                        {item.matchedSkills.map((s) => (
-                          <Badge
-                            key={s}
-                            variant="secondary"
-                            className="font-normal text-xs rounded-full px-2.5 py-0.5 bg-background/90 border border-border/60"
-                          >
-                            {s}
-                          </Badge>
-                        ))}
-                      </div>
+                  <div className="rounded-lg border border-violet-500/30 bg-violet-500/[0.04] dark:bg-violet-500/[0.07] p-3.5 space-y-3">
+                    <div className="flex items-center gap-2">
+                      <Layers className="h-4 w-4 text-violet-600 dark:text-violet-300 shrink-0" />
+                      <h3 className="font-semibold text-sm tracking-tight">Text overlap hints</h3>
                     </div>
-                  )}
-
-                  <div className="space-y-1.5 text-sm">
-                    <p className="text-xs font-medium text-muted-foreground uppercase tracking-wide">Semantic overlap</p>
-                    <p className="text-muted-foreground leading-relaxed text-[0.9rem]">{item.explanation}</p>
+                    {item.matchedSkills.length > 0 ? (
+                      <>
+                        <p className="text-xs text-muted-foreground">
+                          Plain-text check between your resume and the listing — independent from the score above.
+                        </p>
+                        <div className="flex flex-wrap gap-1.5">
+                          {item.matchedSkills.map((s) => (
+                            <Badge
+                              key={s}
+                              variant="secondary"
+                              className="font-normal text-xs rounded-full px-2.5 py-0.5 bg-background/90 border border-border/60"
+                            >
+                              {s}
+                            </Badge>
+                          ))}
+                        </div>
+                        {item.textOverlapNote ? (
+                          <p className="text-muted-foreground leading-relaxed text-[0.85rem]">{item.textOverlapNote}</p>
+                        ) : null}
+                      </>
+                    ) : (
+                      <p className="text-xs text-muted-foreground leading-relaxed">
+                        No JD phrases were auto-flagged against your resume text. The rank still reflects embedding cosine
+                        only.
+                      </p>
+                    )}
                   </div>
 
                   <div className="rounded-lg border border-dashed border-muted-foreground/30 bg-muted/25 px-3 py-2.5">
                     <p className="text-xs font-medium text-muted-foreground">Behavioural signals</p>
                     <p className="text-xs text-muted-foreground/85 mt-1">
-                      Reserved for apply / click / session patterns — not used in ranking yet.
+                      Engagement signals reserved for a future release — not used in ranking today.
                     </p>
                   </div>
                 </div>
 
-                <Button variant="default" size="sm" className="w-full sm:w-auto gap-2 rounded-full shadow-sm" asChild>
+                <Button variant="default" size="sm" className="w-full sm:w-auto gap-2 rounded-full shadow-sm transition-all duration-200 hover:shadow-md active:scale-[0.98]" asChild>
                   <Link href={`/jobs/${item.vacancyId}`}>
                     Open vacancy <ArrowRight className="h-4 w-4" />
                   </Link>

@@ -8,6 +8,7 @@ import { revalidatePath } from 'next/cache';
 import { redirect } from 'next/navigation';
 import { getEmbedding } from '@/lib/ml';
 import { buildResumeEmbeddingText } from '@/lib/embedding-text';
+import { ensureActiveResumeForUser } from '@/lib/active-resume';
 import fs from 'fs';
 import path from 'path';
 
@@ -54,12 +55,16 @@ export async function createResumeAction(formData: FormData) {
   }
 
   await dbConnect();
+  const existingCount = await Resume.countDocuments({ userId: session.user.id });
+  const activeForAi = existingCount === 0;
+
   await Resume.create({
     userId: session.user.id,
     title,
     skills,
     experience: experience || '',
     education: education || '',
+    activeForAi,
     ...(embedding ? { embedding } : {}),
     cvLink: cvLink || '',
     cvFile: cvFilePath || '',
@@ -70,6 +75,7 @@ export async function createResumeAction(formData: FormData) {
   });
 
   revalidatePath('/dashboard/employee');
+  revalidatePath('/dashboard/employee/recommendations');
   redirect('/dashboard/employee');
 }
 
@@ -126,6 +132,7 @@ export async function updateResumeAction(formData: FormData) {
   );
 
   revalidatePath('/dashboard/employee');
+  revalidatePath('/dashboard/employee/recommendations');
   redirect('/dashboard/employee');
 }
 
@@ -137,9 +144,16 @@ export async function deleteResumeAction(formData: FormData) {
   if (!id) throw new Error('Missing resume id');
 
   await dbConnect();
+  const toDelete = await Resume.findOne({ _id: id, userId: session.user.id }).select('activeForAi').lean() as {
+    activeForAi?: boolean
+  } | null
   await Resume.findOneAndDelete({ _id: id, userId: session.user.id });
+  if (toDelete?.activeForAi) {
+    await ensureActiveResumeForUser(session.user.id);
+  }
 
   revalidatePath('/dashboard/employee');
+  revalidatePath('/dashboard/employee/recommendations');
 }
 
 export async function deleteEmployeeAccountAction() {
@@ -161,12 +175,16 @@ export async function getEmployeeResumesAction() {
   if (!session || session.user.role !== 'EMPLOYEE') return [];
 
   await dbConnect();
-  const resumes = await Resume.find({ userId: session.user.id }).sort({ createdAt: -1 }).lean();
+  await ensureActiveResumeForUser(session.user.id);
+  const resumes = await Resume.find({ userId: session.user.id })
+    .sort({ activeForAi: -1, createdAt: -1 })
+    .lean();
 
   return resumes.map((resume: any) => ({
     id: resume._id.toString(),
     title: resume.title,
     skills: resume.skills,
+    activeForAi: !!resume.activeForAi,
     createdAt: resume.createdAt instanceof Date ? resume.createdAt.toISOString() : new Date(resume.createdAt).toISOString(),
   }));
 }
@@ -249,12 +267,16 @@ export async function submitVacancyResponseAction(formData: FormData) {
       console.warn('[JobFlow] ML service unavailable, resume saved without embedding.', e);
     }
 
+    const existingCount = await Resume.countDocuments({ userId: session.user.id });
+    const activeForAi = existingCount === 0;
+
     const createdResume = await Resume.create({
       userId: session.user.id,
       title,
       skills,
       experience: experience || '',
       education: education || '',
+      activeForAi,
       ...(embedding ? { embedding } : {}),
       cvLink: cvLink || '',
       cvFile: cvFilePath,
@@ -275,7 +297,26 @@ export async function submitVacancyResponseAction(formData: FormData) {
   });
 
   revalidatePath('/dashboard/employee');
+  revalidatePath('/dashboard/employee/recommendations');
   revalidatePath(`/jobs/${vacancyId}`);
 
   return { success: true };
+}
+
+export async function setActiveResumeForAiAction(formData: FormData) {
+  const session = await getSession();
+  if (!session || session.user.role !== 'EMPLOYEE') throw new Error('Unauthorized');
+
+  const id = formData.get('id') as string;
+  if (!id || !mongoose.Types.ObjectId.isValid(id)) throw new Error('Invalid resume');
+
+  await dbConnect();
+  const doc = await Resume.findOne({ _id: id, userId: session.user.id });
+  if (!doc) throw new Error('Resume not found');
+
+  await Resume.updateMany({ userId: session.user.id }, { $set: { activeForAi: false } });
+  await Resume.updateOne({ _id: id, userId: session.user.id }, { $set: { activeForAi: true } });
+
+  revalidatePath('/dashboard/employee');
+  revalidatePath('/dashboard/employee/recommendations');
 }

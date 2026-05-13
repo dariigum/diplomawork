@@ -1,19 +1,23 @@
 import Link from "next/link";
+import { Sparkles, BrainCircuit } from "lucide-react";
 import { getSession } from "@/lib/auth";
 import dbConnect from "@/lib/db/mongoose";
 import { Response, User, Resume, SavedVacancy } from "@/lib/db/schema";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
+import { Badge } from "@/components/ui/badge";
 import { EmployeeDashboardAiPreview } from "@/components/recommendations/employee-dashboard-ai-preview";
-import { deleteEmployeeAccountAction, deleteResumeAction } from "@/app/actions/employee";
+import { deleteEmployeeAccountAction, deleteResumeAction, setActiveResumeForAiAction } from "@/app/actions/employee";
+import { ensureActiveResumeForUser, getActiveResumeLeanForUser } from "@/lib/active-resume";
 
 export default async function EmployeeDashboard() {
   const session = await getSession();
   if (!session || session.user.role !== 'EMPLOYEE') return null;
 
   await dbConnect();
+  await ensureActiveResumeForUser(session.user.id);
   const userData = await User.findById(session.user.id);
-  const userResumes = await Resume.find({ userId: session.user.id });
+  const userResumes = await Resume.find({ userId: session.user.id }).sort({ activeForAi: -1, createdAt: -1 });
   const savedVacanciesRecords = await SavedVacancy.find({ userId: session.user.id }).populate('vacancyId').lean() as any[];
   const userResponses = await Response.find({ userId: session.user.id })
     .populate('vacancyId', 'title salaryMin salaryMax')
@@ -21,14 +25,52 @@ export default async function EmployeeDashboard() {
     .sort({ createdAt: -1 })
     .lean() as any[];
 
-  return (
-    <div className="space-y-8">
-      <h1 className="text-3xl font-bold">Employee Dashboard</h1>
+  const activeResumeLean = (await getActiveResumeLeanForUser(session.user.id)) as { embedding?: number[] } | null;
 
-      <EmployeeDashboardAiPreview />
-      
-      <div className="grid grid-cols-1 md:grid-cols-2 gap-8">
-        <Card>
+  const hasResume = !!activeResumeLean;
+  const embeddingIndexed =
+    !!activeResumeLean?.embedding &&
+    Array.isArray(activeResumeLean.embedding) &&
+    activeResumeLean.embedding.length > 0;
+
+  return (
+    <div className="max-w-6xl mx-auto space-y-10 pb-10 px-4 sm:px-6">
+      <div className="flex flex-col gap-4 sm:flex-row sm:items-end sm:justify-between">
+        <div className="space-y-2 min-w-0">
+          <div className="flex items-center gap-2 text-primary">
+            <Sparkles className="h-5 w-5 shrink-0" />
+            <span className="text-xs font-semibold uppercase tracking-wider text-muted-foreground">
+              AI-powered workspace
+            </span>
+          </div>
+          <h1 className="text-3xl sm:text-4xl font-bold tracking-tight">Career workspace</h1>
+          <p className="text-sm text-muted-foreground max-w-2xl leading-relaxed">
+            Semantic job matching sits up front; manage your profile, resumes, and applications below.
+          </p>
+        </div>
+        <Button
+          variant="outline"
+          size="sm"
+          asChild
+          className="shrink-0 rounded-full border-primary/25 bg-gradient-to-br from-background to-primary/[0.04] shadow-sm hover:shadow-md transition-shadow"
+        >
+          <Link href="/dashboard/employee/recommendations">Open full match list</Link>
+        </Button>
+      </div>
+
+      <section className="space-y-3" aria-labelledby="dash-ai-heading">
+        <div className="flex items-center justify-between gap-3">
+          <h2 id="dash-ai-heading" className="text-xs font-semibold uppercase tracking-wider text-muted-foreground">
+            Semantic matches
+          </h2>
+        </div>
+        <EmployeeDashboardAiPreview serverHints={{ hasResume, embeddingIndexed }} />
+      </section>
+
+      <section className="space-y-4 pt-4 border-t border-border/60">
+        <h2 className="text-xs font-semibold uppercase tracking-wider text-muted-foreground">Profile & resumes</h2>
+        <div className="grid grid-cols-1 md:grid-cols-2 gap-6 md:gap-8">
+        <Card className="border-border/70 shadow-sm hover:shadow-md transition-shadow duration-200">
           <CardHeader>
             <CardTitle>My Profile</CardTitle>
           </CardHeader>
@@ -49,7 +91,7 @@ export default async function EmployeeDashboard() {
           </CardContent>
         </Card>
 
-        <Card>
+        <Card className="border-border/70 shadow-sm hover:shadow-md transition-shadow duration-200">
           <CardHeader className="flex flex-row items-center justify-between pb-2">
             <CardTitle>My Resumes</CardTitle>
             <Button size="sm" asChild><Link href="/dashboard/employee/resume/new">Add Resume</Link></Button>
@@ -59,18 +101,41 @@ export default async function EmployeeDashboard() {
               <p className="text-muted-foreground text-sm mt-4">No resumes created yet.</p>
             ) : (
               <ul className="space-y-4 mt-4">
-                {userResumes.map(r => (
-                  <li key={r.id} className="border p-4 rounded-lg flex justify-between items-center gap-3">
+                {userResumes.map((r) => {
+                  const isAiActive = !!(r as { activeForAi?: boolean }).activeForAi;
+                  return (
+                  <li key={r.id} className="border border-border/60 p-4 rounded-xl flex flex-col sm:flex-row sm:justify-between sm:items-center gap-3 transition-colors duration-200 hover:border-primary/20 hover:bg-muted/20">
                     <div className="flex-1 min-w-0">
-                      <p className="font-medium leading-none truncate">{r.title}</p>
+                      <div className="flex flex-wrap items-center gap-2 gap-y-1">
+                        <p className="font-medium leading-none truncate">{r.title}</p>
+                        {isAiActive ? (
+                          <Badge className="rounded-full shrink-0 gap-1 border-primary/30 bg-primary/15 text-primary text-[0.65rem]">
+                            <BrainCircuit className="h-3 w-3" />
+                            AI profile active
+                          </Badge>
+                        ) : null}
+                      </div>
                       <p className="text-sm text-muted-foreground mt-2 truncate">{r.skills}</p>
+                      {!isAiActive ? (
+                        <p className="text-xs text-muted-foreground mt-1.5">Not used for semantic job matching until you activate it.</p>
+                      ) : (
+                        <p className="text-xs text-muted-foreground mt-1.5">Currently used for AI recommendations and embeddings.</p>
+                      )}
                       {r.cvFile && (
                         <p className="mt-2 text-xs">
                           <a href={r.cvFile} target="_blank" rel="noopener noreferrer" className="text-primary hover:underline">View CV (PDF)</a>
                         </p>
                       )}
                     </div>
-                    <div className="flex items-center gap-2 shrink-0">
+                    <div className="flex flex-wrap items-center gap-2 shrink-0">
+                      {!isAiActive ? (
+                        <form action={setActiveResumeForAiAction}>
+                          <input type="hidden" name="id" value={r.id} />
+                          <Button type="submit" variant="secondary" size="sm" className="rounded-full text-xs h-8">
+                            Use for AI matching
+                          </Button>
+                        </form>
+                      ) : null}
                       <Button variant="secondary" size="sm" asChild>
                         <Link href={`/dashboard/employee/resume/${r.id}`}>Edit</Link>
                       </Button>
@@ -87,15 +152,19 @@ export default async function EmployeeDashboard() {
                       </form>
                     </div>
                   </li>
-                ))}
+                  );
+                })}
               </ul>
             )}
           </CardContent>
         </Card>
-      </div>
+        </div>
+      </section>
 
-      <div className="grid grid-cols-1 md:grid-cols-2 gap-8">
-        <Card>
+      <section className="space-y-4 pt-2 border-t border-border/60">
+        <h2 className="text-xs font-semibold uppercase tracking-wider text-muted-foreground">Saved & applications</h2>
+        <div className="grid grid-cols-1 md:grid-cols-2 gap-6 md:gap-8">
+        <Card className="border-border/70 shadow-sm hover:shadow-md transition-shadow duration-200">
           <CardHeader>
             <CardTitle>Saved Vacancies</CardTitle>
           </CardHeader>
@@ -108,7 +177,7 @@ export default async function EmployeeDashboard() {
                   const v = record.vacancyId;
                   if (!v) return null;
                   return (
-                    <li key={v._id.toString()} className="border p-4 rounded-lg flex flex-col gap-2">
+                    <li key={v._id.toString()} className="border border-border/60 p-4 rounded-xl flex flex-col gap-2 transition-colors duration-200 hover:border-primary/20 hover:bg-muted/20">
                       <div className="flex justify-between items-start">
                         <div>
                           <p className="font-medium">{v.title}</p>
@@ -126,7 +195,7 @@ export default async function EmployeeDashboard() {
           </CardContent>
         </Card>
 
-        <Card>
+        <Card className="border-border/70 shadow-sm hover:shadow-md transition-shadow duration-200">
           <CardHeader>
             <CardTitle>My Responses</CardTitle>
           </CardHeader>
@@ -140,7 +209,7 @@ export default async function EmployeeDashboard() {
                   if (!vacancy) return null;
 
                   return (
-                    <li key={response._id.toString()} className="border p-4 rounded-lg space-y-2">
+                    <li key={response._id.toString()} className="border border-border/60 p-4 rounded-xl space-y-2 transition-colors duration-200 hover:border-primary/20 hover:bg-muted/20">
                       <div className="flex items-start justify-between gap-3">
                         <div>
                           <p className="font-medium">{vacancy.title}</p>
@@ -162,7 +231,8 @@ export default async function EmployeeDashboard() {
             )}
           </CardContent>
         </Card>
-      </div>
+        </div>
+      </section>
     </div>
   );
 }

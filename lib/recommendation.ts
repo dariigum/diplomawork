@@ -1,5 +1,6 @@
 import dbConnect from '@/lib/db/mongoose'
-import { Resume, Vacancy } from '@/lib/db/schema'
+import { Vacancy } from '@/lib/db/schema'
+import { getActiveResumeLeanForUser } from '@/lib/active-resume'
 
 export function cosineSimilarity(a: unknown, b: unknown): number {
   if (!Array.isArray(a) || !Array.isArray(b)) return 0
@@ -42,7 +43,7 @@ export async function getTopRecommendations(params: { userId: string; limit?: nu
 
   await dbConnect()
 
-  const resume = await Resume.findOne({ userId: params.userId }).sort({ createdAt: -1 }).lean() as any
+  const resume = (await getActiveResumeLeanForUser(params.userId)) as any
   if (!resume) {
     return []
   }

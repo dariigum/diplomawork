@@ -7,6 +7,9 @@ import dbConnect from "@/lib/db/mongoose"
 import { User, Vacancy, SavedVacancy } from "@/lib/db/schema"
 import { getSession } from "@/lib/auth"
 
+/** Avoid build-time DB prerender when Atlas is unreachable (runtime fetch only). */
+export const dynamic = "force-dynamic"
+
 export default async function CompaniesPage() {
   await dbConnect();
   

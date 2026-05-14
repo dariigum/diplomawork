@@ -12,6 +12,8 @@ import { deleteEmployeeAccountAction, deleteResumeAction, setActiveResumeForAiAc
 import { ensureActiveResumeForUser, getActiveResumeLeanForUser } from "@/lib/active-resume";
 import { buildBehaviourAnalytics } from "@/lib/behaviour-analytics";
 
+export const dynamic = "force-dynamic";
+
 export default async function EmployeeDashboard() {
   const session = await getSession();
   if (!session || session.user.role !== 'EMPLOYEE') return null;

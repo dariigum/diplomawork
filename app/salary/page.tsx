@@ -3,6 +3,8 @@ import dbConnect from "@/lib/db/mongoose";
 import { Resume } from "@/lib/db/schema";
 import SalaryClient from "./SalaryClient";
 
+export const dynamic = "force-dynamic";
+
 export default async function SalaryPage() {
   const session = await getSession();
   

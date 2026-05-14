@@ -7,6 +7,8 @@ import dbConnect from "@/lib/db/mongoose"
 import { User, Vacancy, SavedVacancy } from "@/lib/db/schema"
 import { getSession } from "@/lib/auth"
 
+export const dynamic = "force-dynamic"
+
 export default async function CompanyProfilePage({ params }: { params: Promise<{ id: string }> }) {
   const { id } = await params;
   

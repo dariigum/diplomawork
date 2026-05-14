@@ -8,6 +8,8 @@ import { Input } from "@/components/ui/input";
 import { Textarea } from "@/components/ui/textarea";
 import { updateEmployerProfileAction } from "@/app/actions/employer";
 
+export const dynamic = "force-dynamic";
+
 export default async function EmployerDashboard() {
   const session = await getSession();
   if (!session || session.user.role !== 'EMPLOYER') return null;

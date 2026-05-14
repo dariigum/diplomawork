@@ -50,6 +50,10 @@ export async function upsertIngestionVacancy(
       return { ok: false, error: 'Upsert did not return a document id' }
     }
 
+    if (Array.isArray(updated.embedding) && updated.embedding.length === 0) {
+      await Vacancy.updateOne({ _id: updated._id }, { $unset: { embedding: 1 } })
+    }
+
     return { ok: true, recordId: String(updated._id), created: !existing }
   } catch (error) {
     const message = error instanceof Error ? error.message : 'Unknown persistence error'

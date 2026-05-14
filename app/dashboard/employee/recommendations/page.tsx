@@ -34,29 +34,29 @@ export default async function EmployeeRecommendationsPage() {
               </Badge>
               <Badge variant="secondary" className="rounded-full gap-1 text-xs shadow-sm">
                 <Zap className="h-3 w-3" />
-                Cosine-ranked
+                Hybrid-ranked
               </Badge>
             </div>
             <h1 className="text-3xl font-bold tracking-tight sm:text-4xl md:text-[2.25rem] leading-tight">
               AI Career Assistant
             </h1>
             <p className="text-base text-muted-foreground leading-relaxed md:text-lg">
-              Semantic recommendations powered by your resume embedding and cosine similarity against vacancy vectors.
-              Your matches are computed server-side — not keyword search alone.
+              Recommendations combine resume embeddings (cosine semantic score) with a small, capped behaviour layer.
+              Final list order is hybrid (semantic-first) — computed server-side, not keyword search alone.
             </p>
             <p className="text-sm text-muted-foreground/90 flex items-start gap-2 max-w-2xl">
               <Sparkles className="h-4 w-4 shrink-0 mt-0.5 text-primary" />
               <span>
-                Transparent ML: vectors from your encoder, cosine ranking on the server, percentages never fabricated in
-                the browser.
+                Transparent ML: vectors from your encoder; semantic term is cosine on the server; behaviour boosts are
+                explainable in each card. Percentages are not fabricated in the browser.
               </span>
             </p>
             <div className="flex flex-wrap gap-2 pt-2">
               <Badge variant="outline" className="rounded-full text-xs font-normal bg-background/50 shadow-sm">
-                Cosine-ranked list
+                Semantic-first hybrid
               </Badge>
               <Badge variant="secondary" className="rounded-full text-xs font-normal shadow-sm">
-                Similarity % (cosine)
+                Final % (hybrid)
               </Badge>
               <Badge variant="outline" className="rounded-full text-xs font-normal opacity-90 shadow-sm">
                 Top-N via ?limit=

@@ -208,9 +208,12 @@ async function seedDemo() {
       `[seed:demo] Semantic API check (getTopRecommendations): returned ${recs.length} recommendation(s).`,
     );
     if (recs.length > 0) {
+      const r0 = recs[0] as { title: string; score: number; semanticScore?: number; finalScore?: number }
+      const sem = typeof r0.semanticScore === 'number' ? r0.semanticScore : r0.score
+      const fin = typeof r0.finalScore === 'number' ? r0.finalScore : r0.score
       console.log(
-        `[seed:demo] Top match (real cosine score, not mocked): "${recs[0].title}" score=${Number(recs[0].score).toFixed(4)}`,
-      );
+        `[seed:demo] Top match: "${r0.title}" hybrid=${Number(fin).toFixed(4)} semantic=${Number(sem).toFixed(4)}`,
+      )
     }
   } catch (e) {
     console.warn('[seed:demo] Recommendation verification failed:', e instanceof Error ? e.message : e);

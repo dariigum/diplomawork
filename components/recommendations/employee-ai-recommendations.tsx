@@ -62,6 +62,14 @@ function scoreToPercent(score: number): number {
   return Math.max(0, Math.min(100, Math.round(score * 100)))
 }
 
+function getFinalScore(d: RecommendationApiItem): number {
+  return typeof d.finalScore === 'number' ? d.finalScore : d.score
+}
+
+function getSemanticScore(d: RecommendationApiItem): number {
+  return typeof d.semanticScore === 'number' ? d.semanticScore : d.score
+}
+
 function computeStats(data: RecommendationApiItem[]) {
   const n = data.length
   if (n === 0) {
@@ -70,11 +78,13 @@ function computeStats(data: RecommendationApiItem[]) {
       topMatch: 0,
       skillsDetected: 0,
       meanSemanticMatch: 0,
+      meanHybridMatch: 0,
     }
   }
-  const percents = data.map((d) => scoreToPercent(d.score))
-  const topMatch = Math.max(...percents)
-  const meanSemanticMatch = Math.round((data.reduce((acc, d) => acc + d.score, 0) / n) * 100)
+  const percentsHybrid = data.map((d) => scoreToPercent(getFinalScore(d)))
+  const topMatch = Math.max(...percentsHybrid)
+  const meanSemanticMatch = Math.round((data.reduce((acc, d) => acc + getSemanticScore(d), 0) / n) * 100)
+  const meanHybridMatch = Math.round((data.reduce((acc, d) => acc + getFinalScore(d), 0) / n) * 100)
   const skillSet = new Set<string>()
   for (const item of data) {
     for (const s of item.matchedSkills) skillSet.add(s)
@@ -84,6 +94,7 @@ function computeStats(data: RecommendationApiItem[]) {
     topMatch,
     skillsDetected: skillSet.size,
     meanSemanticMatch,
+    meanHybridMatch,
   }
 }
 
@@ -193,7 +204,7 @@ export function EmployeeAiRecommendations() {
           </Badge>
           <Badge variant="secondary" className="rounded-full gap-1 shadow-sm transition-colors hover:bg-secondary/90">
             <Workflow className="h-3 w-3" />
-            Embedding → cosine ranking
+            Hybrid rank (semantic-first)
           </Badge>
         </div>
 
@@ -230,8 +241,8 @@ export function EmployeeAiRecommendations() {
             <div className="min-w-0 flex-1">
               <p className="font-semibold text-lg text-foreground transition-all duration-300">{loadingMessage}</p>
               <p className="text-sm text-muted-foreground mt-1.5 leading-relaxed">
-                Server-side cosine similarity across SBERT embeddings — vacancies ranked against your resume vector. No
-                client-side scoring.
+                Server-side embeddings and cosine for the semantic term, plus a capped behaviour layer for the final
+                hybrid sort. No client-side scoring.
               </p>
             </div>
           </div>
@@ -375,7 +386,7 @@ export function EmployeeAiRecommendations() {
     return (
       <div className="space-y-8 animate-in fade-in duration-300">
         <div className="flex flex-wrap gap-2">
-          <Badge variant="outline" className="rounded-full shadow-sm">Cosine-ranked</Badge>
+          <Badge variant="outline" className="rounded-full shadow-sm">Hybrid-ranked</Badge>
           <Badge variant="secondary" className="rounded-full shadow-sm">Embedding-based</Badge>
         </div>
         <Card className="relative overflow-hidden rounded-2xl border border-dashed border-primary/30 bg-card/70 backdrop-blur-md shadow-xl ring-1 ring-primary/[0.07] transition-shadow duration-300 hover:shadow-xl">
@@ -399,7 +410,7 @@ export function EmployeeAiRecommendations() {
                   <li className="flex gap-2">
                     <span className="text-primary font-semibold">•</span>
                     For local demos: <code className="rounded-md bg-muted px-1.5 py-0.5 text-[0.72rem]">npm run seed:demo</code>{' '}
-                    with embeddings enabled, then refresh (sorting stays cosine-only on the server).
+                    with embeddings enabled, then refresh (hybrid sort: semantic-first on the server).
                   </li>
                 </ul>
               </div>
@@ -432,7 +443,7 @@ export function EmployeeAiRecommendations() {
       <div className="flex flex-wrap items-center gap-2">
         <Badge variant="outline" className="gap-1.5 rounded-full border-emerald-500/35 text-emerald-800 dark:text-emerald-200 shadow-sm transition-colors hover:border-emerald-500/50">
           <Activity className="h-3 w-3" />
-          Live semantic ranking
+          Semantic-first hybrid ranking
         </Badge>
         <Badge variant="secondary" className="rounded-full gap-1 shadow-sm transition-colors hover:bg-secondary/90">
           <Zap className="h-3 w-3" />
@@ -452,17 +463,17 @@ export function EmployeeAiRecommendations() {
             </CardHeader>
             <CardContent>
               <p className="text-3xl font-bold tabular-nums tracking-tight text-foreground">{stats.count}</p>
-              <p className="text-xs text-muted-foreground mt-1.5 leading-snug">Server-ranked slice (semantic score DESC)</p>
+              <p className="text-xs text-muted-foreground mt-1.5 leading-snug">Server-ranked slice (hybrid final score DESC)</p>
             </CardContent>
           </Card>
           <Card className={cn(METRIC_CARD, 'from-emerald-500/[0.12] to-background')}>
             <CardHeader className="pb-2 flex flex-row items-center justify-between space-y-0">
-              <span className="text-[0.65rem] font-semibold uppercase tracking-wide text-muted-foreground">Top cosine match</span>
+              <span className="text-[0.65rem] font-semibold uppercase tracking-wide text-muted-foreground">Top hybrid score</span>
               <TrendingUp className="h-4 w-4 text-emerald-600 dark:text-emerald-400 transition-transform group-hover/metric:scale-110" />
             </CardHeader>
             <CardContent>
               <p className="text-3xl font-bold tabular-nums text-foreground">{stats.topMatch}%</p>
-              <p className="text-xs text-muted-foreground mt-1.5 leading-snug">Best cosine-based score in this batch</p>
+              <p className="text-xs text-muted-foreground mt-1.5 leading-snug">Best final score in this batch (semantic×0.85 + behaviour×0.15)</p>
             </CardContent>
           </Card>
           <Card className={cn(METRIC_CARD, 'from-violet-500/[0.12] to-background')}>
@@ -477,12 +488,14 @@ export function EmployeeAiRecommendations() {
           </Card>
           <Card className={cn(METRIC_CARD, 'from-cyan-500/[0.12] to-background')}>
             <CardHeader className="pb-2 flex flex-row items-center justify-between space-y-0">
-              <span className="text-[0.65rem] font-semibold uppercase tracking-wide text-muted-foreground">Mean semantic match</span>
+              <span className="text-[0.65rem] font-semibold uppercase tracking-wide text-muted-foreground">Mean hybrid / semantic</span>
               <Percent className="h-4 w-4 text-cyan-600 dark:text-cyan-400 transition-transform group-hover/metric:scale-110" />
             </CardHeader>
             <CardContent>
-              <p className="text-3xl font-bold tabular-nums text-foreground">{stats.meanSemanticMatch}%</p>
-              <p className="text-xs text-muted-foreground mt-1.5 leading-snug">Average cosine-based score for rows in view</p>
+              <p className="text-3xl font-bold tabular-nums text-foreground">{stats.meanHybridMatch}%</p>
+              <p className="text-xs text-muted-foreground mt-1.5 leading-snug">
+                Hybrid mean (rank key). Avg semantic cosine alone: {stats.meanSemanticMatch}%.
+              </p>
             </CardContent>
           </Card>
         </div>
@@ -492,9 +505,9 @@ export function EmployeeAiRecommendations() {
         <div className="space-y-1 max-w-xl min-w-0">
           <p className="text-sm font-semibold text-foreground tracking-tight">Results</p>
           <p className="text-sm text-muted-foreground leading-relaxed">
-            Showing the top <strong className="text-foreground font-medium">{data.length}</strong> semantic matches fetched with{' '}
-            <code className="rounded-md bg-muted/80 px-1.5 py-0.5 text-[0.72rem]">?limit={apiLimit}</code> — order preserved from
-            backend cosine ranking only.
+            Showing the top <strong className="text-foreground font-medium">{data.length}</strong> matches fetched with{' '}
+            <code className="rounded-md bg-muted/80 px-1.5 py-0.5 text-[0.72rem]">?limit={apiLimit}</code> — order follows backend
+            hybrid ranking (semantic-first; cosine unchanged inside the semantic term).
           </p>
         </div>
         <div className="flex flex-wrap items-center gap-2 shrink-0">
@@ -519,7 +532,9 @@ export function EmployeeAiRecommendations() {
 
       <div className="grid gap-5 sm:gap-6 lg:grid-cols-2">
         {data.map((item, idx) => {
-          const pct = scoreToPercent(item.score)
+          const pctHybrid = scoreToPercent(getFinalScore(item))
+          const pctSemantic = scoreToPercent(getSemanticScore(item))
+          const behaviourPts = Math.round(item.behaviourScore * 1000) / 10
           return (
             <Card
               key={item.vacancyId}
@@ -535,7 +550,7 @@ export function EmployeeAiRecommendations() {
                 <div className="absolute top-4 right-4 z-10">
                   <Badge className="rounded-full bg-primary text-primary-foreground shadow-md gap-1 transition-transform group-hover/card:scale-[1.02]">
                     <Sparkles className="h-3 w-3" />
-                    #1 semantic pick
+                    #1 ranked match
                   </Badge>
                 </div>
               )}
@@ -556,13 +571,14 @@ export function EmployeeAiRecommendations() {
                   <div className="flex items-center justify-between text-[0.7rem] font-semibold uppercase tracking-wider text-muted-foreground">
                     <span className="flex items-center gap-1.5">
                       <Activity className="h-3.5 w-3.5" />
-                      Semantic match score
+                      Hybrid match (semantic-first)
                     </span>
-                    <span className="text-lg font-bold text-foreground tabular-nums">{pct}%</span>
+                    <span className="text-lg font-bold text-foreground tabular-nums">{pctHybrid}%</span>
                   </div>
-                  <Progress value={pct} className={PROGRESS_ENHANCED} />
+                  <Progress value={pctHybrid} className={PROGRESS_ENHANCED} />
                   <p className="text-[0.7rem] text-muted-foreground">
-                    Cosine similarity → display = <code className="text-[0.65rem]">round(score×100)</code>
+                    Final = semantic×0.85 + behaviour×0.15 — semantic cosine alone ~{pctSemantic}% · behaviour term{' '}
+                    {behaviourPts.toFixed(1)} / 15 max points
                   </p>
                 </div>
               </CardHeader>
@@ -592,7 +608,7 @@ export function EmployeeAiRecommendations() {
                     {item.matchedSkills.length > 0 ? (
                       <>
                         <p className="text-xs text-muted-foreground">
-                          Plain-text check between your resume and the listing — independent from the score above.
+                          Plain-text check between your resume and the listing — independent from hybrid and cosine scores.
                         </p>
                         <div className="flex flex-wrap gap-1.5">
                           {item.matchedSkills.map((s) => (
@@ -611,17 +627,24 @@ export function EmployeeAiRecommendations() {
                       </>
                     ) : (
                       <p className="text-xs text-muted-foreground leading-relaxed">
-                        No JD phrases were auto-flagged against your resume text. The rank still reflects embedding cosine
-                        only.
+                        No JD phrases were auto-flagged against your resume text. Hybrid rank still applies (semantic-first).
                       </p>
                     )}
                   </div>
 
-                  <div className="rounded-lg border border-dashed border-muted-foreground/30 bg-muted/25 px-3 py-2.5">
-                    <p className="text-xs font-medium text-muted-foreground">Behavioural signals</p>
-                    <p className="text-xs text-muted-foreground/85 mt-1">
-                      Engagement signals reserved for a future release — not used in ranking today.
-                    </p>
+                  <div className="rounded-lg border border-amber-500/30 bg-amber-500/[0.06] dark:bg-amber-500/[0.08] p-3.5 space-y-2">
+                    <div className="flex items-center gap-2">
+                      <Workflow className="h-4 w-4 text-amber-700 dark:text-amber-300 shrink-0" />
+                      <h3 className="font-semibold text-sm tracking-tight">Behaviour layer (ranking)</h3>
+                    </div>
+                    <p className="text-muted-foreground text-[0.85rem] leading-relaxed">{item.hybridRankingNote}</p>
+                    {item.behaviourExplanations.length > 0 ? (
+                      <ul className="list-disc list-inside text-xs text-muted-foreground space-y-1">
+                        {item.behaviourExplanations.slice(0, 6).map((line, i) => (
+                          <li key={i}>{line}</li>
+                        ))}
+                      </ul>
+                    ) : null}
                   </div>
                 </div>
 

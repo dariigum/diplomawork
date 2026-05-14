@@ -122,9 +122,9 @@ export function EmployeeDashboardAiPreview({ serverHints }: EmployeeDashboardAiP
 
   const insightLine =
     state.kind === 'ok' && state.topPercent !== null && state.topTitle
-      ? `Strongest match in this preview: ${state.topTitle}${state.topCompany ? ` · ${state.topCompany}` : ''} · ${state.topPercent}% cosine.`
+      ? `Strongest match in this preview: ${state.topTitle}${state.topCompany ? ` · ${state.topCompany}` : ''} · ${state.topPercent}% hybrid.`
       : state.kind === 'ok' && state.topPercent !== null
-        ? `${state.count} roles ranked in this window — best cosine score ${state.topPercent}%.`
+        ? `${state.count} roles ranked in this window — best hybrid score ${state.topPercent}%.`
         : state.kind === 'ok'
           ? `${state.count} ranked roles in this preview window.`
           : null
@@ -164,7 +164,7 @@ export function EmployeeDashboardAiPreview({ serverHints }: EmployeeDashboardAiP
           <div>
             <h2 className="text-xl sm:text-2xl font-bold tracking-tight">Semantic job matches</h2>
             <p className="text-sm text-muted-foreground mt-1.5 max-w-xl leading-relaxed">
-              Live preview of the same server ranking as your full list — embedding cosine, not keyword search.
+              Live preview of the same server ranking as your full list — hybrid (semantic×0.85 + behaviour×0.15), not keyword search.
             </p>
           </div>
 
@@ -210,7 +210,7 @@ export function EmployeeDashboardAiPreview({ serverHints }: EmployeeDashboardAiP
                     <>
                       <div className="flex flex-wrap items-baseline gap-2 mt-1">
                         <span className="text-3xl font-bold tabular-nums tracking-tight text-foreground">{state.topPercent}%</span>
-                        <span className="text-xs text-muted-foreground">cosine → display %</span>
+                        <span className="text-xs text-muted-foreground">hybrid final → display %</span>
                       </div>
                       <Progress value={state.topPercent} className={PREVIEW_PROGRESS} />
                     </>
@@ -291,7 +291,7 @@ export function EmployeeDashboardAiPreview({ serverHints }: EmployeeDashboardAiP
 
       <div className="relative border-t border-border/50 bg-muted/20 px-5 py-2.5 sm:px-7 flex flex-wrap items-center gap-2 text-[0.7rem] sm:text-xs text-muted-foreground">
         <Activity className="h-3.5 w-3.5 text-primary shrink-0" />
-        <span>Vectors stored server-side · cosine sort on the API · UI shows returned scores only.</span>
+        <span>Vectors server-side · hybrid sort on the API · UI shows returned scores only.</span>
       </div>
     </div>
   )

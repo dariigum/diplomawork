@@ -6,6 +6,7 @@ import { Resume, Vacancy } from '@/lib/db/schema'
 import { getTopRecommendations } from '@/lib/recommendation'
 import { getActiveResumeLeanForUser } from '@/lib/active-resume'
 import type { RecommendationApiItem } from '@/lib/recommendations-api-types'
+import { HYBRID_BEHAVIOUR_WEIGHT, HYBRID_SEMANTIC_WEIGHT } from '@/lib/hybrid-recommendation-score'
 
 function truncateText(text: string, max: number): string {
   const t = (text ?? '').trim()
@@ -52,15 +53,39 @@ function matchedSkillsFromResumeAndVacancy(
   return out
 }
 
-function buildSemanticMatchNote(score: number): string {
-  const pct = Math.round(score * 100)
-  return `Ordered by embedding cosine similarity only. This listing is at ${pct}% on the same [0–100] scale as the bar above (geometry in vector space, not a calibrated probability).`
+function buildSemanticMatchNote(semanticScore: number): string {
+  const pct = Math.round(semanticScore * 100)
+  return `Embedding cosine for this vacancy (semantic-only): about ${pct}% on a [0–100] display scale. This value is the primary input to hybrid ranking (see hybrid note).`
+}
+
+function buildHybridRankingNote(
+  semanticScore: number,
+  behaviourScore: number,
+  finalScore: number,
+  behaviourBullets: string[],
+): string {
+  const finPct = Math.round(finalScore * 100)
+  const semPct = Math.round(semanticScore * 100)
+  const parts = [
+    `Hybrid rank: final ≈ semantic×${HYBRID_SEMANTIC_WEIGHT} + behaviour×${HYBRID_BEHAVIOUR_WEIGHT} → ${finPct}% display uses final; semantic alone would be ~${semPct}%. Behaviour term uses a small capped score (${behaviourScore.toFixed(3)}).`,
+  ]
+  const hits = behaviourBullets.filter(
+    (b) => b.startsWith('Matched ') && !b.includes('exceeded cap') && !b.includes('No overlap'),
+  )
+  if (hits.length > 0) {
+    parts.push(`Behavioural adjustment: ${hits.slice(0, 3).join(' ')}`)
+  } else if (behaviourScore <= 0) {
+    parts.push('No behaviour boost on this row (cold profile or no text overlap); order follows semantic layer.')
+  } else {
+    parts.push('Behavioural adjustment applied (see raw lines in behaviour explanations).')
+  }
+  return parts.join(' ')
 }
 
 function buildTextOverlapNote(matched: string[]): string | null {
   if (matched.length === 0) return null
   const list = matched.slice(0, 5).join(', ')
-  return `Separate text check: your resume text lines up with these JD phrases — ${list}. This hint is for readability only; it does not change the embedding score or sort order.`
+  return `Separate text check: your resume text lines up with these JD phrases — ${list}. This hint is for readability only; it does not change the embedding cosine or hybrid score.`
 }
 
 const DEFAULT_LIMIT = 10
@@ -134,15 +159,21 @@ export async function GET(request: NextRequest) {
       const skillsRequired = String(v?.skillsRequired ?? '')
       const requirements = Array.isArray(v?.requirements) ? (v.requirements as string[]) : []
       const matchedSkills = matchedSkillsFromResumeAndVacancy(resumeBlob, skillsRequired, requirements)
+      const behaviourExplanations = Array.isArray(r.behaviourExplanations) ? r.behaviourExplanations : []
       return {
         vacancyId: r.vacancyId,
         title: r.title,
         company: r.company,
         score: r.score,
+        semanticScore: r.semanticScore,
+        behaviourScore: r.behaviourScore,
+        finalScore: r.finalScore,
         description: description || 'No short description available for this listing.',
         matchedSkills,
-        semanticMatchNote: buildSemanticMatchNote(r.score),
+        semanticMatchNote: buildSemanticMatchNote(r.semanticScore),
         textOverlapNote: buildTextOverlapNote(matchedSkills),
+        hybridRankingNote: buildHybridRankingNote(r.semanticScore, r.behaviourScore, r.finalScore, behaviourExplanations),
+        behaviourExplanations,
       }
     })
 

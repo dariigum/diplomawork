@@ -1,9 +1,15 @@
 import type { NormalizedVacancyInput } from './types'
 
+export type IngestionUpsertSuccess = { ok: true; recordId: string; created: boolean }
+
+export type IngestionUpsertFailure = { ok: false; error: string }
+
 /**
- * Implemented in a later stage: map NormalizedVacancyInput → Mongo `Vacancy` (or other store)
- * with employer resolution and upsert keys.
+ * Mongo (or other) persistence for validated `NormalizedVacancyInput`.
+ * Implementations must dedupe by `(source, externalId)` and must not clear embeddings on update.
  */
 export interface IngestionPersistencePort {
-  upsertNormalizedVacancy(input: NormalizedVacancyInput): Promise<{ recordId: string }>
+  upsertNormalizedVacancy(
+    input: NormalizedVacancyInput
+  ): Promise<IngestionUpsertSuccess | IngestionUpsertFailure>
 }

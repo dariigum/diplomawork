@@ -20,4 +20,9 @@ Use `mock/mock-normalized-vacancies.json` or `loadMockNormalizedVacancies()` fro
 
 - `fetchAndNormalizeHhItVacancies` in `hh/fetch-it-vacancies.ts`: paginated search + per-vacancy detail, hard caps (`maxPages`, `perPage`, `maxVacancies`), throttled requests, structured `{ ok, vacancies, skipped, meta }` (never throws).
 - Configure via `resolveHhItFetchConfig` overrides or env: `HH_FETCH_MAX_PAGES`, `HH_FETCH_PER_PAGE`, `HH_FETCH_MAX_VACANCIES`, `HH_FETCH_SEARCH_QUERY`, `HH_FETCH_AREA_IDS`, `HH_API_BASE_URL`, `HH_USER_AGENT`, optional `HH_API_TOKEN`.
-- Stable ids: normalized HH vacancies use `externalId` like `hh_<numericId>` from `hhStableExternalId`.
+## Stage 6C — Mongo upsert (ingestion only)
+
+- `createMongoIngestionPersistence()` in `persistence/ingestion-persistence.ts` implements `IngestionPersistencePort`.
+- Upsert key: **`source` + `externalId`** (partial unique index on `Vacancy`). Manual employer rows omit these fields and are never matched.
+- Updates use **`$set` only** — **`embedding` is never written**, so existing vectors stay intact.
+- Optional env: `INGESTION_EMPLOYER_PASSWORD` (bcrypt source for synthetic employer accounts).

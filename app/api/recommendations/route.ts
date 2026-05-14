@@ -5,8 +5,14 @@ import { getSession } from '@/lib/auth'
 import { Resume, Vacancy } from '@/lib/db/schema'
 import { getTopRecommendations } from '@/lib/recommendation'
 import { getActiveResumeLeanForUser } from '@/lib/active-resume'
-import type { RecommendationApiItem } from '@/lib/recommendations-api-types'
+import type { RecommendationApiItem, RecommendationsApiSuccessBody } from '@/lib/recommendations-api-types'
 import { HYBRID_BEHAVIOUR_WEIGHT, HYBRID_SEMANTIC_WEIGHT } from '@/lib/hybrid-recommendation-score'
+import { buildUserBehaviourProfile, type UserBehaviourProfile } from '@/lib/behaviour-profile'
+import {
+  buildBehaviourSessionInsights,
+  pickBehaviourCardTagline,
+  resolveCardAdaptationHint,
+} from '@/lib/behaviour-ui-explanations'
 
 function truncateText(text: string, max: number): string {
   const t = (text ?? '').trim()
@@ -91,6 +97,14 @@ function buildTextOverlapNote(matched: string[]): string | null {
 const DEFAULT_LIMIT = 10
 const MAX_LIMIT = 50
 
+const EMPTY_BEHAVIOUR_PROFILE: UserBehaviourProfile = {
+  preferredSkills: [],
+  preferredKeywords: [],
+  preferredCategories: [],
+  interactionSummary: { viewed: 0, saved: 0, applied: 0 },
+  explanations: { weighting: '', categories: '', skills: '' },
+}
+
 export async function GET(request: NextRequest) {
   const rawLimit = request.nextUrl.searchParams.get('limit')
   let requestedLimit = DEFAULT_LIMIT
@@ -139,8 +153,20 @@ export async function GET(request: NextRequest) {
 
   try {
     const recs = await getTopRecommendations({ userId: session.user.id, limit: requestedLimit })
+
+    let behaviourProfile: UserBehaviourProfile = EMPTY_BEHAVIOUR_PROFILE
+    try {
+      behaviourProfile = await buildUserBehaviourProfile(session.user.id)
+    } catch (e) {
+      console.warn('[JobFlow] Behaviour profile fetch for UI insights failed; using neutral copy.', e)
+    }
+
+    const behaviourSession = buildBehaviourSessionInsights(behaviourProfile)
+    const cold = behaviourSession.coldStart
+
     if (recs.length === 0) {
-      return NextResponse.json([], { status: 200 })
+      const body: RecommendationsApiSuccessBody = { recommendations: [], behaviourSession }
+      return NextResponse.json(body, { status: 200 })
     }
 
     const ids = recs.map((r) => new mongoose.Types.ObjectId(r.vacancyId))
@@ -174,10 +200,13 @@ export async function GET(request: NextRequest) {
         textOverlapNote: buildTextOverlapNote(matchedSkills),
         hybridRankingNote: buildHybridRankingNote(r.semanticScore, r.behaviourScore, r.finalScore, behaviourExplanations),
         behaviourExplanations,
+        cardAdaptationHint: resolveCardAdaptationHint(cold, r.behaviourScore),
+        behaviourCardTagline: pickBehaviourCardTagline(cold, r.behaviourScore, behaviourExplanations),
       }
     })
 
-    return NextResponse.json(enriched, { status: 200 })
+    const body: RecommendationsApiSuccessBody = { recommendations: enriched, behaviourSession }
+    return NextResponse.json(body, { status: 200 })
   } catch (e) {
     console.warn('[JobFlow] Recommendations generation failed.', e)
     return NextResponse.json(

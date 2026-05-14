@@ -24,7 +24,8 @@ import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
 import { Progress } from '@/components/ui/progress'
 import { Skeleton } from '@/components/ui/skeleton'
 import { cn } from '@/lib/utils'
-import type { RecommendationApiItem } from '@/lib/recommendations-api-types'
+import type { BehaviourSessionInsights, RecommendationApiItem } from '@/lib/recommendations-api-types'
+import { parseRecommendationsApiPayload } from '@/lib/recommendations-api-types'
 
 const INITIAL_LIMIT = 3
 const MID_LIMIT = 5
@@ -40,8 +41,8 @@ const PROGRESS_ENHANCED =
 type LoadState =
   | { kind: 'idle' }
   | { kind: 'loading'; pendingLimit: number }
-  | { kind: 'ok'; data: RecommendationApiItem[]; apiLimit: number }
-  | { kind: 'empty'; lastLimit: number }
+  | { kind: 'ok'; data: RecommendationApiItem[]; apiLimit: number; behaviourSession: BehaviourSessionInsights | null }
+  | { kind: 'empty'; lastLimit: number; behaviourSession: BehaviourSessionInsights | null }
   | { kind: 'no_embedding'; message: string }
   | { kind: 'error'; status: number; message: string }
 
@@ -153,18 +154,15 @@ export function EmployeeAiRecommendations() {
       return
     }
 
-    const data = await res.json().catch(() => null)
-    if (!Array.isArray(data)) {
-      setState({ kind: 'error', status: res.status, message: 'Unexpected response from recommendations API.' })
-      return
-    }
+    const raw = await res.json().catch(() => null)
+    const { recommendations, behaviourSession } = parseRecommendationsApiPayload(raw)
 
-    if (data.length === 0) {
-      setState({ kind: 'empty', lastLimit: limit })
-      return
-    }
+        if (recommendations.length === 0) {
+          setState({ kind: 'empty', lastLimit: limit, behaviourSession: behaviourSession ?? null })
+          return
+        }
 
-    setState({ kind: 'ok', data: data as RecommendationApiItem[], apiLimit: limit })
+        setState({ kind: 'ok', data: recommendations, apiLimit: limit, behaviourSession: behaviourSession ?? null })
   }, [])
 
   useEffect(() => {
@@ -383,12 +381,40 @@ export function EmployeeAiRecommendations() {
   }
 
   if (state.kind === 'empty') {
+    const bs = state.behaviourSession
     return (
       <div className="space-y-8 animate-in fade-in duration-300">
         <div className="flex flex-wrap gap-2">
           <Badge variant="outline" className="rounded-full shadow-sm">Hybrid-ranked</Badge>
           <Badge variant="secondary" className="rounded-full shadow-sm">Embedding-based</Badge>
         </div>
+        {bs ? (
+          <Card className="rounded-2xl border border-violet-500/25 bg-gradient-to-br from-violet-500/[0.07] to-background shadow-sm ring-1 ring-primary/[0.06]">
+            <CardHeader className="pb-2 space-y-2">
+              <div className="flex flex-wrap items-center gap-2">
+                <Info className="h-4 w-4 text-primary shrink-0" />
+                <span className="text-xs font-semibold uppercase tracking-wide text-muted-foreground">
+                  Activity & explainability
+                </span>
+                {bs.productBadge ? (
+                  <Badge variant="secondary" className="rounded-full text-xs">
+                    {bs.productBadge}
+                  </Badge>
+                ) : (
+                  <Badge variant="outline" className="rounded-full text-xs">
+                    Semantic-only context
+                  </Badge>
+                )}
+              </div>
+              <p className="text-sm text-muted-foreground leading-relaxed">{bs.neutralSemanticLine}</p>
+              <ul className="text-sm space-y-1.5 text-muted-foreground list-disc pl-4">
+                {bs.dashboardLines.map((line, i) => (
+                  <li key={i}>{line}</li>
+                ))}
+              </ul>
+            </CardHeader>
+          </Card>
+        ) : null}
         <Card className="relative overflow-hidden rounded-2xl border border-dashed border-primary/30 bg-card/70 backdrop-blur-md shadow-xl ring-1 ring-primary/[0.07] transition-shadow duration-300 hover:shadow-xl">
           <div className="pointer-events-none absolute inset-0 bg-gradient-to-br from-violet-500/[0.07] via-transparent to-cyan-500/[0.06]" />
           <CardHeader className="relative pb-2">
@@ -453,6 +479,35 @@ export function EmployeeAiRecommendations() {
           Top {stats?.count ?? 0} • limit {apiLimit}
         </Badge>
       </div>
+
+      {state.kind === 'ok' && state.behaviourSession ? (
+        <Card className="rounded-2xl border border-violet-500/25 bg-gradient-to-br from-violet-500/[0.08] via-background to-cyan-500/[0.05] shadow-md ring-1 ring-primary/[0.07]">
+          <CardHeader className="space-y-3 pb-2">
+            <div className="flex flex-wrap items-center gap-2">
+              <Sparkles className="h-4 w-4 text-primary shrink-0" />
+              <CardTitle className="text-base sm:text-lg">Behaviour-aware context</CardTitle>
+              {state.behaviourSession.productBadge ? (
+                <Badge className="rounded-full bg-primary/15 text-primary border border-primary/25 text-xs">
+                  {state.behaviourSession.productBadge}
+                </Badge>
+              ) : (
+                <Badge variant="outline" className="rounded-full text-xs">
+                  No activity-based claims yet
+                </Badge>
+              )}
+            </div>
+            <p className="text-sm text-muted-foreground leading-relaxed">{state.behaviourSession.neutralSemanticLine}</p>
+            <ul className="text-sm space-y-1.5 text-muted-foreground list-disc pl-4 max-w-3xl">
+              {state.behaviourSession.dashboardLines.map((line, i) => (
+                <li key={i}>{line}</li>
+              ))}
+            </ul>
+            <p className="text-xs text-muted-foreground/90 border-t border-border/50 pt-2">
+              Deterministic rules from saved events — not autonomous learning or hidden model retraining.
+            </p>
+          </CardHeader>
+        </Card>
+      ) : null}
 
       {stats && (
         <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-4">
@@ -565,6 +620,25 @@ export function EmployeeAiRecommendations() {
                     <Building2 className="h-4 w-4 shrink-0 opacity-85" />
                     <span className="truncate">{item.company}</span>
                   </div>
+                  <div className="flex flex-wrap items-center gap-2">
+                    {(item.cardAdaptationHint ?? 'semantic_only') === 'behaviour_adjusted' ? (
+                      <Badge
+                        variant="secondary"
+                        className="rounded-full text-[0.65rem] font-medium border border-primary/25 bg-primary/[0.08] text-primary"
+                      >
+                        Matched your recent activity
+                      </Badge>
+                    ) : (
+                      <Badge variant="outline" className="rounded-full text-[0.65rem] font-normal">
+                        Semantic-first match
+                      </Badge>
+                    )}
+                  </div>
+                  {item.behaviourCardTagline ? (
+                    <p className="text-xs text-foreground/90 leading-snug line-clamp-3 border-l-2 border-amber-500/35 pl-2.5">
+                      {item.behaviourCardTagline}
+                    </p>
+                  ) : null}
                 </div>
 
                 <div className="space-y-2">

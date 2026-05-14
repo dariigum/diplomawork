@@ -6,6 +6,7 @@ import {
   Activity,
   BrainCircuit,
   ChevronRight,
+  Info,
   RefreshCw,
   Sparkles,
   Target,
@@ -16,7 +17,8 @@ import { Button } from '@/components/ui/button'
 import { Progress } from '@/components/ui/progress'
 import { Skeleton } from '@/components/ui/skeleton'
 import { cn } from '@/lib/utils'
-import type { RecommendationApiItem } from '@/lib/recommendations-api-types'
+import type { BehaviourSessionInsights, RecommendationApiItem } from '@/lib/recommendations-api-types'
+import { parseRecommendationsApiPayload } from '@/lib/recommendations-api-types'
 
 const PREVIEW_FETCH_LIMIT = 25
 
@@ -38,8 +40,9 @@ type PreviewState =
       topTitle: string | null
       topCompany: string | null
       syncedAt: number
+      behaviourSession: BehaviourSessionInsights | null
     }
-  | { kind: 'empty'; syncedAt: number }
+  | { kind: 'empty'; syncedAt: number; behaviourSession: BehaviourSessionInsights | null }
   | { kind: 'no_resume' }
   | { kind: 'no_embedding'; message: string }
   | { kind: 'pipeline_error'; message: string }
@@ -97,20 +100,22 @@ export function EmployeeDashboardAiPreview({ serverHints }: EmployeeDashboardAiP
           setState({ kind: 'error' })
           return
         }
-        const data = (await res.json().catch(() => null)) as unknown
-        if (!Array.isArray(data) || data.length === 0) {
-          setState({ kind: 'empty', syncedAt })
+        const raw = (await res.json().catch(() => null)) as unknown
+        const { recommendations, behaviourSession } = parseRecommendationsApiPayload(raw)
+        if (recommendations.length === 0) {
+          setState({ kind: 'empty', syncedAt, behaviourSession: behaviourSession ?? null })
           return
         }
-        const first = data[0] as RecommendationApiItem
+        const first = recommendations[0] as RecommendationApiItem
         const topScore = typeof first?.score === 'number' ? first.score : null
         setState({
           kind: 'ok',
-          count: data.length,
+          count: recommendations.length,
           topPercent: topScore !== null ? scoreToPercent(topScore) : null,
           topTitle: typeof first?.title === 'string' ? first.title : null,
           topCompany: typeof first?.company === 'string' ? first.company : null,
           syncedAt,
+          behaviourSession: behaviourSession ?? null,
         })
       })
       .catch(() => setState({ kind: 'error' }))
@@ -154,7 +159,7 @@ export function EmployeeDashboardAiPreview({ serverHints }: EmployeeDashboardAiP
               </Badge>
               <Badge variant="secondary" className="rounded-full gap-1 text-xs shadow-sm transition-colors hover:bg-secondary/90">
                 <Zap className="h-3 w-3" />
-                Cosine-ranked
+                Hybrid-ranked
               </Badge>
             </div>
           </div>
@@ -174,6 +179,30 @@ export function EmployeeDashboardAiPreview({ serverHints }: EmployeeDashboardAiP
               <span>{insightLine}</span>
             </p>
           )}
+
+          {state.kind === 'ok' && state.behaviourSession ? (
+            <div className="rounded-xl border border-amber-500/25 bg-amber-500/[0.05] dark:bg-amber-500/[0.08] px-3.5 py-3 max-w-2xl space-y-2">
+              <div className="flex flex-wrap items-center gap-2 text-xs font-semibold text-foreground">
+                <Info className="h-3.5 w-3.5 text-amber-700 dark:text-amber-300 shrink-0" />
+                <span>Lightweight activity insights</span>
+                {state.behaviourSession.productBadge ? (
+                  <Badge variant="secondary" className="rounded-full text-[0.65rem] font-normal">
+                    {state.behaviourSession.productBadge}
+                  </Badge>
+                ) : (
+                  <Badge variant="outline" className="rounded-full text-[0.65rem] font-normal">
+                    Semantic-only for now
+                  </Badge>
+                )}
+              </div>
+              <p className="text-xs text-muted-foreground leading-relaxed">{state.behaviourSession.neutralSemanticLine}</p>
+              <ul className="text-xs text-muted-foreground space-y-1 list-disc pl-3.5">
+                {state.behaviourSession.dashboardLines.slice(0, 3).map((line, i) => (
+                  <li key={i}>{line}</li>
+                ))}
+              </ul>
+            </div>
+          ) : null}
 
           <div className="flex flex-wrap items-start gap-x-8 gap-y-5">
             {(state.kind === 'idle' || state.kind === 'loading') && (
@@ -240,11 +269,24 @@ export function EmployeeDashboardAiPreview({ serverHints }: EmployeeDashboardAiP
             )}
 
             {state.kind === 'empty' && (
-              <div className="space-y-2 max-w-lg">
+              <div className="space-y-3 max-w-lg">
                 <p className="text-sm text-muted-foreground leading-relaxed">
                   Matcher returned successfully, but no roles cleared the bar yet — check vacancy embeddings or seed data.
                 </p>
                 <p className="text-xs text-muted-foreground tabular-nums">Checked {formatSyncedLabel(state.syncedAt)}</p>
+                {state.behaviourSession ? (
+                  <div className="rounded-lg border border-border/60 bg-muted/25 px-3 py-2.5 space-y-1.5">
+                    <p className="text-[0.65rem] font-semibold uppercase tracking-wide text-muted-foreground">
+                      Activity context (still shown)
+                    </p>
+                    <p className="text-xs text-muted-foreground">{state.behaviourSession.neutralSemanticLine}</p>
+                    <ul className="text-xs text-muted-foreground list-disc pl-3.5 space-y-0.5">
+                      {state.behaviourSession.dashboardLines.slice(0, 2).map((line, i) => (
+                        <li key={i}>{line}</li>
+                      ))}
+                    </ul>
+                  </div>
+                ) : null}
               </div>
             )}
 
@@ -322,6 +364,9 @@ function AiReadinessStrip({
   } else if (state.kind === 'ok') {
     chips.push({ key: 'live', label: 'Recommendations available', variant: 'default' })
     chips.push({ key: 'idx', label: 'Semantic profile indexed', variant: 'outline' })
+    if (state.behaviourSession && !state.behaviourSession.coldStart) {
+      chips.push({ key: 'beh', label: 'Behaviour-aware notes on', variant: 'outline' })
+    }
   } else if (state.kind === 'empty') {
     chips.push({ key: 'ready', label: 'Matcher online', variant: 'outline' })
     chips.push({ key: 'short', label: 'Shortlist empty', variant: 'secondary' })

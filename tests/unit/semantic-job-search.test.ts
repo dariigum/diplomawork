@@ -2,6 +2,7 @@ import { beforeEach, describe, expect, it, vi } from 'vitest'
 import {
   buildSemanticSearchExplanation,
   rankVacanciesBySemanticQuery,
+  rankVacanciesBySemanticQueryFromEmbedding,
   type SemanticVacancyInput,
 } from '@/lib/semantic-job-search'
 
@@ -162,6 +163,30 @@ describe('semantic-job-search', () => {
       const a = await rankVacanciesBySemanticQuery({ query: 'same', vacancies, limit: 10 })
       const b = await rankVacanciesBySemanticQuery({ query: 'same', vacancies, limit: 10 })
       expect(a).toEqual(b)
+    })
+  })
+
+  describe('rankVacanciesBySemanticQueryFromEmbedding', () => {
+    it('returns [] for empty or invalid query embedding', () => {
+      expect(rankVacanciesBySemanticQueryFromEmbedding({ queryEmbedding: [], vacancies: [] })).toEqual([])
+      expect(
+        rankVacanciesBySemanticQueryFromEmbedding({
+          queryEmbedding: [1, NaN, 0],
+          vacancies: [{ _id: 'a', embedding: [1, 0, 0] }],
+        }),
+      ).toEqual([])
+    })
+
+    it('matches rankVacanciesBySemanticQuery output when ML returns the same vector', async () => {
+      const q = embUnit(3, 0)
+      mockedGetEmbedding.mockResolvedValue(q)
+      const vacancies: SemanticVacancyInput[] = [
+        { _id: 'b', title: 'B', embedding: embUnit(3, 1) },
+        { _id: 'a', title: 'A', embedding: embUnit(3, 0) },
+      ]
+      const viaMl = await rankVacanciesBySemanticQuery({ query: 'x', vacancies })
+      const viaDirect = rankVacanciesBySemanticQueryFromEmbedding({ queryEmbedding: q, vacancies })
+      expect(viaMl).toEqual(viaDirect)
     })
   })
 })

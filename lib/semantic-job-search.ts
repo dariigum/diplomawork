@@ -96,33 +96,32 @@ export type RankVacanciesBySemanticQueryParams = {
   limit?: number
 }
 
+export type RankVacanciesBySemanticQueryFromEmbeddingParams = {
+  queryEmbedding: number[]
+  vacancies: ReadonlyArray<SemanticVacancyInput>
+  /** If omitted or invalid, all ranked matches are returned (after filtering). */
+  limit?: number
+}
+
 /**
- * Rank vacancies by cosine similarity between the query embedding and each vacancy embedding.
- * Semantic-only: no behaviour, hybrid, or recommendation pipeline.
- *
- * Deterministic: same query + same vacancy list → same order (stable tie-break on `vacancyId`).
+ * Rank vacancies using a precomputed query embedding (same rules as {@link rankVacanciesBySemanticQuery}).
+ * Synchronous: use when the query vector is already available (e.g. API layer handles ML errors separately).
  */
-export async function rankVacanciesBySemanticQuery(
-  params: RankVacanciesBySemanticQueryParams,
-): Promise<SemanticJobSearchRankedItem[]> {
-  const raw = params.query ?? ''
-  const query = raw.trim()
-  if (!query) {
-    return []
-  }
-
-  let queryEmbedding: number[]
-  try {
-    queryEmbedding = await getEmbedding(query)
-  } catch {
-    return []
-  }
-
+export function rankVacanciesBySemanticQueryFromEmbedding(
+  params: RankVacanciesBySemanticQueryFromEmbeddingParams,
+): SemanticJobSearchRankedItem[] {
+  const queryEmbedding = params.queryEmbedding
   if (!Array.isArray(queryEmbedding) || queryEmbedding.length === 0) {
     return []
   }
 
   const queryDim = queryEmbedding.length
+  for (let i = 0; i < queryDim; i++) {
+    const v = queryEmbedding[i]
+    if (typeof v !== 'number' || !Number.isFinite(v)) {
+      return []
+    }
+  }
 
   const rows: SemanticJobSearchRankedItem[] = []
 
@@ -172,4 +171,37 @@ export async function rankVacanciesBySemanticQuery(
   }
 
   return ranked
+}
+
+/**
+ * Rank vacancies by cosine similarity between the query embedding and each vacancy embedding.
+ * Semantic-only: no behaviour, hybrid, or recommendation pipeline.
+ *
+ * Deterministic: same query + same vacancy list → same order (stable tie-break on `vacancyId`).
+ */
+export async function rankVacanciesBySemanticQuery(
+  params: RankVacanciesBySemanticQueryParams,
+): Promise<SemanticJobSearchRankedItem[]> {
+  const raw = params.query ?? ''
+  const query = raw.trim()
+  if (!query) {
+    return []
+  }
+
+  let queryEmbedding: number[]
+  try {
+    queryEmbedding = await getEmbedding(query)
+  } catch {
+    return []
+  }
+
+  if (!Array.isArray(queryEmbedding) || queryEmbedding.length === 0) {
+    return []
+  }
+
+  return rankVacanciesBySemanticQueryFromEmbedding({
+    queryEmbedding,
+    vacancies: params.vacancies,
+    limit: params.limit,
+  })
 }

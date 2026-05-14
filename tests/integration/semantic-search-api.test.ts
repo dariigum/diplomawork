@@ -132,6 +132,7 @@ describe('GET /api/jobs/semantic-search', () => {
     expect(body.query).toBe('anything')
     expect(body.count).toBe(0)
     expect(body.results).toEqual([])
+    expect(body.concepts).toBeUndefined()
   })
 
   it('returns 200 with ranked matches, stable contract, and finite scores in (0,1]', async () => {
@@ -145,8 +146,8 @@ describe('GET /api/jobs/semantic-search', () => {
     await Vacancy.create({
       employerId: employer._id,
       title: 'Role Z',
-      description: 'd',
-      skillsRequired: 's',
+      description: 'machine learning pipelines and kubernetes',
+      skillsRequired: 'Python, NLP, Docker',
       salaryMin: 10,
       salaryMax: 20,
       workMode: 'REMOTE',
@@ -156,8 +157,8 @@ describe('GET /api/jobs/semantic-search', () => {
     await Vacancy.create({
       employerId: employer._id,
       title: 'Role A',
-      description: 'd',
-      skillsRequired: 's',
+      description: 'kubernetes operations',
+      skillsRequired: 'Python, Go, Docker',
       salaryMin: 10,
       salaryMax: 20,
       workMode: 'REMOTE',
@@ -190,6 +191,14 @@ describe('GET /api/jobs/semantic-search', () => {
       expect(r.explanation.toLowerCase()).toMatch(/embedding|cosine|semantic/)
       expect(r.company).toBe('Acme')
     }
+
+    expect(Array.isArray(body.concepts)).toBe(true)
+    expect(body.concepts!.length).toBeGreaterThan(0)
+    expect(typeof body.conceptExplanation).toBe('string')
+    expect(body.conceptExplanation!.length).toBeGreaterThan(20)
+    const conceptKeys = new Set(body.concepts!.map((c) => c.concept))
+    expect(conceptKeys.has('python')).toBe(true)
+    expect(conceptKeys.has('docker')).toBe(true)
   })
 
   it('returns deterministic ordering for repeated GET with same fixtures', async () => {

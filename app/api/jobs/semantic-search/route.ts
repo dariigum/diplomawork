@@ -7,6 +7,11 @@ import {
   type SemanticVacancyInput,
 } from '@/lib/semantic-job-search'
 import type { SemanticSearchApiErrorBody, SemanticSearchApiSuccessBody } from '@/lib/semantic-search-api-types'
+import {
+  buildSemanticConceptExplanation,
+  extractSemanticConceptsFromVacancies,
+  type SemanticConceptVacancyInput,
+} from '@/lib/semantic-search-concepts'
 
 const DEFAULT_LIMIT = 50
 const MAX_LIMIT = 100
@@ -66,11 +71,34 @@ export async function GET(request: NextRequest) {
       limit,
     })
 
+    const byId = new Map<string, (typeof docs)[number]>()
+    for (const d of docs) {
+      byId.set(String((d as { _id: unknown })._id), d)
+    }
+
+    const conceptVacancies: SemanticConceptVacancyInput[] = []
+    for (const r of results) {
+      const d = byId.get(r.vacancyId)
+      if (!d) continue
+      conceptVacancies.push({
+        title: String((d as { title?: unknown }).title ?? ''),
+        skillsRequired: String((d as { skillsRequired?: unknown }).skillsRequired ?? ''),
+        description: String((d as { description?: unknown }).description ?? ''),
+      })
+    }
+
+    const concepts = extractSemanticConceptsFromVacancies(conceptVacancies, { maxConcepts: 22 })
+    const conceptExplanation = buildSemanticConceptExplanation({
+      conceptCount: concepts.length,
+      topConcepts: concepts.slice(0, 3).map((c) => c.concept),
+    })
+
     const body: SemanticSearchApiSuccessBody = {
       query,
       semantic: true,
       count: results.length,
       results,
+      ...(concepts.length > 0 ? { concepts, conceptExplanation } : {}),
     }
     return NextResponse.json(body, { status: 200 })
   } catch (e) {

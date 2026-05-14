@@ -13,6 +13,7 @@ import {
   isSemanticSearchApiSuccessBody,
   type SemanticSearchApiErrorBody,
   type SemanticSearchApiResultItem,
+  type SemanticSearchConceptItem,
 } from "@/lib/semantic-search-api-types"
 
 const DEBOUNCE_MS = 380
@@ -32,10 +33,22 @@ function scoreToPercent(score: number): number {
   return Math.max(0, Math.min(100, Math.round(score * 100)))
 }
 
+/** Readable badge text from normalized lowercase concepts (deterministic, no LLM). */
+function formatConceptDisplay(raw: string, maxLen: number): string {
+  const s = raw.trim()
+  if (!s) return ""
+  const words = s.split(/\s+/).filter(Boolean)
+  const pretty = words
+    .map((w) => (w.length <= 3 ? w.toUpperCase() : w[0].toUpperCase() + w.slice(1).toLowerCase()))
+    .join(" ")
+  if (pretty.length <= maxLen) return pretty
+  return `${pretty.slice(0, Math.max(1, maxLen - 1)).trimEnd()}…`
+}
+
 type PanelState =
   | { kind: "idle" }
   | { kind: "loading"; query: string }
-  | { kind: "ok"; query: string; results: SemanticSearchApiResultItem[] }
+  | { kind: "ok"; query: string; results: SemanticSearchApiResultItem[]; concepts: SemanticSearchConceptItem[]; conceptExplanation: string }
   | { kind: "empty"; query: string }
   | { kind: "unavailable"; query: string; message: string }
   | { kind: "error"; query: string; message: string }
@@ -95,10 +108,18 @@ export function SemanticJobSearchPanel() {
         return
       }
 
-      if (json.count === 0) {
+      const body = json
+
+      if (body.count === 0) {
         setPanel({ kind: "empty", query: trimmed })
       } else {
-        setPanel({ kind: "ok", query: trimmed, results: json.results })
+        setPanel({
+          kind: "ok",
+          query: trimmed,
+          results: body.results,
+          concepts: body.concepts ?? [],
+          conceptExplanation: body.conceptExplanation ?? "",
+        })
       }
     } catch (e: unknown) {
       if (myId !== requestIdRef.current) return
@@ -151,6 +172,15 @@ export function SemanticJobSearchPanel() {
       return `No semantic matches for “${panel.query}”.`
     }
     return null
+  }, [panel])
+
+  const conceptChips = useMemo(() => {
+    if (panel.kind !== "ok") return [] as { key: string; label: string; titleAttr: string }[]
+    return panel.concepts.map((c) => ({
+      key: c.concept,
+      label: formatConceptDisplay(c.concept, 34),
+      titleAttr: `${c.concept} — aggregated from matched vacancy text (weight ${c.weight})`,
+    }))
   }, [panel])
 
   return (
@@ -308,6 +338,35 @@ export function SemanticJobSearchPanel() {
               )
             })}
           </ul>
+        )}
+
+        {showResults && panel.kind === "ok" && panel.concepts.length > 0 && conceptChips.length > 0 && (
+          <div className="rounded-xl border border-border/60 bg-card/50 px-4 py-4 space-y-3 mt-2">
+            <h3 className="text-sm font-medium text-foreground tracking-tight">Related semantic concepts</h3>
+            <div className="flex flex-wrap gap-1.5" role="list" aria-label="Semantic concepts from matched vacancies">
+              {conceptChips.map((chip) => (
+                <Badge
+                  key={chip.key}
+                  variant="outline"
+                  role="listitem"
+                  title={chip.titleAttr}
+                  className="max-w-[11rem] truncate text-xs font-normal border-border/70 bg-background/80 text-foreground/90 px-2.5 py-0.5"
+                >
+                  {chip.label}
+                </Badge>
+              ))}
+            </div>
+            {panel.conceptExplanation ? (
+              <p className="text-xs text-muted-foreground leading-relaxed border-t border-border/40 pt-3">
+                {panel.conceptExplanation}
+              </p>
+            ) : (
+              <p className="text-xs text-muted-foreground leading-relaxed border-t border-border/40 pt-3">
+                Concepts are derived from the same vacancy fields you see in listings (skills, titles, descriptions) — deterministic
+                extraction, not autonomous insights.
+              </p>
+            )}
+          </div>
         )}
 
         {panel.kind === "idle" && input.trim() === "" && (

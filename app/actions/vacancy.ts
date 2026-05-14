@@ -5,7 +5,17 @@ import dbConnect from '@/lib/db/mongoose';
 import { Vacancy, SavedVacancy } from '@/lib/db/schema';
 import { getSession } from '@/lib/auth';
 import { revalidatePath } from 'next/cache';
-import { recordVacancyBehaviourEvent } from '@/lib/vacancy-behaviour-events';
+import { recordVacancyBehaviourEvent } from '@/lib/vacancy-behaviour-events'
+
+/** Safe display for home / saved lists; ingestion rows may omit or null-out salary fields. */
+function formatVacancySalary(salaryMin: unknown, salaryMax: unknown): string {
+  const minOk = typeof salaryMin === 'number' && Number.isFinite(salaryMin)
+  const maxOk = typeof salaryMax === 'number' && Number.isFinite(salaryMax)
+  if (minOk && maxOk) {
+    return `$${salaryMin.toLocaleString()} - $${salaryMax.toLocaleString()}`
+  }
+  return 'Salary not specified'
+}
 
 export async function toggleSaveVacancyAction(vacancyId: string) {
   const session = await getSession();
@@ -63,7 +73,7 @@ export async function getHomeData() {
     company: v.employerId?.name || "Unknown Company",
     companyLogo: v.employerId?.name?.slice(0, 2)?.toUpperCase() || "JC",
     location: v.workMode === 'REMOTE' ? 'Remote' : [v.city, v.country].filter(Boolean).join(', ') || v.address || "Remote",
-    salary: `$${v.salaryMin.toLocaleString()} - ${v.salaryMax.toLocaleString()}`,
+    salary: formatVacancySalary(v.salaryMin, v.salaryMax),
     employmentType: v.employmentType || "Full-time",
     experience: v.experience || "Any experience",
     skills: v.skillsRequired ? v.skillsRequired.split(',').map((s: string) => s.trim()) : [],
@@ -99,6 +109,6 @@ export async function getSavedVacanciesAction() {
     id: s.vacancyId._id.toString(),
     title: s.vacancyId.title,
     company: s.vacancyId.employerId?.name || "Unknown Company",
-    salary: `$${s.vacancyId.salaryMin.toLocaleString()} - $${s.vacancyId.salaryMax.toLocaleString()}`
+    salary: formatVacancySalary(s.vacancyId.salaryMin, s.vacancyId.salaryMax),
   }));
 }

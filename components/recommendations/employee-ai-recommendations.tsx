@@ -23,9 +23,11 @@ import { Button } from '@/components/ui/button'
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
 import { Progress } from '@/components/ui/progress'
 import { Skeleton } from '@/components/ui/skeleton'
+import { Collapsible, CollapsibleContent, CollapsibleTrigger } from '@/components/ui/collapsible'
 import { cn } from '@/lib/utils'
 import type { BehaviourSessionInsights, RecommendationApiItem } from '@/lib/recommendations-api-types'
 import { parseRecommendationsApiPayload } from '@/lib/recommendations-api-types'
+import { formatBehaviourPhraseForDisplay } from '@/lib/recommendations-display-format'
 
 const INITIAL_LIMIT = 3
 const MID_LIMIT = 5
@@ -47,10 +49,10 @@ type LoadState =
   | { kind: 'error'; status: number; message: string }
 
 const LOADING_MESSAGES = [
-  'Analyzing semantic vectors…',
+  'Finding semantic matches…',
   'Comparing embeddings…',
-  'Ranking matches…',
-  'Fetching ranked results…',
+  'Ranking roles…',
+  'Loading results…',
 ] as const
 
 async function readErrorMessage(res: Response): Promise<string> {
@@ -157,12 +159,12 @@ export function EmployeeAiRecommendations() {
     const raw = await res.json().catch(() => null)
     const { recommendations, behaviourSession } = parseRecommendationsApiPayload(raw)
 
-        if (recommendations.length === 0) {
-          setState({ kind: 'empty', lastLimit: limit, behaviourSession: behaviourSession ?? null })
-          return
-        }
+    if (recommendations.length === 0) {
+      setState({ kind: 'empty', lastLimit: limit, behaviourSession: behaviourSession ?? null })
+      return
+    }
 
-        setState({ kind: 'ok', data: recommendations, apiLimit: limit, behaviourSession: behaviourSession ?? null })
+    setState({ kind: 'ok', data: recommendations, apiLimit: limit, behaviourSession: behaviourSession ?? null })
   }, [])
 
   useEffect(() => {
@@ -202,7 +204,7 @@ export function EmployeeAiRecommendations() {
           </Badge>
           <Badge variant="secondary" className="rounded-full gap-1 shadow-sm transition-colors hover:bg-secondary/90">
             <Workflow className="h-3 w-3" />
-            Hybrid rank (semantic-first)
+            Semantic-first adaptive ranking
           </Badge>
         </div>
 
@@ -239,8 +241,8 @@ export function EmployeeAiRecommendations() {
             <div className="min-w-0 flex-1">
               <p className="font-semibold text-lg text-foreground transition-all duration-300">{loadingMessage}</p>
               <p className="text-sm text-muted-foreground mt-1.5 leading-relaxed">
-                Server-side embeddings and cosine for the semantic term, plus a capped behaviour layer for the final
-                hybrid sort. No client-side scoring.
+                Embeddings and cosine similarity run on the server; a capped behaviour layer can adjust the final sort.
+                Nothing is scored in the browser.
               </p>
             </div>
           </div>
@@ -385,8 +387,12 @@ export function EmployeeAiRecommendations() {
     return (
       <div className="space-y-8 animate-in fade-in duration-300">
         <div className="flex flex-wrap gap-2">
-          <Badge variant="outline" className="rounded-full shadow-sm">Hybrid-ranked</Badge>
-          <Badge variant="secondary" className="rounded-full shadow-sm">Embedding-based</Badge>
+          <Badge variant="outline" className="rounded-full shadow-sm">
+            Semantic-first adaptive
+          </Badge>
+          <Badge variant="secondary" className="rounded-full shadow-sm">
+            Embedding-based
+          </Badge>
         </div>
         {bs ? (
           <Card className="rounded-2xl border border-violet-500/25 bg-gradient-to-br from-violet-500/[0.07] to-background shadow-sm ring-1 ring-primary/[0.06]">
@@ -423,22 +429,39 @@ export function EmployeeAiRecommendations() {
                 <Cpu className="h-8 w-8" />
               </div>
               <div className="space-y-3 max-w-2xl">
-                <CardTitle className="text-xl sm:text-2xl tracking-tight">No ranked vacancies in this window</CardTitle>
-                <p className="text-sm text-muted-foreground leading-relaxed">
-                  Ranking ran successfully, but nothing cleared the current cosine threshold, or indexed vacancies are
-                  still missing vectors.
+                <CardTitle className="text-xl sm:text-2xl tracking-tight">No matches in this list yet</CardTitle>
+                <p className="text-sm text-foreground/90 leading-relaxed">
+                  AI matching is available, but there aren’t enough indexed roles above the current match bar for your
+                  profile in this fetch — or some open listings may still be finishing indexing.
                 </p>
-                <ul className="text-sm space-y-2 text-muted-foreground list-none pl-0">
-                  <li className="flex gap-2">
-                    <span className="text-primary font-semibold">•</span>
-                    Confirm open roles have embeddings saved; re-run your data or seed script with the encoder online.
-                  </li>
-                  <li className="flex gap-2">
-                    <span className="text-primary font-semibold">•</span>
-                    For local demos: <code className="rounded-md bg-muted px-1.5 py-0.5 text-[0.72rem]">npm run seed:demo</code>{' '}
-                    with embeddings enabled, then refresh (hybrid sort: semantic-first on the server).
-                  </li>
-                </ul>
+                <Collapsible className="rounded-lg border border-border/60 bg-muted/20">
+                  <CollapsibleTrigger
+                    type="button"
+                    className="flex w-full items-center justify-between gap-2 px-3 py-2.5 text-left text-xs font-medium text-muted-foreground hover:text-foreground transition-colors [&[data-state=open]>svg]:rotate-180"
+                  >
+                    <span>Technical details</span>
+                    <ChevronDown className="h-4 w-4 shrink-0 transition-transform duration-200" />
+                  </CollapsibleTrigger>
+                  <CollapsibleContent className="px-3 pb-3 pt-0">
+                    <ul className="text-xs text-muted-foreground space-y-2 list-none pl-0 leading-relaxed">
+                      <li className="flex gap-2">
+                        <span className="text-primary font-semibold shrink-0">•</span>
+                        <span>
+                          Some vacancies may not have stored embedding vectors yet — re-index or re-seed with the
+                          encoder online so cosine ranking can include them.
+                        </span>
+                      </li>
+                      <li className="flex gap-2">
+                        <span className="text-primary font-semibold shrink-0">•</span>
+                        <span>
+                          For local demos:{' '}
+                          <code className="rounded-md bg-muted px-1.5 py-0.5 text-[0.72rem]">npm run seed:demo</code>{' '}
+                          with embeddings enabled, then refresh. Sorting stays semantic-first on the server.
+                        </span>
+                      </li>
+                    </ul>
+                  </CollapsibleContent>
+                </Collapsible>
               </div>
             </div>
           </CardHeader>
@@ -469,7 +492,7 @@ export function EmployeeAiRecommendations() {
       <div className="flex flex-wrap items-center gap-2">
         <Badge variant="outline" className="gap-1.5 rounded-full border-emerald-500/35 text-emerald-800 dark:text-emerald-200 shadow-sm transition-colors hover:border-emerald-500/50">
           <Activity className="h-3 w-3" />
-          Semantic-first hybrid ranking
+          Semantic-first adaptive ranking
         </Badge>
         <Badge variant="secondary" className="rounded-full gap-1 shadow-sm transition-colors hover:bg-secondary/90">
           <Zap className="h-3 w-3" />
@@ -518,17 +541,22 @@ export function EmployeeAiRecommendations() {
             </CardHeader>
             <CardContent>
               <p className="text-3xl font-bold tabular-nums tracking-tight text-foreground">{stats.count}</p>
-              <p className="text-xs text-muted-foreground mt-1.5 leading-snug">Server-ranked slice (hybrid final score DESC)</p>
+              <p className="text-xs text-muted-foreground mt-1.5 leading-snug">Server-ranked slice (final adaptive score, DESC)</p>
             </CardContent>
           </Card>
           <Card className={cn(METRIC_CARD, 'from-emerald-500/[0.12] to-background')}>
             <CardHeader className="pb-2 flex flex-row items-center justify-between space-y-0">
-              <span className="text-[0.65rem] font-semibold uppercase tracking-wide text-muted-foreground">Top hybrid score</span>
+              <span className="text-[0.65rem] font-semibold uppercase tracking-wide text-muted-foreground">Top match score</span>
               <TrendingUp className="h-4 w-4 text-emerald-600 dark:text-emerald-400 transition-transform group-hover/metric:scale-110" />
             </CardHeader>
             <CardContent>
               <p className="text-3xl font-bold tabular-nums text-foreground">{stats.topMatch}%</p>
-              <p className="text-xs text-muted-foreground mt-1.5 leading-snug">Best final score in this batch (semantic×0.85 + behaviour×0.15)</p>
+              <p className="text-xs text-muted-foreground mt-1.5 leading-snug">
+                Best final score in this view — semantic-first, capped behaviour boost.
+              </p>
+              <p className="text-[0.65rem] text-muted-foreground/75 mt-0.5 tabular-nums leading-snug">
+                semantic×0.85 + behaviour×0.15
+              </p>
             </CardContent>
           </Card>
           <Card className={cn(METRIC_CARD, 'from-violet-500/[0.12] to-background')}>
@@ -538,18 +566,22 @@ export function EmployeeAiRecommendations() {
             </CardHeader>
             <CardContent>
               <p className="text-3xl font-bold tabular-nums text-foreground">{stats.skillsDetected}</p>
-              <p className="text-xs text-muted-foreground mt-1.5 leading-snug">Distinct JD phrases flagged in your resume text</p>
+              <p className="text-xs text-muted-foreground mt-1.5 leading-snug">
+                JD phrases that also appear in your resume (plain text, not embeddings)
+              </p>
             </CardContent>
           </Card>
           <Card className={cn(METRIC_CARD, 'from-cyan-500/[0.12] to-background')}>
             <CardHeader className="pb-2 flex flex-row items-center justify-between space-y-0">
-              <span className="text-[0.65rem] font-semibold uppercase tracking-wide text-muted-foreground">Mean hybrid / semantic</span>
+              <span className="text-[0.65rem] font-semibold uppercase tracking-wide text-muted-foreground">
+                Mean final vs semantic
+              </span>
               <Percent className="h-4 w-4 text-cyan-600 dark:text-cyan-400 transition-transform group-hover/metric:scale-110" />
             </CardHeader>
             <CardContent>
               <p className="text-3xl font-bold tabular-nums text-foreground">{stats.meanHybridMatch}%</p>
               <p className="text-xs text-muted-foreground mt-1.5 leading-snug">
-                Hybrid mean (rank key). Avg semantic cosine alone: {stats.meanSemanticMatch}%.
+                Batch mean (rank key). Semantic cosine alone averages {stats.meanSemanticMatch}%.
               </p>
             </CardContent>
           </Card>
@@ -561,8 +593,8 @@ export function EmployeeAiRecommendations() {
           <p className="text-sm font-semibold text-foreground tracking-tight">Results</p>
           <p className="text-sm text-muted-foreground leading-relaxed">
             Showing the top <strong className="text-foreground font-medium">{data.length}</strong> matches fetched with{' '}
-            <code className="rounded-md bg-muted/80 px-1.5 py-0.5 text-[0.72rem]">?limit={apiLimit}</code> — order follows backend
-            hybrid ranking (semantic-first; cosine unchanged inside the semantic term).
+            <code className="rounded-md bg-muted/80 px-1.5 py-0.5 text-[0.72rem]">?limit={apiLimit}</code> — order follows
+            semantic-first adaptive ranking on the server; cosine is unchanged inside the semantic layer.
           </p>
         </div>
         <div className="flex flex-wrap items-center gap-2 shrink-0">
@@ -645,15 +677,21 @@ export function EmployeeAiRecommendations() {
                   <div className="flex items-center justify-between text-[0.7rem] font-semibold uppercase tracking-wider text-muted-foreground">
                     <span className="flex items-center gap-1.5">
                       <Activity className="h-3.5 w-3.5" />
-                      Hybrid match (semantic-first)
+                      Match score (semantic-first)
                     </span>
                     <span className="text-lg font-bold text-foreground tabular-nums">{pctHybrid}%</span>
                   </div>
                   <Progress value={pctHybrid} className={PROGRESS_ENHANCED} />
-                  <p className="text-[0.7rem] text-muted-foreground">
-                    Final = semantic×0.85 + behaviour×0.15 — semantic cosine alone ~{pctSemantic}% · behaviour term{' '}
-                    {behaviourPts.toFixed(1)} / 15 max points
-                  </p>
+                  <div className="space-y-1 pt-0.5">
+                    <p className="text-xs text-foreground/90 leading-snug">
+                      Final score blends semantic similarity (primary) with a capped behaviour adjustment — deterministic
+                      on the server.
+                    </p>
+                    <p className="text-[0.65rem] text-muted-foreground/80 tabular-nums leading-relaxed">
+                      semantic×0.85 + behaviour×0.15 · cosine alone ~{pctSemantic}% · behaviour {behaviourPts.toFixed(1)}{' '}
+                      / 15 max pts
+                    </p>
+                  </div>
                 </div>
               </CardHeader>
 
@@ -674,16 +712,23 @@ export function EmployeeAiRecommendations() {
                     <p className="text-muted-foreground leading-relaxed text-[0.9rem]">{item.semanticMatchNote}</p>
                   </div>
 
-                  <div className="rounded-lg border border-violet-500/30 bg-violet-500/[0.04] dark:bg-violet-500/[0.07] p-3.5 space-y-3">
+                  <div className="rounded-lg border border-violet-500/30 bg-violet-500/[0.04] dark:bg-violet-500/[0.07] p-3.5 space-y-2.5">
                     <div className="flex items-center gap-2">
                       <Layers className="h-4 w-4 text-violet-600 dark:text-violet-300 shrink-0" />
                       <h3 className="font-semibold text-sm tracking-tight">Text overlap hints</h3>
                     </div>
                     {item.matchedSkills.length > 0 ? (
                       <>
-                        <p className="text-xs text-muted-foreground">
-                          Plain-text check between your resume and the listing — independent from hybrid and cosine scores.
-                        </p>
+                        {!item.textOverlapNote ? (
+                          <p className="text-xs text-muted-foreground leading-snug">
+                            Shared JD phrases in your resume — plain-text overlap only, separate from semantic scoring.
+                            Readability hint.
+                          </p>
+                        ) : (
+                          <p className="text-[0.65rem] text-muted-foreground/80 leading-snug">
+                            Plain-text overlap — not embeddings; does not change cosine or adaptive rank.
+                          </p>
+                        )}
                         <div className="flex flex-wrap gap-1.5">
                           {item.matchedSkills.map((s) => (
                             <Badge
@@ -691,17 +736,19 @@ export function EmployeeAiRecommendations() {
                               variant="secondary"
                               className="font-normal text-xs rounded-full px-2.5 py-0.5 bg-background/90 border border-border/60"
                             >
-                              {s}
+                              {formatBehaviourPhraseForDisplay(s, 40)}
                             </Badge>
                           ))}
                         </div>
                         {item.textOverlapNote ? (
-                          <p className="text-muted-foreground leading-relaxed text-[0.85rem]">{item.textOverlapNote}</p>
+                          <p className="text-[0.7rem] text-muted-foreground/85 leading-relaxed border-t border-border/40 pt-2">
+                            {item.textOverlapNote}
+                          </p>
                         ) : null}
                       </>
                     ) : (
-                      <p className="text-xs text-muted-foreground leading-relaxed">
-                        No JD phrases were auto-flagged against your resume text. Hybrid rank still applies (semantic-first).
+                      <p className="text-xs text-muted-foreground leading-snug">
+                        No shared JD phrases flagged. Ranking stays semantic-first adaptive.
                       </p>
                     )}
                   </div>
@@ -709,7 +756,7 @@ export function EmployeeAiRecommendations() {
                   <div className="rounded-lg border border-amber-500/30 bg-amber-500/[0.06] dark:bg-amber-500/[0.08] p-3.5 space-y-2">
                     <div className="flex items-center gap-2">
                       <Workflow className="h-4 w-4 text-amber-700 dark:text-amber-300 shrink-0" />
-                      <h3 className="font-semibold text-sm tracking-tight">Behaviour layer (ranking)</h3>
+                      <h3 className="font-semibold text-sm tracking-tight">Adaptive rank (how this row scored)</h3>
                     </div>
                     <p className="text-muted-foreground text-[0.85rem] leading-relaxed">{item.hybridRankingNote}</p>
                     {item.behaviourExplanations.length > 0 ? (

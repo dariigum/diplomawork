@@ -127,9 +127,9 @@ export function EmployeeDashboardAiPreview({ serverHints }: EmployeeDashboardAiP
 
   const insightLine =
     state.kind === 'ok' && state.topPercent !== null && state.topTitle
-      ? `Strongest match in this preview: ${state.topTitle}${state.topCompany ? ` · ${state.topCompany}` : ''} · ${state.topPercent}% hybrid.`
+      ? `Strongest match in this preview: ${state.topTitle}${state.topCompany ? ` · ${state.topCompany}` : ''} · ${state.topPercent}% adaptive score.`
       : state.kind === 'ok' && state.topPercent !== null
-        ? `${state.count} roles ranked in this window — best hybrid score ${state.topPercent}%.`
+        ? `${state.count} roles ranked in this window — best adaptive score ${state.topPercent}%.`
         : state.kind === 'ok'
           ? `${state.count} ranked roles in this preview window.`
           : null
@@ -152,14 +152,14 @@ export function EmployeeDashboardAiPreview({ serverHints }: EmployeeDashboardAiP
             <div className="flex flex-wrap items-center gap-2">
               <Badge className="gap-1.5 rounded-full border-primary/30 bg-primary/15 px-3 py-1 text-primary shadow-sm transition-colors hover:bg-primary/20">
                 <BrainCircuit className="h-3.5 w-3.5" />
-                ML-powered matching
+                Semantic AI matching
               </Badge>
               <Badge variant="outline" className="rounded-full border-violet-500/40 text-violet-700 dark:text-violet-300 text-xs shadow-sm">
                 SBERT embeddings
               </Badge>
               <Badge variant="secondary" className="rounded-full gap-1 text-xs shadow-sm transition-colors hover:bg-secondary/90">
                 <Zap className="h-3 w-3" />
-                Hybrid-ranked
+                Adaptive-ranked
               </Badge>
             </div>
           </div>
@@ -169,7 +169,11 @@ export function EmployeeDashboardAiPreview({ serverHints }: EmployeeDashboardAiP
           <div>
             <h2 className="text-xl sm:text-2xl font-bold tracking-tight">Semantic job matches</h2>
             <p className="text-sm text-muted-foreground mt-1.5 max-w-xl leading-relaxed">
-              Live preview of the same server ranking as your full list — hybrid (semantic×0.85 + behaviour×0.15), not keyword search.
+              Live preview of the same server ranking as your full list — semantic-first adaptive blend, not keyword
+              search.
+            </p>
+            <p className="text-[0.65rem] text-muted-foreground/80 mt-1 max-w-xl leading-snug tabular-nums">
+              Blend (deterministic): semantic×0.85 + behaviour×0.15 — behaviour capped at 15%.
             </p>
           </div>
 
@@ -239,7 +243,7 @@ export function EmployeeDashboardAiPreview({ serverHints }: EmployeeDashboardAiP
                     <>
                       <div className="flex flex-wrap items-baseline gap-2 mt-1">
                         <span className="text-3xl font-bold tabular-nums tracking-tight text-foreground">{state.topPercent}%</span>
-                        <span className="text-xs text-muted-foreground">hybrid final → display %</span>
+                        <span className="text-xs text-muted-foreground">final adaptive score → display %</span>
                       </div>
                       <Progress value={state.topPercent} className={PREVIEW_PROGRESS} />
                     </>
@@ -271,7 +275,8 @@ export function EmployeeDashboardAiPreview({ serverHints }: EmployeeDashboardAiP
             {state.kind === 'empty' && (
               <div className="space-y-3 max-w-lg">
                 <p className="text-sm text-muted-foreground leading-relaxed">
-                  Matcher returned successfully, but no roles cleared the bar yet — check vacancy embeddings or seed data.
+                  Matching ran, but nothing cleared the bar yet — try refreshing after seeding roles, or open technical
+                  details on the full recommendations page.
                 </p>
                 <p className="text-xs text-muted-foreground tabular-nums">Checked {formatSyncedLabel(state.syncedAt)}</p>
                 {state.behaviourSession ? (
@@ -333,7 +338,9 @@ export function EmployeeDashboardAiPreview({ serverHints }: EmployeeDashboardAiP
 
       <div className="relative border-t border-border/50 bg-muted/20 px-5 py-2.5 sm:px-7 flex flex-wrap items-center gap-2 text-[0.7rem] sm:text-xs text-muted-foreground">
         <Activity className="h-3.5 w-3.5 text-primary shrink-0" />
-        <span>Vectors server-side · hybrid sort on the API · UI shows returned scores only.</span>
+        <span>
+          Embeddings computed server-side · adaptive sort on the API · UI shows returned scores only.
+        </span>
       </div>
     </div>
   )
@@ -354,7 +361,7 @@ function AiReadinessStrip({
       chips.push({ key: 'resume', label: 'Resume on file', variant: 'outline' })
     }
     if (serverHints.embeddingIndexed) {
-      chips.push({ key: 'emb', label: 'Resume vector stored', variant: 'outline' })
+      chips.push({ key: 'emb', label: 'Resume embedding stored', variant: 'outline' })
     }
     if (!serverHints.hasResume) {
       chips.push({ key: 'nr', label: 'No resume yet', variant: 'outline' })
@@ -371,7 +378,7 @@ function AiReadinessStrip({
     chips.push({ key: 'ready', label: 'Matcher online', variant: 'outline' })
     chips.push({ key: 'short', label: 'Shortlist empty', variant: 'secondary' })
     if (serverHints.embeddingIndexed) {
-      chips.push({ key: 'idx', label: 'Resume vector stored', variant: 'outline' })
+      chips.push({ key: 'idx', label: 'Resume embedding stored', variant: 'outline' })
     }
   } else if (state.kind === 'no_resume') {
     chips.push({ key: 'nr', label: 'Resume required for AI matches', variant: 'secondary' })

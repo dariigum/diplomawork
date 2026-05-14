@@ -99,7 +99,7 @@ function topRowsFromMap(m: Map<string, number>, labelFn: (k: string) => string, 
  */
 export async function buildBehaviourAnalytics(userId: string): Promise<BehaviourAnalyticsSnapshot> {
   const footnote =
-    'Derived from VacancyBehaviourEvent timestamps and vacancy text (keyword buckets for categories). Not model training or hidden personalization.'
+    'From saved interaction events and vacancy text (keyword buckets). Not model training or hidden personalization.'
 
   if (!mongoose.Types.ObjectId.isValid(userId)) {
     return {
@@ -244,19 +244,17 @@ export async function buildBehaviourAnalytics(userId: string): Promise<Behaviour
 
   const summaryLines: string[] = []
   summaryLines.push(
-    `All-time recorded interactions: ${allViewed} view(s), ${allSaved} save(s), ${allApplied} application(s)${allUnsaved ? `, ${allUnsaved} unsave(s) logged` : ''}.`,
+    `All-time: ${allViewed} views · ${allSaved} saves · ${allApplied} applies${allUnsaved ? ` · ${allUnsaved} unsaves` : ''}.`,
   )
   summaryLines.push(
-    `Last 7 days: ${last7Days.viewed} views · ${last7Days.saved} saves · ${last7Days.applied} applies. Last 30 days: ${last30Days.viewed} / ${last30Days.saved} / ${last30Days.applied}.`,
+    `Last 7 days: ${last7Days.viewed} / ${last7Days.saved} / ${last7Days.applied}. Last 30 days: ${last30Days.viewed} / ${last30Days.saved} / ${last30Days.applied}.`,
   )
 
   if (categoryRanked[0]) {
-    summaryLines.push(
-      `Strongest inferred category bucket (last ~90d weighted activity): ${categoryRanked[0].label}.`,
-    )
+    summaryLines.push(`Strongest inferred category (~90d weighted): ${categoryRanked[0].label}.`)
   }
   if (skillRanked[0]) {
-    summaryLines.push(`Top weighted skill phrases from those vacancies: ${skillRanked[0].skill}.`)
+    summaryLines.push(`Top weighted skill phrase from those roles: ${skillRanked[0].skill}.`)
   }
 
   return {

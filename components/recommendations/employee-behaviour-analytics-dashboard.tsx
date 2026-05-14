@@ -6,6 +6,7 @@ import { Progress } from '@/components/ui/progress'
 import { cn } from '@/lib/utils'
 import type { BehaviourAnalyticsSnapshot } from '@/lib/behaviour-analytics'
 import { getBehaviourCategoryDisplayName } from '@/lib/behaviour-ui-explanations'
+import { formatBehaviourPhraseForDisplay } from '@/lib/recommendations-display-format'
 
 type Props = {
   snapshot: BehaviourAnalyticsSnapshot
@@ -40,11 +41,18 @@ export function EmployeeBehaviourAnalyticsDashboard({ snapshot, variant = 'full'
               Interaction insights
             </CardTitle>
           </CardHeader>
-          <CardContent className="space-y-2 text-sm text-muted-foreground leading-relaxed">
-            {snapshot.summaryLines.map((line, i) => (
-              <p key={i}>{line}</p>
+          <CardContent className="space-y-3 text-sm text-muted-foreground leading-relaxed">
+            {snapshot.summaryLines[0] ? (
+              <p className="font-medium text-foreground">{snapshot.summaryLines[0]}</p>
+            ) : null}
+            {snapshot.summaryLines.slice(1).map((line, i) => (
+              <p key={i} className="text-xs">
+                {line}
+              </p>
             ))}
-            <p className="text-xs pt-1 border-t border-border/50">{snapshot.footnote}</p>
+            <p className="text-[0.65rem] text-muted-foreground/90 pt-2 border-t border-border/50 leading-relaxed">
+              {snapshot.footnote}
+            </p>
           </CardContent>
         </Card>
       </section>
@@ -65,8 +73,8 @@ export function EmployeeBehaviourAnalyticsDashboard({ snapshot, variant = 'full'
             Activity & adaptive signals
           </h2>
           <p className="text-xs sm:text-sm text-muted-foreground max-w-2xl leading-relaxed">
-            Derived from recorded interactions only — same category rules as elsewhere. Not a separate ML training
-            pipeline.
+            Weighted from your saved interactions, using the same category rules as recommendations — not a separate ML
+            training pipeline.
           </p>
         </div>
         {!isCompact ? (
@@ -141,8 +149,9 @@ export function EmployeeBehaviourAnalyticsDashboard({ snapshot, variant = 'full'
               <Layers className="h-4 w-4 text-violet-600" />
               Favourite inferred categories
             </CardTitle>
-            <p className="text-xs text-muted-foreground font-normal leading-snug">
-              Weighted by views/saves/applies on vacancies tagged via keyword buckets (~90d window, capped reads).
+            <p className="text-[0.65rem] text-muted-foreground font-normal leading-snug">
+              Views, saves, and applies weighted over ~90 days (capped reads). Categories from keyword buckets on vacancy
+              text.
             </p>
           </CardHeader>
           <CardContent className="space-y-2">
@@ -181,7 +190,7 @@ export function EmployeeBehaviourAnalyticsDashboard({ snapshot, variant = 'full'
             ) : (
               skillRanked.map((s) => (
                 <Badge key={s.skill} variant="outline" className="rounded-full text-xs font-normal gap-1.5">
-                  {s.skill}
+                  {formatBehaviourPhraseForDisplay(s.skill, 48)}
                   <span className="text-[0.65rem] tabular-nums text-muted-foreground">{s.weight}</span>
                 </Badge>
               ))
@@ -192,8 +201,8 @@ export function EmployeeBehaviourAnalyticsDashboard({ snapshot, variant = 'full'
         <Card className="border-border/65 shadow-sm bg-muted/10">
           <CardHeader className="pb-2">
             <CardTitle className="text-sm">Profile builder alignment</CardTitle>
-            <p className="text-xs text-muted-foreground font-normal">
-              Same `buildUserBehaviourProfile` lists used in recommendation context — shown for transparency.
+            <p className="text-[0.65rem] text-muted-foreground font-normal leading-snug">
+              Same profile lists as on recommendation cards (transparency cross-check).
             </p>
           </CardHeader>
           <CardContent className="space-y-2 text-xs text-muted-foreground">
@@ -213,7 +222,14 @@ export function EmployeeBehaviourAnalyticsDashboard({ snapshot, variant = 'full'
             </div>
             <div>
               <p className="font-medium text-foreground/90 mb-1">Skills</p>
-              <p className="leading-relaxed">{profileTopSkills.length ? profileTopSkills.slice(0, 8).join(' · ') : '—'}</p>
+              <p className="leading-relaxed">
+                {profileTopSkills.length
+                  ? profileTopSkills
+                      .slice(0, 8)
+                      .map((p) => formatBehaviourPhraseForDisplay(p, 40))
+                      .join(' · ')
+                  : '—'}
+              </p>
             </div>
           </CardContent>
         </Card>
@@ -224,17 +240,24 @@ export function EmployeeBehaviourAnalyticsDashboard({ snapshot, variant = 'full'
           <CardHeader className="pb-2">
             <CardTitle className="text-sm">Activity summary</CardTitle>
           </CardHeader>
-          <CardContent className="space-y-2">
-            <ul className="text-sm text-muted-foreground list-disc pl-4 space-y-1">
-              {snapshot.summaryLines.map((line, i) => (
-                <li key={i}>{line}</li>
-              ))}
-            </ul>
-            <p className="text-xs text-muted-foreground/90 pt-1 border-t border-border/40">{snapshot.footnote}</p>
+          <CardContent className="space-y-3">
+            {snapshot.summaryLines[0] ? (
+              <p className="text-sm font-medium text-foreground leading-snug">{snapshot.summaryLines[0]}</p>
+            ) : null}
+            {snapshot.summaryLines.length > 1 ? (
+              <ul className="text-xs text-muted-foreground list-disc pl-4 space-y-1.5 leading-relaxed">
+                {snapshot.summaryLines.slice(1).map((line, i) => (
+                  <li key={i}>{line}</li>
+                ))}
+              </ul>
+            ) : null}
+            <p className="text-[0.65rem] text-muted-foreground/90 pt-2 border-t border-border/40 leading-relaxed">
+              {snapshot.footnote}
+            </p>
           </CardContent>
         </Card>
       ) : (
-        <p className="text-xs text-muted-foreground/90">{snapshot.footnote}</p>
+        <p className="text-[0.65rem] text-muted-foreground/90 leading-relaxed">{snapshot.footnote}</p>
       )}
 
       {isCompact ? (

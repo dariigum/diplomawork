@@ -30,14 +30,14 @@ export default async function EmployeeRecommendationsPage() {
             <div className="flex flex-wrap items-center gap-2">
               <Badge className="gap-1.5 rounded-full border-primary/30 bg-primary/15 px-3 py-1 text-primary shadow-sm transition-colors hover:bg-primary/20">
                 <BrainCircuit className="h-3.5 w-3.5" />
-                ML-powered matching
+                Semantic AI matching
               </Badge>
               <Badge variant="outline" className="rounded-full border-violet-500/40 text-violet-700 dark:text-violet-300 shadow-sm">
                 SBERT embeddings
               </Badge>
               <Badge variant="secondary" className="rounded-full gap-1 text-xs shadow-sm">
                 <Zap className="h-3 w-3" />
-                Hybrid-ranked
+                Adaptive-ranked
               </Badge>
             </div>
             <h1 className="text-3xl font-bold tracking-tight sm:text-4xl md:text-[2.25rem] leading-tight">
@@ -45,21 +45,21 @@ export default async function EmployeeRecommendationsPage() {
             </h1>
             <p className="text-base text-muted-foreground leading-relaxed md:text-lg">
               Recommendations combine resume embeddings (cosine semantic score) with a small, capped behaviour layer.
-              Final list order is hybrid (semantic-first) — computed server-side, not keyword search alone.
+              Final order is semantic-first adaptive ranking — computed server-side, not keyword search alone.
             </p>
             <p className="text-sm text-muted-foreground/90 flex items-start gap-2 max-w-2xl">
               <Sparkles className="h-4 w-4 shrink-0 mt-0.5 text-primary" />
               <span>
-                Transparent ML: vectors from your encoder; semantic term is cosine on the server; behaviour boosts are
-                explainable in each card. Percentages are not fabricated in the browser.
+                Explainable AI: vectors from your encoder; semantic term is cosine on the server; behaviour boosts are
+                spelled out on each card. Percentages reflect API values, not browser guesses.
               </span>
             </p>
             <div className="flex flex-wrap gap-2 pt-2">
               <Badge variant="outline" className="rounded-full text-xs font-normal bg-background/50 shadow-sm">
-                Semantic-first hybrid
+                Semantic-first adaptive ranking
               </Badge>
               <Badge variant="secondary" className="rounded-full text-xs font-normal shadow-sm">
-                Final % (hybrid)
+                Final % (adaptive)
               </Badge>
               <Badge variant="outline" className="rounded-full text-xs font-normal opacity-90 shadow-sm">
                 Top-N via ?limit=

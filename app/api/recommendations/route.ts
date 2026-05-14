@@ -61,7 +61,7 @@ function matchedSkillsFromResumeAndVacancy(
 
 function buildSemanticMatchNote(semanticScore: number): string {
   const pct = Math.round(semanticScore * 100)
-  return `Embedding cosine for this vacancy (semantic-only): about ${pct}% on a [0–100] display scale. This value is the primary input to hybrid ranking (see hybrid note).`
+  return `Semantic match (embedding cosine, semantic-only layer): ~${pct}% on a 0–100 display scale. This is the primary signal in semantic-first adaptive ranking.`
 }
 
 function buildHybridRankingNote(
@@ -73,17 +73,17 @@ function buildHybridRankingNote(
   const finPct = Math.round(finalScore * 100)
   const semPct = Math.round(semanticScore * 100)
   const parts = [
-    `Hybrid rank: final ≈ semantic×${HYBRID_SEMANTIC_WEIGHT} + behaviour×${HYBRID_BEHAVIOUR_WEIGHT} → ${finPct}% display uses final; semantic alone would be ~${semPct}%. Behaviour term uses a small capped score (${behaviourScore.toFixed(3)}).`,
+    `Adaptive rank combines semantic (${HYBRID_SEMANTIC_WEIGHT}×) and behaviour (${HYBRID_BEHAVIOUR_WEIGHT}×): final ~${finPct}% (semantic-only would be ~${semPct}%). Behaviour term is capped (${behaviourScore.toFixed(3)}).`,
   ]
   const hits = behaviourBullets.filter(
     (b) => b.startsWith('Matched ') && !b.includes('exceeded cap') && !b.includes('No overlap'),
   )
   if (hits.length > 0) {
-    parts.push(`Behavioural adjustment: ${hits.slice(0, 3).join(' ')}`)
+    parts.push(`Behaviour signals: ${hits.slice(0, 3).join(' ')}`)
   } else if (behaviourScore <= 0) {
-    parts.push('No behaviour boost on this row (cold profile or no text overlap); order follows semantic layer.')
+    parts.push('No behaviour boost here (cold profile or no overlap); ordering follows the semantic layer.')
   } else {
-    parts.push('Behavioural adjustment applied (see raw lines in behaviour explanations).')
+    parts.push('Behaviour adjustment applied (see explanation lines on the card).')
   }
   return parts.join(' ')
 }
@@ -91,7 +91,7 @@ function buildHybridRankingNote(
 function buildTextOverlapNote(matched: string[]): string | null {
   if (matched.length === 0) return null
   const list = matched.slice(0, 5).join(', ')
-  return `Separate text check: your resume text lines up with these JD phrases — ${list}. This hint is for readability only; it does not change the embedding cosine or hybrid score.`
+  return `Resume text overlap with JD phrases: ${list}. Readability hint only — does not change embedding cosine or adaptive rank.`
 }
 
 const DEFAULT_LIMIT = 10

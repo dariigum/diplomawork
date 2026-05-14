@@ -21,7 +21,7 @@ export function isBehaviourColdStart(profile: UserBehaviourProfile): boolean {
 
 export function buildBehaviourSessionInsights(profile: UserBehaviourProfile): BehaviourSessionInsights {
   const neutralSemanticLine =
-    'Recommendations are based on semantic resume matching (embeddings and cosine similarity).'
+    'Recommendations use semantic resume similarity (embeddings and cosine on the server).'
 
   const { viewed, saved, applied } = profile.interactionSummary
 
@@ -31,7 +31,7 @@ export function buildBehaviourSessionInsights(profile: UserBehaviourProfile): Be
       activitySummary: { viewed: 0, saved: 0, applied: 0 },
       dashboardLines: [
         neutralSemanticLine,
-        'No job views, saves, or applications are recorded yet — we do not show activity-based adaptation wording.',
+        'No views, saves, or applications yet — activity-based wording stays off until there is real signal.',
       ],
       productBadge: null,
       neutralSemanticLine,
@@ -39,30 +39,28 @@ export function buildBehaviourSessionInsights(profile: UserBehaviourProfile): Be
   }
 
   const dashboardLines: string[] = [
-    `Recorded activity: ${viewed} view(s), ${saved} save(s), ${applied} application(s). Used only with fixed, explainable rules — not self-learning AI.`,
+    `On record: ${viewed} views · ${saved} saves · ${applied} applies — fixed, explainable rules only (not self-learning).`,
   ]
 
   const topCat = profile.preferredCategories[0]
   if (topCat) {
     const label = getBehaviourCategoryDisplayName(topCat)
     dashboardLines.push(
-      `Inferred strongest theme from roles you interacted with: ${label} (keyword buckets on vacancy text, not a separate ML model).`,
+      `Strongest theme from roles you opened: ${label} (keyword bucketing on vacancy text, not a separate ML model).`,
     )
   }
 
   const s1 = profile.preferredSkills[0]
   if (s1) {
     const s2 = profile.preferredSkills[1]
-    dashboardLines.push(
-      `Common skill phrases in listings you engaged with: ${s1}${s2 ? `, ${s2}` : ''}.`,
-    )
+    dashboardLines.push(`Skill phrases seen in those listings: ${s1}${s2 ? `, ${s2}` : ''}.`)
   }
 
   return {
     coldStart: false,
     activitySummary: { viewed, saved, applied },
     dashboardLines: dashboardLines.slice(0, 4),
-    productBadge: 'Adapted using your recent activity',
+    productBadge: 'Uses your recent job activity',
     neutralSemanticLine,
   }
 }
@@ -93,5 +91,5 @@ export function pickBehaviourCardTagline(
       x.startsWith('Matched category:'),
   )
   if (matched) return matched.length > 160 ? `${matched.slice(0, 157)}…` : matched
-  return 'Behaviour-aware ranking adjustment on this row (small capped weight vs semantic).'
+  return 'Small behaviour-informed adjustment on this row (capped vs semantic).'
 }

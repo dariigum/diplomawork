@@ -17,10 +17,12 @@ describe('job-ingestion normalize', () => {
     const fixed = new Date('2026-05-01T00:00:00.000Z')
     const n = normalizeRawHhVacancy(raw, fixed)
     expect(n.source).toBe('HH')
-    expect(n.externalId).toBe('9000001')
+    expect(n.externalId).toBe('hh_9000001')
     expect(n.workMode).toBe('REMOTE')
     expect(n.importedAt).toBe(fixed.toISOString())
     expect(n.description).not.toMatch(/</)
+    expect(n.skillsRequired).toContain('React')
+    expect(n.skillsRequired).toContain('TypeScript')
   })
 })
 

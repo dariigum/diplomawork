@@ -16,26 +16,66 @@ function pickLocation(raw: RawHHVacancy): string {
   return (city || rawAddr || 'Unspecified').trim()
 }
 
+function skillsFromRaw(raw: RawHHVacancy): string {
+  const list = raw.key_skills ?? []
+  return list
+    .map((k) => (k?.name ?? '').trim())
+    .filter(Boolean)
+    .join(', ')
+}
+
+/** Stable external id for HH vacancies (matches `validateNormalizedVacancyInput` safe pattern). */
+export function hhStableExternalId(rawId: string): string {
+  const trimmed = String(rawId).trim().replace(/^hh_/i, '')
+  return `hh_${trimmed}`
+}
+
+/**
+ * Ensures description passes lightweight validation when HTML body is empty or very short.
+ * Deterministic: same raw fields always produce the same fallback text.
+ */
+export function buildHhDescriptionForNormalization(
+  raw: RawHHVacancy,
+  title: string,
+  company: string,
+  location: string
+): string {
+  const base = stripHtmlToPlainText(raw.description ?? '').trim()
+  if (base.length >= 24) return base
+  const filler = [
+    title && `Vacancy: ${title}.`,
+    company && `Company: ${company}.`,
+    location && `Location: ${location}.`,
+    raw.employment?.name?.trim() && `Employment: ${raw.employment.name.trim()}.`,
+    raw.experience?.name?.trim() && `Experience: ${raw.experience.name.trim()}.`,
+  ]
+    .filter(Boolean)
+    .join(' ')
+  const combined = [base, filler].filter(Boolean).join('\n').trim()
+  if (combined.length >= 24) return combined
+  return `${combined}\nHeadHunter listing: detailed HTML description was missing or too short; this text is derived deterministically from the vacancy card.`.trim()
+}
+
 /**
  * Deterministic mapping from minimal HH-shaped JSON to the shared contract.
  * No network I/O.
  */
 export function normalizeRawHhVacancy(raw: RawHHVacancy, now: Date = new Date()): NormalizedVacancyInput {
-  const description = stripHtmlToPlainText(raw.description ?? '')
   const title = (raw.name ?? '').trim() || 'Untitled vacancy'
   const company = raw.employer?.name?.trim() || 'Unknown employer'
   const location = pickLocation(raw)
+  const description = buildHhDescriptionForNormalization(raw, title, company, location)
   const scheduleName = raw.schedule?.name ?? ''
   const haystack = `${title}\n${description}\n${scheduleName}`
   const remote = detectRemoteFromText(haystack) || /\bremote\b/i.test(scheduleName)
 
   return {
     source: 'HH',
-    externalId: String(raw.id).trim(),
+    externalId: hhStableExternalId(String(raw.id)),
     title,
     company,
     description,
-    skillsRequired: '',
+    skillsRequired: skillsFromRaw(raw),
     location,
     workMode: remote ? 'REMOTE' : 'ONSITE',
     employmentType: raw.employment?.name?.trim() || 'Full-time',

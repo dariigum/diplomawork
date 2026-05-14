@@ -15,3 +15,9 @@ Stages 4–5 are **interfaces / placeholders** in 6A so recommendation and seman
 ## Demo without live HeadHunter
 
 Use `mock/mock-normalized-vacancies.json` or `loadMockNormalizedVacancies()` from `lib/job-ingestion/mock`. For HH-shaped samples without network, use `mock/mock-raw-hh-vacancies.json` + `normalizeRawHhVacancy`.
+
+## Stage 6B — minimal HH client (bounded)
+
+- `fetchAndNormalizeHhItVacancies` in `hh/fetch-it-vacancies.ts`: paginated search + per-vacancy detail, hard caps (`maxPages`, `perPage`, `maxVacancies`), throttled requests, structured `{ ok, vacancies, skipped, meta }` (never throws).
+- Configure via `resolveHhItFetchConfig` overrides or env: `HH_FETCH_MAX_PAGES`, `HH_FETCH_PER_PAGE`, `HH_FETCH_MAX_VACANCIES`, `HH_FETCH_SEARCH_QUERY`, `HH_FETCH_AREA_IDS`, `HH_API_BASE_URL`, `HH_USER_AGENT`, optional `HH_API_TOKEN`.
+- Stable ids: normalized HH vacancies use `externalId` like `hh_<numericId>` from `hhStableExternalId`.

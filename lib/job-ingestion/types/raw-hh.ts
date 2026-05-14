@@ -17,6 +17,8 @@ export interface RawHHVacancy {
   employment?: { name?: string | null } | null
   experience?: { name?: string | null } | null
   schedule?: { id?: string; name?: string | null } | null
+  /** Detail endpoint returns key_skills; search item may omit. */
+  key_skills?: Array<{ name?: string | null }> | null
   alternate_url?: string | null
   published_at?: string | null
   created_at?: string | null

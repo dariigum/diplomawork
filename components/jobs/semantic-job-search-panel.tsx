@@ -23,8 +23,8 @@ const FETCH_LIMIT = 24
 function semanticMatchStrengthLabel(score: number): string {
   if (!Number.isFinite(score) || score <= 0) return "Semantic similarity"
   if (score >= 0.75) return "Strong semantic similarity"
-  if (score >= 0.55) return "Solid semantic similarity"
-  if (score >= 0.35) return "Related concepts matched"
+  if (score >= 0.55) return "Solid semantic overlap"
+  if (score >= 0.35) return "Related semantic overlap"
   return "Loose semantic overlap"
 }
 
@@ -166,10 +166,10 @@ export function SemanticJobSearchPanel() {
 
   const subtitle = useMemo(() => {
     if (panel.kind === "ok") {
-      return `${panel.results.length} role${panel.results.length === 1 ? "" : "s"} ranked by meaning for “${panel.query}”.`
+      return `${panel.results.length} role${panel.results.length === 1 ? "" : "s"} ranked by meaning for "${panel.query}".`
     }
     if (panel.kind === "empty") {
-      return `No semantic matches for “${panel.query}”.`
+      return `No semantic matches for "${panel.query}".`
     }
     return null
   }, [panel])
@@ -179,7 +179,7 @@ export function SemanticJobSearchPanel() {
     return panel.concepts.map((c) => ({
       key: c.concept,
       label: formatConceptDisplay(c.concept, 34),
-      titleAttr: `${c.concept} — aggregated from matched vacancy text (weight ${c.weight})`,
+      titleAttr: `${c.concept} — derived from matched vacancy titles, skills, and descriptions (weight ${c.weight})`,
     }))
   }, [panel])
 
@@ -203,8 +203,9 @@ export function SemanticJobSearchPanel() {
         <div className="space-y-1.5">
           <h2 className="text-lg font-semibold tracking-tight text-foreground sm:text-xl">Search IT roles by meaning</h2>
           <p className="text-sm text-muted-foreground max-w-2xl leading-relaxed">
-            Describe the work you want in plain language. We match your phrasing to vacancy text using the same embedding
-            encoder as listings — related concepts can surface without exact keywords.
+            Describe the role in your own words. Results use embedding-based retrieval against listing vectors; related
+            semantic overlap can appear without exact keywords. Concept tags below (when shown) use deterministic extraction
+            from matched vacancy text — not autonomous AI.
           </p>
         </div>
 
@@ -255,7 +256,8 @@ export function SemanticJobSearchPanel() {
           <div className="rounded-xl border border-dashed border-border/80 bg-muted/20 px-4 py-8 text-center">
             <p className="text-foreground font-medium">No semantic matches found for this query yet.</p>
             <p className="mt-2 text-sm text-muted-foreground max-w-md mx-auto leading-relaxed">
-              Try broader IT skills or role descriptions — for example a stack, domain, or seniority level in your own words.
+              Try broader skills or role wording. Semantic search still uses embedding-based retrieval only — nothing here
+              invents new roles or autonomous "insights."
             </p>
           </div>
         )}
@@ -330,7 +332,8 @@ export function SemanticJobSearchPanel() {
                         {r.explanation}
                       </p>
                       <p className="text-[11px] text-muted-foreground/85 leading-relaxed">
-                        Embedding-based semantic match · related concepts can align beyond literal keyword overlap.
+                        Footnote: semantic overlap follows embedding-based retrieval; each card still reflects that vacancy’s
+                        own listing text.
                       </p>
                     </CardContent>
                   </Card>
@@ -343,7 +346,7 @@ export function SemanticJobSearchPanel() {
         {showResults && panel.kind === "ok" && panel.concepts.length > 0 && conceptChips.length > 0 && (
           <div className="rounded-xl border border-border/60 bg-card/50 px-4 py-4 space-y-3 mt-2">
             <h3 className="text-sm font-medium text-foreground tracking-tight">Related semantic concepts</h3>
-            <div className="flex flex-wrap gap-1.5" role="list" aria-label="Semantic concepts from matched vacancies">
+            <div className="flex flex-wrap gap-1.5" role="list" aria-label="Semantic concepts derived from matched vacancies">
               {conceptChips.map((chip) => (
                 <Badge
                   key={chip.key}
@@ -362,8 +365,8 @@ export function SemanticJobSearchPanel() {
               </p>
             ) : (
               <p className="text-xs text-muted-foreground leading-relaxed border-t border-border/40 pt-3">
-                Concepts are derived from the same vacancy fields you see in listings (skills, titles, descriptions) — deterministic
-                extraction, not autonomous insights.
+                Derived from matched vacancy titles, skills, and descriptions. Deterministic semantic extraction — not
+                AI-generated summaries. Semantic overlap in rankings comes from embeddings plus the same listing text.
               </p>
             )}
           </div>
@@ -373,8 +376,8 @@ export function SemanticJobSearchPanel() {
           <p className="text-xs text-muted-foreground flex items-start gap-2 pt-1">
             <Sparkles className="h-3.5 w-3.5 shrink-0 mt-0.5 opacity-80" />
             <span>
-              Results update as you type (short pause). This search does not use your recommendation profile or activity —
-              only the text you enter here.
+              Results refresh shortly after you stop typing. This path does not read your recommendation profile or behaviour
+              — only your query text, embedding-based retrieval, and public vacancy listings.
             </span>
           </p>
         )}

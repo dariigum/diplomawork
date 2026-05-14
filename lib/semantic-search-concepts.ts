@@ -102,13 +102,13 @@ export function buildSemanticConceptExplanation(params: {
 }): string {
   const n = params.conceptCount
   if (!Number.isFinite(n) || n <= 0) {
-    return 'No related semantic concepts were extracted from vacancy titles, skills lines, or descriptions for this result set.'
+    return 'No semantic concepts were derived from matched vacancy titles, skills, and descriptions for this result set.'
   }
 
   const base =
-    'Related semantic concepts were detected from matched vacancy text (skills, titles, and truncated descriptions).'
+    'Related semantic concepts are derived from matched vacancy titles, skills, and descriptions (truncated where long).'
   const honest =
-    'Concepts reflect deterministic phrase and word splitting with normalization only — not generated summaries or autonomous expansion.'
+    'Deterministic semantic extraction from that text only — not AI-generated summaries, insights, or autonomous expansion.'
   const top = (params.topConcepts ?? []).filter((s) => typeof s === 'string' && s.trim()).slice(0, 3)
   if (top.length === 0) {
     return `${base} ${honest}`

@@ -37,9 +37,9 @@ describe('semantic-job-search', () => {
       const low = buildSemanticSearchExplanation({ semanticScore: 0.2 })
       const mid = buildSemanticSearchExplanation({ semanticScore: 0.5 })
       const high = buildSemanticSearchExplanation({ semanticScore: 0.9 })
-      expect(low).toContain('low on that scale')
-      expect(mid).toContain('moderate on that scale')
-      expect(high).toContain('high on that scale')
+      expect(low).toContain('is low')
+      expect(mid).toContain('is moderate')
+      expect(high).toContain('is high')
     })
 
     it('handles non-finite and non-positive scores safely', () => {

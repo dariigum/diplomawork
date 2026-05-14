@@ -61,22 +61,22 @@ function formatLocation(v: SemanticVacancyInput): string {
 export function buildSemanticSearchExplanation(params: { semanticScore: number }): string {
   const s = params.semanticScore
   if (!Number.isFinite(s) || s <= 0) {
-    return 'No usable embedding similarity for this vacancy (missing vector, length mismatch, or zero cosine).'
+    return 'No usable semantic similarity for this vacancy (missing embedding vector, length mismatch, or zero cosine).'
   }
 
   const base =
-    'Semantic similarity is computed from embedding vectors (cosine similarity mapped to 0–1), not from keyword matching alone.'
+    'Semantic overlap is scored with embedding-based retrieval: cosine similarity on vectors, mapped to 0–1 — not keyword matching alone.'
 
   if (s < 0.35) {
-    return `${base} Here the match strength is low on that scale.`
+    return `${base} Match strength on that scale is low.`
   }
   if (s < 0.55) {
-    return `${base} Here the match strength is moderate on that scale.`
+    return `${base} Match strength on that scale is moderate.`
   }
   if (s < 0.75) {
-    return `${base} Here the match strength is relatively strong on that scale; related wording may align even when keywords differ.`
+    return `${base} Match strength on that scale is relatively strong; related vacancy wording may align even when keywords differ.`
   }
-  return `${base} Here the match strength is high on that scale; the vacancy embedding is close to the query embedding in vector space.`
+  return `${base} Match strength on that scale is high; the vacancy embedding is close to the query embedding in vector space.`
 }
 
 function isValidEmbeddingForQuery(emb: unknown, queryDim: number): emb is number[] {

@@ -111,7 +111,7 @@ describe('semantic-search-concepts', () => {
       const a = buildSemanticConceptExplanation({ conceptCount: 0 })
       const b = buildSemanticConceptExplanation({ conceptCount: 0 })
       expect(a).toBe(b)
-      expect(a.toLowerCase()).toContain('no related')
+      expect(a.toLowerCase()).toContain('matched vacancy')
     })
 
     it('includes optional top concept examples deterministically', () => {

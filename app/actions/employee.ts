@@ -2,7 +2,8 @@
 
 import dbConnect from '@/lib/db/mongoose';
 import mongoose from 'mongoose';
-import { Response, Resume, SavedVacancy, User, Vacancy } from '@/lib/db/schema';
+import { Response, Resume, SavedVacancy, User, Vacancy, VacancyBehaviourEvent } from '@/lib/db/schema';
+import { recordVacancyBehaviourEvent } from '@/lib/vacancy-behaviour-events';
 import { clearSession, getSession } from '@/lib/auth';
 import { revalidatePath } from 'next/cache';
 import { redirect } from 'next/navigation';
@@ -163,6 +164,7 @@ export async function deleteEmployeeAccountAction() {
   await dbConnect();
   await Response.deleteMany({ userId: session.user.id });
   await SavedVacancy.deleteMany({ userId: session.user.id });
+  await VacancyBehaviourEvent.deleteMany({ userId: session.user.id });
   await Resume.deleteMany({ userId: session.user.id });
   await User.findByIdAndDelete(session.user.id);
 
@@ -294,6 +296,13 @@ export async function submitVacancyResponseAction(formData: FormData) {
     vacancyId: new mongoose.Types.ObjectId(vacancyId),
     resumeId: new mongoose.Types.ObjectId(resumeId),
     status: 'PENDING',
+  });
+
+  await recordVacancyBehaviourEvent({
+    userId: session.user.id,
+    vacancyId,
+    eventType: 'VACANCY_APPLIED',
+    source: 'submit_vacancy_response',
   });
 
   revalidatePath('/dashboard/employee');

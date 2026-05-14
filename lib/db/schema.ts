@@ -141,6 +141,50 @@ const ResponseSchema = new Schema<IResponse>({
 
 export const Response: Model<IResponse> = mongoose.models.Response || mongoose.model<IResponse>('Response', ResponseSchema);
 
+export const VACANCY_BEHAVIOUR_EVENT_TYPES = [
+  'VACANCY_VIEWED',
+  'VACANCY_SAVED',
+  'VACANCY_UNSAVED',
+  'VACANCY_APPLIED',
+] as const;
+
+export type VacancyBehaviourEventType = (typeof VACANCY_BEHAVIOUR_EVENT_TYPES)[number];
+
+/** Append-only behavioural signals; does not replace SavedVacancy / Response. */
+export interface IVacancyBehaviourEvent extends Document {
+  userId: mongoose.Types.ObjectId | IUser;
+  vacancyId: mongoose.Types.ObjectId | IVacancy;
+  eventType: VacancyBehaviourEventType;
+  occurredAt: Date;
+  source?: string;
+  createdAt: Date;
+  updatedAt: Date;
+}
+
+const VacancyBehaviourEventSchema = new Schema<IVacancyBehaviourEvent>(
+  {
+    userId: { type: Schema.Types.ObjectId, ref: 'User', required: true, index: true },
+    vacancyId: { type: Schema.Types.ObjectId, ref: 'Vacancy', required: true, index: true },
+    eventType: {
+      type: String,
+      enum: VACANCY_BEHAVIOUR_EVENT_TYPES,
+      required: true,
+      index: true,
+    },
+    occurredAt: { type: Date, required: true, default: Date.now, index: true },
+    source: { type: String, maxlength: 64 },
+  },
+  { timestamps: true },
+);
+
+VacancyBehaviourEventSchema.index({ userId: 1, occurredAt: -1 });
+VacancyBehaviourEventSchema.index({ vacancyId: 1, occurredAt: -1 });
+VacancyBehaviourEventSchema.index({ userId: 1, vacancyId: 1, eventType: 1, occurredAt: -1 });
+
+export const VacancyBehaviourEvent: Model<IVacancyBehaviourEvent> =
+  mongoose.models.VacancyBehaviourEvent ||
+  mongoose.model<IVacancyBehaviourEvent>('VacancyBehaviourEvent', VacancyBehaviourEventSchema);
+
 export interface IArticle extends Document {
   title: string;
   summary: string;

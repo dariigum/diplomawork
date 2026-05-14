@@ -5,6 +5,7 @@ import dbConnect from '@/lib/db/mongoose';
 import { Vacancy, SavedVacancy } from '@/lib/db/schema';
 import { getSession } from '@/lib/auth';
 import { revalidatePath } from 'next/cache';
+import { recordVacancyBehaviourEvent } from '@/lib/vacancy-behaviour-events';
 
 export async function toggleSaveVacancyAction(vacancyId: string) {
   const session = await getSession();
@@ -18,12 +19,24 @@ export async function toggleSaveVacancyAction(vacancyId: string) {
 
   if (existing) {
     await SavedVacancy.deleteOne({ _id: existing._id });
+    await recordVacancyBehaviourEvent({
+      userId: session.user.id,
+      vacancyId,
+      eventType: 'VACANCY_UNSAVED',
+      source: 'toggle_save_vacancy',
+    });
   } else {
     await SavedVacancy.create({
       userId: session.user.id,
       vacancyId: objectVacancyId
     });
     saved = true;
+    await recordVacancyBehaviourEvent({
+      userId: session.user.id,
+      vacancyId,
+      eventType: 'VACANCY_SAVED',
+      source: 'toggle_save_vacancy',
+    });
   }
   
   revalidatePath('/dashboard/employee');

@@ -23,7 +23,7 @@ import {
   DEMO_VACANCIES,
 } from '../lib/demo/seed-fixtures';
 import { getEmbedding } from '../lib/ml';
-import { User, Vacancy, Resume, Response, SavedVacancy } from '../lib/db/schema';
+import { User, Vacancy, Resume, Response, SavedVacancy, VacancyBehaviourEvent } from '../lib/db/schema';
 import { getTopRecommendations } from '../lib/recommendation';
 
 const SKIP_CLEAR = process.argv.includes('--skip-clear');
@@ -56,12 +56,16 @@ async function clearPreviousDemoTaggedData() {
       await SavedVacancy.deleteMany({
         $or: [{ userId: { $in: demoIds } }, { vacancyId: { $in: vacancyIds } }],
       });
+      await VacancyBehaviourEvent.deleteMany({
+        $or: [{ userId: { $in: demoIds } }, { vacancyId: { $in: vacancyIds } }],
+      });
       await Vacancy.deleteMany({ _id: { $in: vacancyIds } });
     }
   }
 
   await Response.deleteMany({ userId: { $in: demoIds } });
   await SavedVacancy.deleteMany({ userId: { $in: demoIds } });
+  await VacancyBehaviourEvent.deleteMany({ userId: { $in: demoIds } });
   await Resume.deleteMany({ userId: { $in: demoIds } });
   await User.deleteMany({ _id: { $in: demoIds } });
 

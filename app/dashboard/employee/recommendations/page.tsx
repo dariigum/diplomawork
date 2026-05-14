@@ -4,7 +4,9 @@ import { Sparkles, BrainCircuit, Zap } from 'lucide-react'
 import { getSession } from '@/lib/auth'
 import dbConnect from '@/lib/db/mongoose'
 import { EmployeeAiRecommendations } from '@/components/recommendations/employee-ai-recommendations'
+import { EmployeeBehaviourAnalyticsDashboard } from '@/components/recommendations/employee-behaviour-analytics-dashboard'
 import { getActiveResumeLeanForUser } from '@/lib/active-resume'
+import { buildBehaviourAnalytics } from '@/lib/behaviour-analytics'
 import { Badge } from '@/components/ui/badge'
 import { Button } from '@/components/ui/button'
 
@@ -17,6 +19,7 @@ export default async function EmployeeRecommendationsPage() {
   await dbConnect()
   const activeResumeLean = (await getActiveResumeLeanForUser(session.user.id)) as { title?: string } | null
   const activeResumeTitle = activeResumeLean?.title ? String(activeResumeLean.title) : null
+  const behaviourAnalytics = await buildBehaviourAnalytics(session.user.id)
   return (
     <div className="space-y-10 max-w-6xl mx-auto px-4 sm:px-6 pb-12">
       <section className="group/hero relative overflow-hidden rounded-2xl border border-primary/20 bg-gradient-to-br from-violet-600/[0.14] via-background to-cyan-500/[0.1] p-6 sm:p-8 md:p-10 shadow-md ring-1 ring-primary/[0.06] transition-shadow duration-300 hover:shadow-lg">
@@ -86,6 +89,8 @@ export default async function EmployeeRecommendationsPage() {
           </p>
         </div>
       ) : null}
+
+      <EmployeeBehaviourAnalyticsDashboard snapshot={behaviourAnalytics} variant="compact" />
 
       <EmployeeAiRecommendations />
     </div>

@@ -10,6 +10,10 @@ const CATEGORY_LABELS: Record<string, string> = {
   data: 'Data engineering / analytics',
 }
 
+export function getBehaviourCategoryDisplayName(id: string): string {
+  return CATEGORY_LABELS[id.trim().toLowerCase()] ?? id
+}
+
 export function isBehaviourColdStart(profile: UserBehaviourProfile): boolean {
   const { viewed, saved, applied } = profile.interactionSummary
   return viewed === 0 && saved === 0 && applied === 0
@@ -40,7 +44,7 @@ export function buildBehaviourSessionInsights(profile: UserBehaviourProfile): Be
 
   const topCat = profile.preferredCategories[0]
   if (topCat) {
-    const label = CATEGORY_LABELS[topCat] ?? topCat
+    const label = getBehaviourCategoryDisplayName(topCat)
     dashboardLines.push(
       `Inferred strongest theme from roles you interacted with: ${label} (keyword buckets on vacancy text, not a separate ML model).`,
     )

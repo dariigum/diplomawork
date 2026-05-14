@@ -12,3 +12,6 @@ export function loadMockNormalizedVacancies(): NormalizedVacancyInput[] {
 export function loadMockRawHhVacancies(): RawHHVacancy[] {
   return mockRawHh as RawHHVacancy[]
 }
+
+export { loadOfflineDemoVacancyInputs } from './load-offline-demo-dataset'
+export { buildOfflineHhIngestionResult } from './offline-hh-result'

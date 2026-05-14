@@ -35,4 +35,28 @@ Use `mock/mock-normalized-vacancies.json` or `loadMockNormalizedVacancies()` fro
 - `applyIngestionVacancyEmbedding` — loads ingestion row by id + `(source, externalId)`, optional skip if embedding exists, `getEmbedding` injectable for tests, validates vector, `$set`s `embedding` only on match. Outcomes: `embedded` | `skipped` | `failed` (never throws).
 - `persistIngestionVacancyWithEmbedding` — upsert then embedding; ML failure does **not** remove the vacancy.
 - `createMlVacancyEmbeddingPort` — implements `VacancyEmbeddingPort` using the same ML client (returns `null` on failure).
-- After upsert, empty-array `embedding` artifacts are `$unset` in `mongo-upsert` so recommendations ignore the field until a real vector exists.
+## Stage 6E — offline demo stability
+
+### Dataset
+
+- File: **`data/demo-ingestion-vacancies.json`** — realistic IT roles (ML/NLP, frontend, backend Go, DevOps/K8s, Flutter, data engineering, SRE, full-stack, appsec). All rows use **`source: "SEED"`** and stable **`externalId`** values (`SEED:…`) for idempotent re-seeding.
+- Loader: **`loadOfflineDemoVacancyInputs()`** in `mock/load-offline-demo-dataset.ts`.
+
+### Offline HH fetch (no `api.hh.ru`)
+
+- Set **`JOBFLOW_OFFLINE_INGESTION=1`** or **`JOBFLOW_OFFLINE_DEMO=1`** (see `.env.example`).
+- **`fetchAndNormalizeHhItVacancies`** then returns the same **`HhIngestionResult`** shape from local JSON (`meta.offlineDemo: true`) — **no HTTP** to HeadHunter.
+
+### Seeding through the real ingestion pipeline
+
+- Command: **`npm run ingestion:demo`**
+- Flow: clear prior **`SEED`** vacancies (+ orphan synthetic `ing+*@jobflow.ingestion` employers) → **`persistIngestionVacancyWithEmbedding`** for each JSON row (Mongo upsert + **`getEmbedding`** when ML is reachable).
+- For **recommendation / behaviour smoke**, run **`npm run seed:demo`** first (demo employee + resume + classic demo vacancies). Ingestion demo **adds** SEED vacancies without replacing manual `@demo.jobflow.local` accounts.
+
+### Thesis / defence checklist
+
+1. Start Mongo + ML embed service (same as production).  
+2. `npm run seed:demo` — accounts + legacy demo vacancies + resume embeddings.  
+3. `npm run ingestion:demo` — ingestion-architecture vacancies with vectors.  
+4. With **`JOBFLOW_OFFLINE_INGESTION=1`**, any code path calling **`fetchAndNormalizeHhItVacancies`** stays usable without HH keys.
+

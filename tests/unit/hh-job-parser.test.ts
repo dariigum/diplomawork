@@ -1,4 +1,4 @@
-import { afterEach, describe, expect, it, vi } from 'vitest'
+import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 
 import { buildHhDescriptionForNormalization, hhStableExternalId, normalizeRawHhVacancy } from '@/lib/job-ingestion/normalize'
 import { fetchAndNormalizeHhItVacancies, processHhRawVacanciesForIngestion } from '@/lib/job-ingestion/hh/fetch-it-vacancies'
@@ -74,6 +74,10 @@ describe('processHhRawVacanciesForIngestion', () => {
 
 describe('fetchAndNormalizeHhItVacancies (mocked fetch)', () => {
   const originalFetch = globalThis.fetch
+
+  beforeEach(() => {
+    vi.unstubAllEnvs()
+  })
 
   afterEach(() => {
     globalThis.fetch = originalFetch

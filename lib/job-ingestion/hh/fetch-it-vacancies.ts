@@ -8,6 +8,12 @@ import type { HhItFetchConfig } from './config'
 import { resolveHhItFetchConfig } from './config'
 import { mergeSearchItemAndDetail } from './merge-search-item-detail'
 import { readStringField, safeRecord } from './parse-safe'
+import { buildOfflineHhIngestionResult } from '../mock/offline-hh-result'
+
+function isOfflineIngestionEnv(): boolean {
+  const raw = (process.env.JOBFLOW_OFFLINE_INGESTION || process.env.JOBFLOW_OFFLINE_DEMO || '').trim()
+  return raw === '1' || /^true$/i.test(raw)
+}
 
 export type HhIngestionMeta = {
   pagesFetched: number
@@ -16,6 +22,8 @@ export type HhIngestionMeta = {
   listingVacanciesSeen: number
   acceptedCount: number
   skippedCount: number
+  /** True when results come from `data/demo-ingestion-vacancies.json` (offline mode). */
+  offlineDemo?: boolean
 }
 
 export type HhSkippedRecord = {
@@ -98,6 +106,10 @@ function listingItemId(item: unknown): string | null {
 export async function fetchAndNormalizeHhItVacancies(
   overrides?: Partial<HhItFetchConfig>
 ): Promise<HhIngestionResult> {
+  if (isOfflineIngestionEnv()) {
+    return buildOfflineHhIngestionResult()
+  }
+
   const meta = emptyMeta()
   const skipped: HhSkippedRecord[] = []
   const config = resolveHhItFetchConfig(overrides)

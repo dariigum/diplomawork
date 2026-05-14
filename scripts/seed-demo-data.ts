@@ -2,6 +2,10 @@
  * Demo dataset for semantic recommendations without HH/parsers.
  * Uses existing lib/ml.ts + lib/embedding-text.ts (same as app runtime).
  *
+ * For vacancies that go through the **ingestion pipeline** (source SEED + embeddings via persist), run:
+ *   npm run ingestion:demo
+ * (after seed:demo so the demo job seeker exists for recommendation smoke.)
+ *
  * Defaults: clears users with emails ending @demo.jobflow.local then re-seeds.
  * Skip deletion: npm run seed:demo -- --skip-clear
  */

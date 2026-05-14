@@ -3,7 +3,7 @@
  *
  * - Use `fetchAndNormalizeHhItVacancies` for bounded network ingestion (no persistence).
  * - Set `HH_USER_AGENT` (and optionally `HH_API_TOKEN`) for reliable API access.
- * - Demo/offline: keep using `loadMockRawHhVacancies` + `processHhRawVacanciesForIngestion`.
+ * - Offline: set `JOBFLOW_OFFLINE_INGESTION=1` or `JOBFLOW_OFFLINE_DEMO=1` so `fetchAndNormalizeHhItVacancies` uses `data/demo-ingestion-vacancies.json` (no HTTP). See `buildOfflineHhIngestionResult`.
  */
 
 export { resolveHhItFetchConfig, type HhItFetchConfig, type HhItFetchLimits } from './config'
@@ -17,3 +17,4 @@ export {
   type HhIngestionResult,
   type HhSkippedRecord,
 } from './fetch-it-vacancies'
+export { buildOfflineHhIngestionResult } from '../mock/offline-hh-result'

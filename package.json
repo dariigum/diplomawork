@@ -8,6 +8,7 @@
     "start": "next start",
     "lint": "eslint .",
     "seed:demo": "tsx scripts/seed-demo-data.ts",
+    "ingestion:demo": "tsx scripts/seed-ingestion-demo.ts",
     "test": "vitest run",
     "test:watch": "vitest",
     "test:ui": "vitest --ui"

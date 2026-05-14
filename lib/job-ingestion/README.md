@@ -60,3 +60,21 @@ Use `mock/mock-normalized-vacancies.json` or `loadMockNormalizedVacancies()` fro
 3. `npm run ingestion:demo` — ingestion-architecture vacancies with vectors.  
 4. With **`JOBFLOW_OFFLINE_INGESTION=1`**, any code path calling **`fetchAndNormalizeHhItVacancies`** stays usable without HH keys.
 
+## Stage 6F — AI ecosystem compatibility (validation only)
+
+Ingestion rows produced by **`persistIngestionVacancyWithEmbedding`** are ordinary **`Vacancy`** documents: same schema, same **`embedding`** field shape as manual vacancies, same **`(source, externalId)`** upsert key as production ingestion. They participate in the existing stacks **without** separate ranking formulas or parallel analytics paths.
+
+### What is guaranteed (regression tests)
+
+- **`tests/integration/ingestion-ai-compatibility.test.ts`** (MongoMemoryServer): SEED-shaped rows from **`loadOfflineDemoVacancyInputs()`** + mocked **`getEmbedding`** are checked against:
+  - **`getTopRecommendations`** — ingestion titles appear; order is stable across two calls with the same inputs; manual vacancies without `source`/`externalId` still appear alongside ingestion rows.
+  - **Semantic path aligned with `GET /api/jobs/semantic-search`** — same Mongo filter (`embedding` exists and ≠ null), then **`rankVacanciesBySemanticQueryFromEmbedding`**: rows with valid vectors rank; rows with empty/missing usable vectors are **skipped by ranking** (`isValidEmbeddingForQuery` + cosine rules), even if Mongoose stores an empty array for the field.
+  - **`extractSemanticConceptsFromVacancies`** on ingestion-shaped text.
+  - **`recordVacancyBehaviourEvent`** + **`buildBehaviourAnalytics`** on an ingestion vacancy id.
+  - Repeated persist → **single** document per **`source` + `externalId`**.
+
+This stage does **not** change hybrid/semantic/recommendation math; it only asserts integration invariants after ingestion.
+
+### Offline demo compatibility
+
+With **`JOBFLOW_OFFLINE_INGESTION`** / **`JOBFLOW_OFFLINE_DEMO`**, **`fetchAndNormalizeHhItVacancies`** returns the same result shape from local JSON; **`npm run ingestion:demo`** still runs the real upsert + embedding pipeline against **`data/demo-ingestion-vacancies.json`**, so offline demos remain a faithful subset of the production ingestion + AI path.

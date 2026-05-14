@@ -230,14 +230,15 @@ function eventWeight(t: VacancyBehaviourEventType): number {
   return 0
 }
 
-function normalizeToken(s: string): string {
+export function normalizeBehaviourToken(s: string): string {
   return s.trim().toLowerCase().replace(/\s+/g, ' ')
 }
 
-function splitSkills(skillsRequired: string): string[] {
+/** Shared vacancy skill split (comma/semicolon/etc.) — used by profile builder and behaviour scoring. */
+export function splitVacancySkillPhrases(skillsRequired: string): string[] {
   return skillsRequired
     .split(/[,;/|]/)
-    .map((s) => normalizeToken(s))
+    .map((s) => normalizeBehaviourToken(s))
     .filter((s) => s.length >= 2 && s.length <= 80)
 }
 
@@ -252,7 +253,8 @@ function titleWords(title: string): string[] {
   return out
 }
 
-function vacancyHaystack(v: {
+/** Lowercased text bundle for keyword/category heuristics (aligned with profile extraction). */
+export function buildVacancyHaystack(v: {
   title: string
   skillsRequired: string
   description: string
@@ -273,6 +275,15 @@ function scoreCategories(haystack: string): Map<string, number> {
     if (hit > 0) scores.set(rule.id, hit)
   }
   return scores
+}
+
+/** Category bucket ids currently matched in vacancy text (same rules as profile `preferredCategories`). */
+export function inferVacancyCategoryIds(v: {
+  title: string
+  skillsRequired: string
+  description: string
+}): string[] {
+  return [...scoreCategories(buildVacancyHaystack(v)).keys()]
 }
 
 function topKeysByScore(m: Map<string, number>, limit: number): string[] {
@@ -384,20 +395,20 @@ export async function buildUserBehaviourProfile(
     const skillsRequired = String(doc.skillsRequired ?? '')
     const description = String(doc.description ?? '')
 
-    for (const skill of splitSkills(skillsRequired)) {
+    for (const skill of splitVacancySkillPhrases(skillsRequired)) {
       skillScores.set(skill, (skillScores.get(skill) ?? 0) + w)
     }
 
     for (const kw of titleWords(title)) {
       keywordScores.set(kw, (keywordScores.get(kw) ?? 0) + w * 0.75)
     }
-    for (const phrase of splitSkills(skillsRequired)) {
+    for (const phrase of splitVacancySkillPhrases(skillsRequired)) {
       if (phrase.includes(' ')) {
         keywordScores.set(phrase, (keywordScores.get(phrase) ?? 0) + w)
       }
     }
 
-    const hay = vacancyHaystack({ title, skillsRequired, description })
+    const hay = buildVacancyHaystack({ title, skillsRequired, description })
     for (const [cat, score] of scoreCategories(hay)) {
       categoryScores.set(cat, (categoryScores.get(cat) ?? 0) + score * w)
     }

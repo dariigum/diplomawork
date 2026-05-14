@@ -1,0 +1,167 @@
+import { beforeEach, describe, expect, it, vi } from 'vitest'
+import {
+  buildSemanticSearchExplanation,
+  rankVacanciesBySemanticQuery,
+  type SemanticVacancyInput,
+} from '@/lib/semantic-job-search'
+
+vi.mock('@/lib/ml', () => ({
+  getEmbedding: vi.fn(),
+}))
+
+import { getEmbedding } from '@/lib/ml'
+
+const mockedGetEmbedding = vi.mocked(getEmbedding)
+
+function embUnit(dim: number, axis: number): number[] {
+  const v = new Array<number>(dim).fill(0)
+  v[axis % dim] = 1
+  return v
+}
+
+describe('semantic-job-search', () => {
+  beforeEach(() => {
+    vi.clearAllMocks()
+  })
+
+  describe('buildSemanticSearchExplanation', () => {
+    it('returns a non-empty honest line for a positive finite score', () => {
+      const t = buildSemanticSearchExplanation({ semanticScore: 0.62 })
+      expect(t.length).toBeGreaterThan(20)
+      expect(t.toLowerCase()).toContain('embedding')
+      expect(t.toLowerCase()).toContain('cosine')
+    })
+
+    it('uses deterministic tier wording by score band', () => {
+      const low = buildSemanticSearchExplanation({ semanticScore: 0.2 })
+      const mid = buildSemanticSearchExplanation({ semanticScore: 0.5 })
+      const high = buildSemanticSearchExplanation({ semanticScore: 0.9 })
+      expect(low).toContain('low on that scale')
+      expect(mid).toContain('moderate on that scale')
+      expect(high).toContain('high on that scale')
+    })
+
+    it('handles non-finite and non-positive scores safely', () => {
+      expect(buildSemanticSearchExplanation({ semanticScore: NaN })).toContain('No usable')
+      expect(buildSemanticSearchExplanation({ semanticScore: 0 })).toContain('No usable')
+      expect(buildSemanticSearchExplanation({ semanticScore: -1 })).toContain('No usable')
+    })
+  })
+
+  describe('rankVacanciesBySemanticQuery', () => {
+    it('returns [] for empty or whitespace-only query without calling ML', async () => {
+      mockedGetEmbedding.mockRejectedValue(new Error('should not be called'))
+      await expect(rankVacanciesBySemanticQuery({ query: '', vacancies: [] })).resolves.toEqual([])
+      await expect(rankVacanciesBySemanticQuery({ query: '   \t', vacancies: [] })).resolves.toEqual([])
+      expect(mockedGetEmbedding).not.toHaveBeenCalled()
+    })
+
+    it('returns [] when ML service fails (deterministic, no throw)', async () => {
+      mockedGetEmbedding.mockRejectedValue(new Error('ML down'))
+      const out = await rankVacanciesBySemanticQuery({
+        query: 'backend engineer',
+        vacancies: [{ _id: 'a', title: 'X', embedding: embUnit(4, 0) }],
+      })
+      expect(out).toEqual([])
+    })
+
+    it('ranks by semantic score descending and applies stable tie-break on vacancyId', async () => {
+      const q = embUnit(4, 0)
+      mockedGetEmbedding.mockResolvedValue(q)
+
+      const vacancies: SemanticVacancyInput[] = [
+        { _id: 'zzz', title: 'Z', embedding: q.slice() },
+        { _id: 'aaa', title: 'A', embedding: q.slice() },
+        { _id: 'mid', title: 'M', embedding: embUnit(4, 1) },
+      ]
+
+      const out = await rankVacanciesBySemanticQuery({ query: 'q', vacancies })
+      expect(out.map((r) => r.vacancyId)).toEqual(['aaa', 'zzz', 'mid'])
+      expect(out[0]!.semanticScore).toBeGreaterThanOrEqual(out[1]!.semanticScore)
+      expect(out[1]!.semanticScore).toBeGreaterThan(out[2]!.semanticScore)
+    })
+
+    it('skips vacancies without embeddings or with dimension mismatch', async () => {
+      mockedGetEmbedding.mockResolvedValue(embUnit(3, 0))
+      const vacancies: SemanticVacancyInput[] = [
+        { _id: 'no-emb', title: 'No', embedding: undefined },
+        { _id: 'empty-emb', title: 'E', embedding: [] },
+        { _id: 'bad-dim', title: 'B', embedding: embUnit(4, 0) },
+        { _id: 'ok', title: 'OK role', embedding: embUnit(3, 0) },
+      ]
+      const out = await rankVacanciesBySemanticQuery({ query: 'python', vacancies })
+      expect(out).toHaveLength(1)
+      expect(out[0]!.vacancyId).toBe('ok')
+    })
+
+    it('respects optional limit', async () => {
+      mockedGetEmbedding.mockResolvedValue(embUnit(2, 0))
+      const vacancies: SemanticVacancyInput[] = [
+        { _id: 'b', title: 'B', embedding: [1, 0] },
+        { _id: 'a', title: 'A', embedding: [1, 0] },
+        { _id: 'c', title: 'C', embedding: [0, 1] },
+      ]
+      const out = await rankVacanciesBySemanticQuery({ query: 'q', vacancies, limit: 2 })
+      expect(out).toHaveLength(2)
+    })
+
+    it('returns finite scores in [0, 1] for every ranked item', async () => {
+      mockedGetEmbedding.mockResolvedValue(embUnit(5, 2))
+      const vacancies: SemanticVacancyInput[] = [
+        { _id: 'v1', title: 'One', embedding: embUnit(5, 2) },
+        { _id: 'v2', title: 'Two', embedding: embUnit(5, 3) },
+      ]
+      const out = await rankVacanciesBySemanticQuery({ query: 'data', vacancies })
+      for (const r of out) {
+        expect(Number.isFinite(r.semanticScore)).toBe(true)
+        expect(r.semanticScore).toBeGreaterThan(0)
+        expect(r.semanticScore).toBeLessThanOrEqual(1)
+      }
+    })
+
+    it('fills output contract fields without hybrid or behaviour keys', async () => {
+      mockedGetEmbedding.mockResolvedValue(embUnit(3, 0))
+      const vacancies: SemanticVacancyInput[] = [
+        {
+          _id: '507f1f77bcf86cd799439011',
+          title: ' ML Engineer ',
+          embedding: embUnit(3, 0),
+          employmentType: 'Part-time',
+          workMode: 'REMOTE',
+          employerId: { name: 'Acme Corp' },
+        },
+      ]
+      const out = await rankVacanciesBySemanticQuery({ query: 'machine learning', vacancies })
+      expect(out).toHaveLength(1)
+      const r = out[0]!
+      expect(Object.keys(r).sort()).toEqual(
+        [
+          'company',
+          'employmentType',
+          'explanation',
+          'location',
+          'semanticScore',
+          'title',
+          'vacancyId',
+          'workMode',
+        ].sort(),
+      )
+      expect(r.company).toBe('Acme Corp')
+      expect(r.workMode).toBe('REMOTE')
+      expect(r.location).toBe('Remote')
+      expect(r.title).toBe('ML Engineer')
+      expect(r.explanation).toBeTruthy()
+    })
+
+    it('is deterministic across repeated calls with the same fixtures', async () => {
+      mockedGetEmbedding.mockResolvedValue(embUnit(4, 1))
+      const vacancies: SemanticVacancyInput[] = [
+        { _id: 'x', title: 'X', embedding: embUnit(4, 0) },
+        { _id: 'y', title: 'Y', embedding: embUnit(4, 2) },
+      ]
+      const a = await rankVacanciesBySemanticQuery({ query: 'same', vacancies, limit: 10 })
+      const b = await rankVacanciesBySemanticQuery({ query: 'same', vacancies, limit: 10 })
+      expect(a).toEqual(b)
+    })
+  })
+})

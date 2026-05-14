@@ -7,8 +7,10 @@ import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { EmployeeDashboardAiPreview } from "@/components/recommendations/employee-dashboard-ai-preview";
+import { EmployeeBehaviourAnalyticsDashboard } from "@/components/recommendations/employee-behaviour-analytics-dashboard";
 import { deleteEmployeeAccountAction, deleteResumeAction, setActiveResumeForAiAction } from "@/app/actions/employee";
 import { ensureActiveResumeForUser, getActiveResumeLeanForUser } from "@/lib/active-resume";
+import { buildBehaviourAnalytics } from "@/lib/behaviour-analytics";
 
 export default async function EmployeeDashboard() {
   const session = await getSession();
@@ -32,6 +34,8 @@ export default async function EmployeeDashboard() {
     !!activeResumeLean?.embedding &&
     Array.isArray(activeResumeLean.embedding) &&
     activeResumeLean.embedding.length > 0;
+
+  const behaviourAnalytics = await buildBehaviourAnalytics(session.user.id);
 
   return (
     <div className="max-w-6xl mx-auto space-y-10 pb-10 px-4 sm:px-6">
@@ -65,6 +69,13 @@ export default async function EmployeeDashboard() {
           </h2>
         </div>
         <EmployeeDashboardAiPreview serverHints={{ hasResume, embeddingIndexed }} />
+      </section>
+
+      <section className="space-y-3 pt-2 border-t border-border/60" aria-labelledby="dash-behaviour-analytics-heading">
+        <h2 id="dash-behaviour-analytics-heading" className="text-xs font-semibold uppercase tracking-wider text-muted-foreground">
+          Behaviour analytics
+        </h2>
+        <EmployeeBehaviourAnalyticsDashboard snapshot={behaviourAnalytics} variant="full" />
       </section>
 
       <section className="space-y-4 pt-4 border-t border-border/60">

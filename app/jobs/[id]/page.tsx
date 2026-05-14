@@ -9,6 +9,7 @@ import { JobDetailActions } from "@/components/jobs/job-detail-actions"
 import dbConnect from "@/lib/db/mongoose"
 import { Vacancy, SavedVacancy } from "@/lib/db/schema"
 import { getSession } from "@/lib/auth"
+import { recordVacancyBehaviourEvent } from "@/lib/vacancy-behaviour-events"
 
 export default async function JobDetailsPage({ params }: { params: Promise<{ id: string }> }) {
   const { id } = await params
@@ -37,6 +38,12 @@ export default async function JobDetailsPage({ params }: { params: Promise<{ id:
   if (session && session.user.role === 'EMPLOYEE') {
     savedJobsCount = await SavedVacancy.countDocuments({ userId: session.user.id });
     isSaved = !!(await SavedVacancy.findOne({ userId: session.user.id, vacancyId: id }).lean());
+    await recordVacancyBehaviourEvent({
+      userId: session.user.id,
+      vacancyId: id,
+      eventType: "VACANCY_VIEWED",
+      source: "job_detail_page",
+    });
   }
 
   const company = jobRecord.employerId as any;

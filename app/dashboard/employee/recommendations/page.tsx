@@ -10,6 +10,8 @@ import { buildBehaviourAnalytics } from '@/lib/behaviour-analytics'
 import { Badge } from '@/components/ui/badge'
 import { Button } from '@/components/ui/button'
 
+export const dynamic = 'force-dynamic'
+
 export default async function EmployeeRecommendationsPage() {
   const session = await getSession()
   if (!session || session.user.role !== 'EMPLOYEE') {

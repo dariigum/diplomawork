@@ -5,6 +5,7 @@ import { Header } from "@/components/jobs/header"
 import { Footer } from "@/components/jobs/footer"
 import { FiltersSidebar, type FilterState } from "@/components/jobs/filters-sidebar"
 import { JobList } from "@/components/jobs/job-list"
+import { SemanticJobSearchPanel } from "@/components/jobs/semantic-job-search-panel"
 import { getHomeData, toggleSaveVacancyAction } from "@/app/actions/vacancy"
 import { emitSavedVacanciesUpdated } from "@/lib/saved-vacancies-events"
 import { toast } from "sonner"
@@ -124,6 +125,8 @@ export default function VacanciesPage() {
             Discover thousands of job opportunities with all the information you need.
           </p>
         </section>
+
+        <SemanticJobSearchPanel />
 
         {/* Main Content */}
         <div className="flex flex-col lg:flex-row gap-6">

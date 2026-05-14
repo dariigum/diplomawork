@@ -12,6 +12,8 @@ interface EditResumePageProps {
   params: Promise<{ id: string }>;
 }
 
+export const dynamic = "force-dynamic";
+
 export default async function EditResumePage({ params }: EditResumePageProps) {
   const session = await getSession();
   if (!session || session.user.role !== "EMPLOYEE") redirect("/login");

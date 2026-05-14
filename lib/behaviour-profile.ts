@@ -242,7 +242,8 @@ export function splitVacancySkillPhrases(skillsRequired: string): string[] {
     .filter((s) => s.length >= 2 && s.length <= 80)
 }
 
-function titleWords(title: string): string[] {
+/** Title word tokens for deterministic keyword/concept pipelines (length ≥3, stopword-filtered). */
+export function splitVacancyTitleWords(title: string): string[] {
   const raw = title.toLowerCase().split(/[^a-zа-яё0-9+#.]+/)
   const out: string[] = []
   for (const w of raw) {
@@ -399,7 +400,7 @@ export async function buildUserBehaviourProfile(
       skillScores.set(skill, (skillScores.get(skill) ?? 0) + w)
     }
 
-    for (const kw of titleWords(title)) {
+    for (const kw of splitVacancyTitleWords(title)) {
       keywordScores.set(kw, (keywordScores.get(kw) ?? 0) + w * 0.75)
     }
     for (const phrase of splitVacancySkillPhrases(skillsRequired)) {

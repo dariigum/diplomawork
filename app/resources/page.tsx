@@ -5,6 +5,8 @@ import { Article, SavedVacancy } from "@/lib/db/schema"
 import { getSession } from "@/lib/auth"
 import ResourcesClient from "./ResourcesClient"
 
+export const dynamic = "force-dynamic"
+
 export default async function ResourcesPage() {
   await dbConnect()
   

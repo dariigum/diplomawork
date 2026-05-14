@@ -85,6 +85,12 @@ export interface IVacancy extends Document {
   address?: string;
   requirements?: string[];
   responsibilities?: string[];
+  /** Set only for automated ingestion rows (HH, MOCK, …). Manual employer vacancies omit this. */
+  source?: string;
+  /** Stable id within `source` (e.g. `hh_12345`). */
+  externalId?: string;
+  /** Canonical listing URL from the provider. */
+  sourceUrl?: string;
   createdAt: Date;
 }
 
@@ -104,8 +110,22 @@ const VacancySchema = new Schema<IVacancy>({
   address: { type: String, default: 'Remote' },
   requirements: [{ type: String }],
   responsibilities: [{ type: String }],
+  source: { type: String },
+  externalId: { type: String },
+  sourceUrl: { type: String },
   createdAt: { type: Date, default: Date.now }
 });
+
+VacancySchema.index(
+  { source: 1, externalId: 1 },
+  {
+    unique: true,
+    partialFilterExpression: {
+      source: { $type: 'string', $ne: '' },
+      externalId: { $type: 'string', $ne: '' },
+    },
+  }
+);
 
 export const Vacancy: Model<IVacancy> = mongoose.models.Vacancy || mongoose.model<IVacancy>('Vacancy', VacancySchema);
 

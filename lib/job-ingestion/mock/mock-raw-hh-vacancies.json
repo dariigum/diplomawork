@@ -1,0 +1,16 @@
+[
+  {
+    "id": "9000001",
+    "name": "Python developer (fixture)",
+    "description": "<p>Fixture vacancy for <strong>offline</strong> normalization tests.</p><p>Build APIs, write tests, collaborate with product. Remote schedule available.</p>",
+    "employer": { "name": "Fixture Employer Ltd", "alternate_url": "https://hh.kz/employer/1" },
+    "salary": { "from": 350000, "to": 550000, "currency": "KZT" },
+    "area": { "name": "Almaty" },
+    "employment": { "name": "Full-time" },
+    "experience": { "name": "Between 1 and 3 years" },
+    "schedule": { "id": "remote", "name": "Удаленная работа" },
+    "key_skills": [{ "name": "React" }, { "name": "TypeScript" }, { "name": "react" }],
+    "alternate_url": "https://hh.kz/vacancy/9000001",
+    "published_at": "2026-01-10T12:00:00+05:00"
+  }
+]

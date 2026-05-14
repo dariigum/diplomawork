@@ -1,0 +1,28 @@
+[
+  {
+    "source": "MOCK",
+    "externalId": "MOCK:demo-fe-1",
+    "title": "Frontend developer (demo)",
+    "company": "Demo Company A",
+    "description": "We are hiring a frontend developer for a demo dataset. Requirements include React, TypeScript, and accessibility awareness. Remote-friendly team.",
+    "skillsRequired": "React, TypeScript, HTML, CSS",
+    "location": "Almaty",
+    "workMode": "REMOTE",
+    "employmentType": "Full-time",
+    "salary": { "min": 400000, "max": 700000 },
+    "sourceUrl": "https://example.com/jobs/demo-fe-1"
+  },
+  {
+    "source": "MOCK",
+    "externalId": "MOCK:demo-be-1",
+    "title": "Backend engineer (demo)",
+    "company": "Demo Company B",
+    "description": "Backend role for offline demo data. Stack: Node.js, PostgreSQL, REST APIs. No live external APIs required to present this vacancy in the UI.",
+    "skillsRequired": "Node.js, PostgreSQL, REST",
+    "location": "Astana",
+    "workMode": "ONSITE",
+    "employmentType": "Full-time",
+    "salary": null,
+    "sourceUrl": "https://example.com/jobs/demo-be-1"
+  }
+]

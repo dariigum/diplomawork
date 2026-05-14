@@ -1,0 +1,5 @@
+export type { IngestionSource } from './ingestion-source'
+export { INGESTION_SOURCES, isIngestionSource } from './ingestion-source'
+export type { NormalizedVacancyInput } from './normalized-vacancy'
+export type { RawHHVacancy } from './raw-hh'
+export type { SalaryRangeInput } from './salary-range'

@@ -5,12 +5,16 @@ import Link from "next/link"
 import { ChevronDown, FileText, Loader2, MapPin, RefreshCw, Search, Briefcase } from "lucide-react"
 import { Badge } from "@/components/ui/badge"
 import { Button } from "@/components/ui/button"
-import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
 import { Input } from "@/components/ui/input"
 import { Progress } from "@/components/ui/progress"
 import { Skeleton } from "@/components/ui/skeleton"
 import { Collapsible, CollapsibleContent, CollapsibleTrigger } from "@/components/ui/collapsible"
-import { semanticMatchStrengthLabel, weakSemanticTierLabel } from "@/lib/semantic-score-bands"
+import {
+  semanticMatchStrengthLabel,
+  semanticScoreBand,
+  weakSemanticTierLabel,
+  type SemanticScoreBand,
+} from "@/lib/semantic-score-bands"
 import {
   isSemanticSearchApiSuccessBody,
   type SemanticSearchApiErrorBody,
@@ -25,11 +29,60 @@ const DEBOUNCE_MS = 380
 const FETCH_LIMIT = 24
 const FALLBACK_SECTION_ID = "semantic-keyword-fallback-section"
 const WEAK_SEMANTIC_SECTION_ID = "semantic-weak-recovery-section"
-const EXPLANATION_PREVIEW_LEN = 88
+const EXPLANATION_PREVIEW_LEN = 72
+
+const CARD_INTERACTION =
+  "transition-[border-color,box-shadow] duration-200 hover:border-border hover:shadow-sm focus-within:ring-2 focus-within:ring-ring/30 focus-within:ring-offset-1 focus-within:ring-offset-background"
 
 function scoreToPercent(score: number): number {
   if (!Number.isFinite(score)) return 0
   return Math.max(0, Math.min(100, Math.round(score * 100)))
+}
+
+function tierShortLabel(score: number): string {
+  const band = semanticScoreBand(score)
+  if (band === "strong") return "Strong overlap"
+  if (band === "solid") return "Solid overlap"
+  if (band === "related") return "Related overlap"
+  if (band === "loose") return "Loose overlap"
+  return "Semantic overlap"
+}
+
+function tierBadgeClassName(band: SemanticScoreBand | null): string {
+  const base = "shrink-0 text-[9px] font-medium tracking-wide uppercase px-1.5 py-0 h-[1.125rem] border"
+  switch (band) {
+    case "strong":
+      return `${base} border-primary/40 bg-primary/12 text-primary`
+    case "solid":
+      return `${base} border-teal-500/35 bg-teal-500/10 text-teal-800 dark:text-teal-300`
+    case "related":
+      return `${base} border-border/90 bg-muted/50 text-muted-foreground`
+    case "loose":
+      return `${base} border-border/70 bg-muted/30 text-muted-foreground/90`
+    default:
+      return `${base} border-border bg-muted text-muted-foreground`
+  }
+}
+
+function SemanticScoreReadout({ score, compact }: { score: number; compact?: boolean }) {
+  const pct = scoreToPercent(score)
+  const formatted = formatSemanticScore(score)
+  if (compact) {
+    return (
+      <span className="tabular-nums text-[10px] text-muted-foreground" aria-label={`Semantic similarity ${formatted}`}>
+        {formatted}
+      </span>
+    )
+  }
+  return (
+    <div
+      className="flex flex-col items-end gap-0 shrink-0 text-right"
+      aria-label={`Semantic similarity ${formatted}, ${pct} percent scale`}
+    >
+      <span className="tabular-nums text-base font-semibold leading-none text-foreground">{formatted}</span>
+      <span className="tabular-nums text-[10px] text-muted-foreground leading-tight">{pct}% scale</span>
+    </div>
+  )
 }
 
 function formatConceptDisplay(raw: string, maxLen: number): string {
@@ -92,19 +145,17 @@ function CardRankingExplanation({ explanation }: { explanation: string }) {
   const preview = needsExpand ? `${trimmed.slice(0, EXPLANATION_PREVIEW_LEN).trimEnd()}…` : trimmed
 
   if (!needsExpand) {
-    return <p className="text-[11px] text-muted-foreground leading-snug">{trimmed}</p>
+    return <p className="text-[10px] text-muted-foreground/90 leading-snug">{trimmed}</p>
   }
 
   return (
     <Collapsible>
-      <p className="text-[11px] text-muted-foreground leading-snug">{preview}</p>
-      <CollapsibleTrigger className="mt-1 text-[11px] font-medium text-foreground/80 hover:text-foreground hover:underline underline-offset-2">
-        Show why
+      <p className="text-[10px] text-muted-foreground/90 leading-snug line-clamp-2">{preview}</p>
+      <CollapsibleTrigger className="mt-0.5 text-[10px] font-medium text-muted-foreground hover:text-foreground underline-offset-2 hover:underline">
+        Why this matched
       </CollapsibleTrigger>
       <CollapsibleContent>
-        <p className="mt-1.5 text-[11px] text-muted-foreground leading-snug border-t border-border/40 pt-1.5">
-          {trimmed}
-        </p>
+        <p className="mt-1 text-[10px] text-muted-foreground/90 leading-snug">{trimmed}</p>
       </CollapsibleContent>
     </Collapsible>
   )
@@ -177,6 +228,51 @@ function SemanticEmptyState({
   )
 }
 
+function WeakSemanticMatchCard({ item }: { item: SemanticSearchApiWeakSemanticItem }) {
+  const band = semanticScoreBand(item.semanticScore)
+  return (
+    <article
+      className={`rounded-md border border-dashed border-border/55 bg-muted/20 px-2.5 py-2 space-y-1.5 ${CARD_INTERACTION}`}
+    >
+      <div className="flex items-start justify-between gap-2">
+        <Link
+          href={`/jobs/${item.vacancyId}`}
+          className="text-xs font-medium text-foreground/90 hover:underline underline-offset-2 min-w-0"
+        >
+          {item.title}
+        </Link>
+        <SemanticScoreReadout score={item.semanticScore} compact />
+      </div>
+      <Badge variant="outline" className={tierBadgeClassName(band)} title={weakSemanticTierLabel(item.semanticScore)}>
+        {weakSemanticTierLabel(item.semanticScore)}
+      </Badge>
+      <p className="text-[10px] text-muted-foreground truncate">
+        {item.company} · {item.location}
+      </p>
+    </article>
+  )
+}
+
+function TextFallbackMatchCard({ item }: { item: SemanticSearchApiFallbackItem }) {
+  return (
+    <article
+      className={`rounded-md border border-border/45 border-l-2 border-l-muted-foreground/25 bg-background/80 px-2.5 py-2 space-y-1 ${CARD_INTERACTION}`}
+    >
+      <Link
+        href={`/jobs/${item.vacancyId}`}
+        className="text-xs font-medium hover:underline underline-offset-2 line-clamp-2"
+      >
+        {item.title}
+      </Link>
+      <p className="text-[10px] text-muted-foreground truncate">
+        {item.company} · {item.location}
+      </p>
+      <p className="text-[10px] text-muted-foreground/85 line-clamp-2 leading-snug">{item.explanation}</p>
+      <p className="text-[9px] tabular-nums text-muted-foreground/70">Text overlap · {item.textScore}</p>
+    </article>
+  )
+}
+
 function KeywordFallbackSection({
   results,
   reason,
@@ -208,15 +304,7 @@ function KeywordFallbackSection({
       <ul className="grid gap-1.5 sm:grid-cols-2 list-none m-0 p-0">
         {results.map((r) => (
           <li key={r.vacancyId}>
-            <div className="rounded-md border border-border/50 bg-background/90 px-2.5 py-2 space-y-1">
-              <Link href={`/jobs/${r.vacancyId}`} className="text-xs font-medium hover:underline underline-offset-2">
-                {r.title}
-              </Link>
-              <p className="text-[10px] text-muted-foreground">
-                {r.company} · {r.location}
-              </p>
-              <p className="text-[10px] text-muted-foreground line-clamp-2">{r.explanation}</p>
-            </div>
+            <TextFallbackMatchCard item={r} />
           </li>
         ))}
       </ul>
@@ -246,19 +334,7 @@ function WeakSemanticRecoverySection({
         <ul className="grid gap-1.5 sm:grid-cols-2 list-none m-0 p-0">
           {results.map((r) => (
             <li key={r.vacancyId}>
-              <div className="rounded-md border border-border/40 bg-background/85 px-2.5 py-2 space-y-1">
-                <div className="flex items-start justify-between gap-1">
-                  <Link href={`/jobs/${r.vacancyId}`} className="text-xs font-medium hover:underline underline-offset-2">
-                    {r.title}
-                  </Link>
-                  <Badge variant="outline" className="shrink-0 text-[9px] font-normal h-4 px-1">
-                    {weakSemanticTierLabel(r.semanticScore)}
-                  </Badge>
-                </div>
-                <p className="text-[10px] text-muted-foreground">
-                  {r.company} · {r.semanticScore.toFixed(2)}
-                </p>
-              </div>
+              <WeakSemanticMatchCard item={r} />
             </li>
           ))}
         </ul>
@@ -275,39 +351,53 @@ async function readErrorMessage(res: Response): Promise<string> {
 
 function SemanticResultCard({ r }: { r: SemanticSearchApiResultItem }) {
   const pct = scoreToPercent(r.semanticScore)
+  const band = semanticScoreBand(r.semanticScore)
+
   return (
-    <Card className="h-full border-border/60 bg-card shadow-none hover:border-border">
-      <CardHeader className="p-2.5 pb-1.5 space-y-1.5">
-        <div className="flex items-start justify-between gap-2">
-          <CardTitle className="text-sm leading-snug font-medium pr-1">
-            <Link href={`/jobs/${r.vacancyId}`} className="hover:text-primary hover:underline underline-offset-2">
+    <article
+      className={`h-full flex flex-col rounded-lg border border-border/70 bg-card/95 shadow-none ${CARD_INTERACTION}`}
+    >
+      <div className="p-2.5 pb-2 space-y-2 flex-1">
+        <div className="flex items-start justify-between gap-3">
+          <h3 className="text-sm font-semibold leading-snug text-foreground min-w-0 flex-1">
+            <Link
+              href={`/jobs/${r.vacancyId}`}
+              className="hover:text-primary underline-offset-2 hover:underline focus:outline-none focus-visible:underline"
+            >
               {r.title}
             </Link>
-          </CardTitle>
-          <Badge variant="secondary" className="shrink-0 text-[9px] uppercase tracking-wide font-medium px-1.5 py-0">
-            {semanticMatchStrengthLabel(r.semanticScore)}
-          </Badge>
+          </h3>
+          <SemanticScoreReadout score={r.semanticScore} />
         </div>
-        <div className="flex flex-wrap gap-x-2 gap-y-0.5 text-[10px] text-muted-foreground">
-          <span className="inline-flex items-center gap-0.5">
-            <Briefcase className="h-2.5 w-2.5" />
+
+        <div className="flex flex-wrap items-center gap-2">
+          <Badge variant="outline" className={tierBadgeClassName(band)} title={semanticMatchStrengthLabel(r.semanticScore)}>
+            {tierShortLabel(r.semanticScore)}
+          </Badge>
+          <Progress value={pct} className="h-1 flex-1 min-w-[4rem] max-w-[8rem] bg-muted/80" aria-hidden />
+        </div>
+
+        <p className="text-[10px] text-muted-foreground truncate">
+          <span className="inline-flex items-center gap-1">
+            <Briefcase className="h-2.5 w-2.5 shrink-0 opacity-70" aria-hidden />
             {r.company}
           </span>
-          <span className="inline-flex items-center gap-0.5">
-            <MapPin className="h-2.5 w-2.5" />
+          <span className="mx-1 opacity-40">·</span>
+          <span className="inline-flex items-center gap-1">
+            <MapPin className="h-2.5 w-2.5 shrink-0 opacity-70" aria-hidden />
             {r.location}
           </span>
+          <span className="mx-1 opacity-40">·</span>
           <span>{r.employmentType}</span>
+          <span className="mx-1 opacity-40">·</span>
+          <span>{r.workMode === "REMOTE" ? "Remote" : "On-site"}</span>
+        </p>
+
+        <div className="pt-0.5 border-t border-border/30">
+          <CardRankingExplanation explanation={r.explanation} />
         </div>
-      </CardHeader>
-      <CardContent className="p-2.5 pt-0 space-y-2">
-        <div className="flex items-center gap-2">
-          <Progress value={pct} className="h-1 flex-1 bg-muted" aria-label={`Semantic match ${pct} percent`} />
-          <span className="text-[10px] tabular-nums text-muted-foreground w-8 text-right">{pct}%</span>
-        </div>
-        <CardRankingExplanation explanation={r.explanation} />
-      </CardContent>
-    </Card>
+      </div>
+    </article>
   )
 }
 
@@ -526,11 +616,14 @@ export function SemanticJobSearchPanel() {
       {showLoading ? (
         <div className="grid gap-2 sm:grid-cols-2">
           {[0, 1].map((i) => (
-            <Card key={i} className="border-border/50 p-2.5 space-y-2">
-              <Skeleton className="h-4 w-3/4" />
-              <Skeleton className="h-3 w-1/2" />
+            <div key={i} className="rounded-lg border border-border/60 bg-card/50 p-2.5 space-y-2">
+              <div className="flex justify-between gap-2">
+                <Skeleton className="h-4 w-2/3" />
+                <Skeleton className="h-6 w-10" />
+              </div>
+              <Skeleton className="h-4 w-24" />
               <Skeleton className="h-1 w-full" />
-            </Card>
+            </div>
           ))}
         </div>
       ) : null}

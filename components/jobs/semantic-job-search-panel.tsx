@@ -454,6 +454,12 @@ async function readErrorMessage(res: Response): Promise<string> {
   return `Something went wrong (${res.status}).`
 }
 
+function isFetchAbort(e: unknown): boolean {
+  if (e instanceof DOMException && e.name === "AbortError") return true
+  if (e instanceof Error && e.name === "AbortError") return true
+  return false
+}
+
 function SemanticResultCard({
   r,
   query,
@@ -554,6 +560,7 @@ export function SemanticJobSearchPanel() {
   const runSearch = useCallback(async (query: string) => {
     const trimmed = query.trim()
     if (!trimmed) {
+      requestIdRef.current += 1
       abortRef.current?.abort()
       setPanel({ kind: "idle" })
       return
@@ -616,7 +623,7 @@ export function SemanticJobSearchPanel() {
       })
     } catch (e: unknown) {
       if (myId !== requestIdRef.current) return
-      if (e instanceof DOMException && e.name === "AbortError") return
+      if (isFetchAbort(e)) return
       setPanel({
         kind: "error",
         query: trimmed,
@@ -630,6 +637,7 @@ export function SemanticJobSearchPanel() {
     if (debounceRef.current) clearTimeout(debounceRef.current)
 
     if (!trimmed) {
+      requestIdRef.current += 1
       abortRef.current?.abort()
       setPanel({ kind: "idle" })
       return
@@ -646,6 +654,7 @@ export function SemanticJobSearchPanel() {
 
   useEffect(() => {
     return () => {
+      requestIdRef.current += 1
       abortRef.current?.abort()
       if (debounceRef.current) clearTimeout(debounceRef.current)
     }

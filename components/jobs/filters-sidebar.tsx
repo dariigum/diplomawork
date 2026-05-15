@@ -1,6 +1,5 @@
 "use client"
 
-import { useState } from "react"
 import { Search, MapPin, Briefcase, DollarSign, Clock, X } from "lucide-react"
 import { Input } from "@/components/ui/input"
 import { Button } from "@/components/ui/button"
@@ -32,11 +31,69 @@ export interface FilterState {
   remoteOnly: boolean
 }
 
-export function FiltersSidebar({ onFiltersChange, filters, locationOptions = [], employmentTypeOptions = [], experienceLevelOptions = [] }: FiltersSidebarProps) {
-  const activeFiltersCount = 
-    filters.locations.length + 
-    filters.employmentTypes.length + 
-    filters.experienceLevels.length + 
+const FILTER_OPTION_ROW_CLASS = "flex min-w-0 items-center gap-3"
+const FILTER_LABEL_CLASS =
+  "min-w-0 flex-1 truncate text-sm text-foreground/80 cursor-pointer"
+const ACTIVE_FILTER_BADGE_CLASS =
+  "max-w-full min-w-0 shrink overflow-hidden cursor-pointer transition-colors hover:bg-destructive hover:text-destructive-foreground"
+
+function ActiveFilterBadge({
+  label,
+  onRemove,
+}: {
+  label: string
+  onRemove: () => void
+}) {
+  return (
+    <Badge
+      variant="secondary"
+      className={ACTIVE_FILTER_BADGE_CLASS}
+      title={label}
+      onClick={onRemove}
+    >
+      <span className="min-w-0 truncate">{label}</span>
+      <X className="ml-1 h-3 w-3 shrink-0" aria-hidden />
+    </Badge>
+  )
+}
+
+function FilterOptionRow({
+  id,
+  label,
+  checked,
+  onCheckedChange,
+}: {
+  id: string
+  label: string
+  checked: boolean
+  onCheckedChange: () => void
+}) {
+  return (
+    <div className={FILTER_OPTION_ROW_CLASS}>
+      <Checkbox
+        id={id}
+        className="shrink-0"
+        checked={checked}
+        onCheckedChange={onCheckedChange}
+      />
+      <Label htmlFor={id} className={FILTER_LABEL_CLASS} title={label}>
+        {label}
+      </Label>
+    </div>
+  )
+}
+
+export function FiltersSidebar({
+  onFiltersChange,
+  filters,
+  locationOptions = [],
+  employmentTypeOptions = [],
+  experienceLevelOptions = [],
+}: FiltersSidebarProps) {
+  const activeFiltersCount =
+    filters.locations.length +
+    filters.employmentTypes.length +
+    filters.experienceLevels.length +
     (filters.remoteOnly ? 1 : 0) +
     (filters.salaryRange[0] > 0 || filters.salaryRange[1] < 200 ? 1 : 0)
 
@@ -47,13 +104,13 @@ export function FiltersSidebar({ onFiltersChange, filters, locationOptions = [],
       employmentTypes: [],
       experienceLevels: [],
       salaryRange: [0, 200],
-      remoteOnly: false
+      remoteOnly: false,
     })
   }
 
   const toggleArrayFilter = (
     key: "locations" | "employmentTypes" | "experienceLevels",
-    value: string
+    value: string,
   ) => {
     const currentArray = filters[key]
     const newArray = currentArray.includes(value)
@@ -63,175 +120,155 @@ export function FiltersSidebar({ onFiltersChange, filters, locationOptions = [],
   }
 
   return (
-    <aside className="w-full lg:w-80 bg-card rounded-xl border border-border p-5 h-fit sticky top-6">
-      <div className="flex items-center justify-between mb-5">
-        <h2 className="font-semibold text-lg text-foreground">Catalog filters</h2>
+    <aside className="sticky top-6 h-fit w-full min-w-0 max-w-full rounded-xl border border-border bg-card p-5 lg:w-80">
+      <div className="mb-5 flex min-w-0 items-center justify-between gap-2">
+        <h2 className="min-w-0 truncate font-semibold text-lg text-foreground">Catalog filters</h2>
         {activeFiltersCount > 0 && (
           <Button
             variant="ghost"
             size="sm"
             onClick={clearAllFilters}
-            className="text-muted-foreground hover:text-foreground h-8 px-2"
+            className="h-8 shrink-0 px-2 text-muted-foreground hover:text-foreground"
           >
-            <X className="h-4 w-4 mr-1" />
+            <X className="mr-1 h-4 w-4" aria-hidden />
             Clear all
           </Button>
         )}
       </div>
 
       {/* Search */}
-      <div className="relative mb-5">
-        <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
+      <div className="relative mb-5 min-w-0">
+        <Search className="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" />
         <Input
           placeholder="Search jobs..."
           value={filters.search}
           onChange={(e) => onFiltersChange({ ...filters, search: e.target.value })}
-          className="pl-9 bg-muted/50 border-0 focus-visible:ring-1 focus-visible:ring-primary"
+          className="border-0 bg-muted/50 pl-9 focus-visible:ring-1 focus-visible:ring-primary"
         />
       </div>
 
       {/* Active Filters */}
       {activeFiltersCount > 0 && (
-        <div className="flex flex-wrap gap-2 mb-5 pb-5 border-b border-border">
+        <div className="mb-5 flex min-w-0 flex-wrap gap-2 border-b border-border pb-5">
           {filters.locations.map((loc) => (
-            <Badge
+            <ActiveFilterBadge
               key={loc}
-              variant="secondary"
-              className="cursor-pointer hover:bg-destructive hover:text-destructive-foreground transition-colors"
-              onClick={() => toggleArrayFilter("locations", loc)}
-            >
-              {loc}
-              <X className="h-3 w-3 ml-1" />
-            </Badge>
+              label={loc}
+              onRemove={() => toggleArrayFilter("locations", loc)}
+            />
           ))}
           {filters.employmentTypes.map((type) => (
-            <Badge
+            <ActiveFilterBadge
               key={type}
-              variant="secondary"
-              className="cursor-pointer hover:bg-destructive hover:text-destructive-foreground transition-colors"
-              onClick={() => toggleArrayFilter("employmentTypes", type)}
-            >
-              {type}
-              <X className="h-3 w-3 ml-1" />
-            </Badge>
+              label={type}
+              onRemove={() => toggleArrayFilter("employmentTypes", type)}
+            />
           ))}
           {filters.remoteOnly && (
-            <Badge
-              variant="secondary"
-              className="cursor-pointer hover:bg-destructive hover:text-destructive-foreground transition-colors"
-              onClick={() => onFiltersChange({ ...filters, remoteOnly: false })}
-            >
-              Remote
-              <X className="h-3 w-3 ml-1" />
-            </Badge>
+            <ActiveFilterBadge
+              label="Remote"
+              onRemove={() => onFiltersChange({ ...filters, remoteOnly: false })}
+            />
           )}
         </div>
       )}
 
-      <Accordion type="multiple" defaultValue={["location", "employment", "salary"]} className="space-y-2">
+      <Accordion
+        type="multiple"
+        defaultValue={["location", "employment", "salary"]}
+        className="min-w-0 space-y-2"
+      >
         {/* Location Filter */}
         <AccordionItem value="location" className="border-b border-border">
-          <AccordionTrigger className="hover:no-underline py-3">
-            <div className="flex items-center gap-2">
-              <MapPin className="h-4 w-4 text-primary" />
+          <AccordionTrigger className="py-3 hover:no-underline">
+            <div className="flex min-w-0 items-center gap-2">
+              <MapPin className="h-4 w-4 shrink-0 text-primary" aria-hidden />
               <span className="font-medium">Location</span>
             </div>
           </AccordionTrigger>
           <AccordionContent className="pt-2 pb-4">
-            <div className="space-y-3">
+            <div className="min-w-0 space-y-3">
               {locationOptions.length === 0 ? (
                 <p className="text-sm text-muted-foreground">No locations available.</p>
-              ) : locationOptions.map((location) => (
-                <div key={location} className="flex items-center gap-3">
-                  <Checkbox
+              ) : (
+                locationOptions.map((location) => (
+                  <FilterOptionRow
+                    key={location}
                     id={`location-${location}`}
+                    label={location}
                     checked={filters.locations.includes(location)}
                     onCheckedChange={() => toggleArrayFilter("locations", location)}
                   />
-                  <Label
-                    htmlFor={`location-${location}`}
-                    className="text-sm text-foreground/80 cursor-pointer flex-1"
-                  >
-                    {location}
-                  </Label>
-                </div>
-              ))}
+                ))
+              )}
             </div>
           </AccordionContent>
         </AccordionItem>
 
         {/* Employment Type Filter */}
         <AccordionItem value="employment" className="border-b border-border">
-          <AccordionTrigger className="hover:no-underline py-3">
-            <div className="flex items-center gap-2">
-              <Briefcase className="h-4 w-4 text-primary" />
+          <AccordionTrigger className="py-3 hover:no-underline">
+            <div className="flex min-w-0 items-center gap-2">
+              <Briefcase className="h-4 w-4 shrink-0 text-primary" aria-hidden />
               <span className="font-medium">Employment Type</span>
             </div>
           </AccordionTrigger>
           <AccordionContent className="pt-2 pb-4">
-            <div className="space-y-3">
+            <div className="min-w-0 space-y-3">
               {employmentTypeOptions.length === 0 ? (
                 <p className="text-sm text-muted-foreground">No types available.</p>
-              ) : employmentTypeOptions.map((type) => (
-                <div key={type} className="flex items-center gap-3">
-                  <Checkbox
+              ) : (
+                employmentTypeOptions.map((type) => (
+                  <FilterOptionRow
+                    key={type}
                     id={`employment-${type}`}
+                    label={type}
                     checked={filters.employmentTypes.includes(type)}
                     onCheckedChange={() => toggleArrayFilter("employmentTypes", type)}
                   />
-                  <Label
-                    htmlFor={`employment-${type}`}
-                    className="text-sm text-foreground/80 cursor-pointer flex-1"
-                  >
-                    {type}
-                  </Label>
-                </div>
-              ))}
+                ))
+              )}
             </div>
           </AccordionContent>
         </AccordionItem>
 
         {/* Experience Level Filter */}
         <AccordionItem value="experience" className="border-b border-border">
-          <AccordionTrigger className="hover:no-underline py-3">
-            <div className="flex items-center gap-2">
-              <Clock className="h-4 w-4 text-primary" />
+          <AccordionTrigger className="py-3 hover:no-underline">
+            <div className="flex min-w-0 items-center gap-2">
+              <Clock className="h-4 w-4 shrink-0 text-primary" aria-hidden />
               <span className="font-medium">Experience</span>
             </div>
           </AccordionTrigger>
           <AccordionContent className="pt-2 pb-4">
-            <div className="space-y-3">
+            <div className="min-w-0 space-y-3">
               {experienceLevelOptions.length === 0 ? (
                 <p className="text-sm text-muted-foreground">No levels available.</p>
-              ) : experienceLevelOptions.map((level) => (
-                <div key={level} className="flex items-center gap-3">
-                  <Checkbox
+              ) : (
+                experienceLevelOptions.map((level) => (
+                  <FilterOptionRow
+                    key={level}
                     id={`experience-${level}`}
+                    label={level}
                     checked={filters.experienceLevels.includes(level)}
                     onCheckedChange={() => toggleArrayFilter("experienceLevels", level)}
                   />
-                  <Label
-                    htmlFor={`experience-${level}`}
-                    className="text-sm text-foreground/80 cursor-pointer flex-1"
-                  >
-                    {level}
-                  </Label>
-                </div>
-              ))}
+                ))
+              )}
             </div>
           </AccordionContent>
         </AccordionItem>
 
         {/* Salary Range Filter */}
         <AccordionItem value="salary" className="border-none">
-          <AccordionTrigger className="hover:no-underline py-3">
-            <div className="flex items-center gap-2">
-              <DollarSign className="h-4 w-4 text-primary" />
+          <AccordionTrigger className="py-3 hover:no-underline">
+            <div className="flex min-w-0 items-center gap-2">
+              <DollarSign className="h-4 w-4 shrink-0 text-primary" aria-hidden />
               <span className="font-medium">Salary Range</span>
             </div>
           </AccordionTrigger>
           <AccordionContent className="pt-2 pb-4">
-            <div className="space-y-4">
+            <div className="min-w-0 space-y-4">
               <Slider
                 value={filters.salaryRange}
                 onValueChange={(value) =>
@@ -252,16 +289,17 @@ export function FiltersSidebar({ onFiltersChange, filters, locationOptions = [],
       </Accordion>
 
       {/* Remote Only Toggle */}
-      <div className="mt-5 pt-5 border-t border-border">
-        <div className="flex items-center gap-3">
+      <div className="mt-5 border-t border-border pt-5">
+        <div className={FILTER_OPTION_ROW_CLASS}>
           <Checkbox
             id="remote-only"
+            className="shrink-0"
             checked={filters.remoteOnly}
             onCheckedChange={(checked) =>
               onFiltersChange({ ...filters, remoteOnly: checked as boolean })
             }
           />
-          <Label htmlFor="remote-only" className="cursor-pointer font-medium">
+          <Label htmlFor="remote-only" className="min-w-0 flex-1 cursor-pointer font-medium">
             Remote jobs only
           </Label>
         </div>

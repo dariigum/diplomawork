@@ -1,7 +1,7 @@
 "use client"
 
-import { useState } from "react"
-import { ArrowUpDown, Grid3X3, List } from "lucide-react"
+import { useEffect, useState } from "react"
+import { ArrowUpDown } from "lucide-react"
 import { Button } from "@/components/ui/button"
 import {
   Select,
@@ -14,6 +14,9 @@ import { JobCard } from "./job-card"
 import { ApplyModal } from "./apply-modal"
 import type { Job } from "@/lib/job-data"
 
+const PAGE_SIZE = 20
+const LOAD_MORE_STEP = 20
+
 interface JobListProps {
   jobs: Job[]
   savedJobs: string[]
@@ -25,9 +28,13 @@ type SortOption = "newest" | "salary-high" | "salary-low" | "relevance"
 
 export function JobList({ jobs, savedJobs, onSaveJob, canApply }: JobListProps) {
   const [sortBy, setSortBy] = useState<SortOption>("newest")
-  const [viewMode, setViewMode] = useState<"list" | "grid">("list")
+  const [visibleCount, setVisibleCount] = useState(PAGE_SIZE)
   const [selectedJob, setSelectedJob] = useState<Job | null>(null)
   const [isApplyModalOpen, setIsApplyModalOpen] = useState(false)
+
+  useEffect(() => {
+    setVisibleCount(PAGE_SIZE)
+  }, [jobs, sortBy])
 
   const handleApply = (job: Job) => {
     setSelectedJob(job)
@@ -52,21 +59,23 @@ export function JobList({ jobs, savedJobs, onSaveJob, canApply }: JobListProps) 
     }
   })
 
+  const visibleJobs = sortedJobs.slice(0, visibleCount)
+
   return (
-    <div className="flex-1">
+    <div className="min-w-0 w-full flex-1">
       {/* Header */}
-      <div className="flex items-center justify-between mb-6">
-        <div>
+      <div className="mb-6 flex min-w-0 flex-col gap-4 sm:flex-row sm:items-center sm:justify-between sm:gap-3">
+        <div className="min-w-0">
           <h1 className="text-2xl font-bold text-foreground">Browse all vacancies</h1>
-          <p className="text-muted-foreground mt-1">
+          <p className="mt-1 text-muted-foreground">
             {jobs.length} {jobs.length === 1 ? "job" : "jobs"} found
           </p>
         </div>
 
-        <div className="flex items-center gap-3">
+        <div className="flex min-w-0 flex-wrap items-center gap-2 sm:shrink-0 sm:justify-end sm:gap-3">
           {/* Sort */}
           <Select value={sortBy} onValueChange={(value) => setSortBy(value as SortOption)}>
-            <SelectTrigger className="w-44 bg-card border-border">
+            <SelectTrigger className="h-9 w-full min-w-[11rem] bg-card border-border sm:w-44">
               <ArrowUpDown className="h-4 w-4 mr-2 text-muted-foreground" />
               <SelectValue placeholder="Sort by" />
             </SelectTrigger>
@@ -78,40 +87,13 @@ export function JobList({ jobs, savedJobs, onSaveJob, canApply }: JobListProps) 
             </SelectContent>
           </Select>
 
-          {/* View Toggle */}
-          <div className="flex items-center border border-border rounded-lg overflow-hidden">
-            <Button
-              variant={viewMode === "list" ? "secondary" : "ghost"}
-              size="icon"
-              className="h-9 w-9 rounded-none"
-              onClick={() => setViewMode("list")}
-            >
-              <List className="h-4 w-4" />
-              <span className="sr-only">List view</span>
-            </Button>
-            <Button
-              variant={viewMode === "grid" ? "secondary" : "ghost"}
-              size="icon"
-              className="h-9 w-9 rounded-none"
-              onClick={() => setViewMode("grid")}
-            >
-              <Grid3X3 className="h-4 w-4" />
-              <span className="sr-only">Grid view</span>
-            </Button>
-          </div>
         </div>
       </div>
 
       {/* Job Cards */}
       {sortedJobs.length > 0 ? (
-        <div
-          className={
-            viewMode === "grid"
-              ? "grid grid-cols-1 xl:grid-cols-2 gap-4"
-              : "flex flex-col gap-4"
-          }
-        >
-          {sortedJobs.map((job) => (
+        <div className="flex min-w-0 flex-col gap-4">
+          {visibleJobs.map((job) => (
             <JobCard
               key={job.id}
               job={job}
@@ -121,6 +103,24 @@ export function JobList({ jobs, savedJobs, onSaveJob, canApply }: JobListProps) 
               canApply={canApply}
             />
           ))}
+
+          <p className="text-center text-sm text-muted-foreground">
+            Showing {visibleJobs.length} of {sortedJobs.length} vacancies
+          </p>
+
+          {visibleCount < sortedJobs.length ? (
+            <div className="flex justify-center">
+              <Button
+                type="button"
+                variant="outline"
+                size="sm"
+                className="h-9 w-full min-w-0 sm:w-auto"
+                onClick={() => setVisibleCount((prev) => prev + LOAD_MORE_STEP)}
+              >
+                Show more
+              </Button>
+            </div>
+          ) : null}
         </div>
       ) : (
         <div className="text-center py-16 bg-card rounded-xl border border-border">

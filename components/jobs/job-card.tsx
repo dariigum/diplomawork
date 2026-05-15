@@ -1,6 +1,5 @@
 "use client"
 
-import { useState } from "react"
 import Link from "next/link"
 import { MapPin, Clock, Briefcase, Heart, ExternalLink, Wifi } from "lucide-react"
 import { Button } from "@/components/ui/button"
@@ -18,16 +17,12 @@ interface JobCardProps {
 }
 
 export function JobCard({ job, onApply, onSave, isSaved, canApply }: JobCardProps) {
-  const [isHovered, setIsHovered] = useState(false)
-
   return (
     <Card
       className={cn(
-        "group transition-all duration-300 border-border hover:border-primary/30 hover:shadow-lg relative overflow-hidden",
+        "group relative overflow-hidden border-border/80 transition-[border-color,box-shadow] duration-200 hover:border-border hover:shadow-sm",
         job.isFeatured && "border-primary/20 bg-primary/[0.02]"
       )}
-      onMouseEnter={() => setIsHovered(true)}
-      onMouseLeave={() => setIsHovered(false)}
     >
       {job.isFeatured && (
         <div className="absolute top-0 right-0">
@@ -50,7 +45,7 @@ export function JobCard({ job, onApply, onSave, isSaved, canApply }: JobCardProp
           <div className="flex-1 min-w-0">
             <div className="flex items-start justify-between gap-4">
               <div>
-                <h3 className="font-semibold text-lg text-foreground group-hover:text-primary transition-colors line-clamp-1">
+                <h3 className="font-semibold text-lg text-foreground transition-colors line-clamp-1">
                   {job.title}
                 </h3>
                 <p className="text-muted-foreground text-sm mt-0.5">{job.company}</p>
@@ -89,10 +84,10 @@ export function JobCard({ job, onApply, onSave, isSaved, canApply }: JobCardProp
                 <span>{job.experience}</span>
               </div>
               {job.isRemote && (
-                <div className="flex items-center gap-1.5 text-accent">
-                  <Wifi className="h-4 w-4" />
-                  <span className="font-medium">Remote</span>
-                </div>
+                <span className="inline-flex items-center gap-1 rounded-md border border-border/60 bg-muted/60 px-2 py-0.5 text-xs font-medium text-muted-foreground">
+                  <Wifi className="h-3.5 w-3.5 shrink-0 opacity-80" aria-hidden />
+                  Remote
+                </span>
               )}
             </div>
 

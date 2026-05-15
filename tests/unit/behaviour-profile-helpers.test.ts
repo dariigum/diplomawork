@@ -69,8 +69,8 @@ describe('behaviour-profile helpers', () => {
       expect(splitVacancySkillPhrases('')).toEqual([])
     })
 
-    it('preserves duplicate phrases when they appear as separate list entries', () => {
-      expect(splitVacancySkillPhrases('Python, Python')).toEqual(['python', 'python'])
+    it('deduplicates repeated phrases case-insensitively', () => {
+      expect(splitVacancySkillPhrases('Python, Python')).toEqual(['python'])
     })
   })
 

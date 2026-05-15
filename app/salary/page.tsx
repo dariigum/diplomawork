@@ -2,6 +2,7 @@ import { getSession } from "@/lib/auth";
 import dbConnect from "@/lib/db/mongoose";
 import { Resume } from "@/lib/db/schema";
 import SalaryClient from "./SalaryClient";
+import { normalizeVacancySkills } from "@/lib/normalize-vacancy-skills";
 
 export const dynamic = "force-dynamic";
 
@@ -14,8 +15,8 @@ export default async function SalaryPage() {
     const userResumes = await Resume.find({ userId: session.user.id });
     const skillSet = new Set<string>();
     userResumes.forEach(r => {
-      if (r.skills) {
-        r.skills.split(',').map(s => s.trim()).filter(Boolean).forEach(s => skillSet.add(s));
+      for (const skill of normalizeVacancySkills(r.skills)) {
+        skillSet.add(skill);
       }
     });
     userSkills = Array.from(skillSet);

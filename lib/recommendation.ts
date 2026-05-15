@@ -1,3 +1,4 @@
+import { formatEmployerName } from '@/lib/format-employer-name'
 import dbConnect from '@/lib/db/mongoose'
 import { Vacancy } from '@/lib/db/schema'
 import { getActiveResumeLeanForUser } from '@/lib/active-resume'
@@ -95,7 +96,7 @@ export async function getTopRecommendations(params: { userId: string; limit?: nu
       return {
         vacancyId: v._id.toString(),
         title: String(v.title ?? ''),
-        company: String(v.employerId?.name ?? 'Unknown Company'),
+        company: formatEmployerName(v.employerId),
         semanticScore,
         skillsRequired: String(v.skillsRequired ?? ''),
         description: String(v.description ?? ''),

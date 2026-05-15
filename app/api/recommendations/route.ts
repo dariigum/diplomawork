@@ -13,6 +13,8 @@ import {
   pickBehaviourCardTagline,
   resolveCardAdaptationHint,
 } from '@/lib/behaviour-ui-explanations'
+import { normalizeStringArray } from '@/lib/normalize-string-array'
+import { normalizeVacancySkills } from '@/lib/normalize-vacancy-skills'
 
 function truncateText(text: string, max: number): string {
   const t = (text ?? '').trim()
@@ -24,20 +26,12 @@ function truncateText(text: string, max: number): string {
 function matchedSkillsFromResumeAndVacancy(
   resumeBlob: string,
   skillsRequired: string,
-  requirements: string[],
+  requirements: unknown,
 ): string[] {
   const resumeLower = resumeBlob.toLowerCase()
   const phrases = [
-    ...skillsRequired
-      .split(',')
-      .map((s) => s.trim())
-      .filter(Boolean),
-    ...requirements.flatMap((r) =>
-      String(r)
-        .split(/[,;]/)
-        .map((s) => s.trim())
-        .filter(Boolean),
-    ),
+    ...normalizeVacancySkills(skillsRequired),
+    ...normalizeStringArray(requirements).flatMap((r) => normalizeVacancySkills(r)),
   ]
   const out: string[] = []
   const seen = new Set<string>()
@@ -183,9 +177,9 @@ export async function GET(request: NextRequest) {
       const v = byId.get(r.vacancyId)
       const description = truncateText(String(v?.description ?? ''), 280)
       const skillsRequired = String(v?.skillsRequired ?? '')
-      const requirements = Array.isArray(v?.requirements) ? (v.requirements as string[]) : []
+      const requirements = normalizeStringArray(v?.requirements)
       const matchedSkills = matchedSkillsFromResumeAndVacancy(resumeBlob, skillsRequired, requirements)
-      const behaviourExplanations = Array.isArray(r.behaviourExplanations) ? r.behaviourExplanations : []
+      const behaviourExplanations = normalizeStringArray(r.behaviourExplanations)
       return {
         vacancyId: r.vacancyId,
         title: r.title,

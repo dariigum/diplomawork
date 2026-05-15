@@ -3,8 +3,14 @@ import {
   buildSemanticSearchExplanation,
   rankVacanciesBySemanticQuery,
   rankVacanciesBySemanticQueryFromEmbedding,
+  rankVacanciesBySemanticQueryFromEmbeddingWithStats,
+  resolveWeakSemanticActivation,
+  WEAK_SEMANTIC_RECOVERY_LIMIT,
+  semanticOverlapTierLabel,
+  semanticScoreBand,
   type SemanticVacancyInput,
 } from '@/lib/semantic-job-search'
+import { SEMANTIC_SCORE_BAND_RELATED } from '@/lib/semantic-score-bands'
 
 vi.mock('@/lib/ml', () => ({
   getEmbedding: vi.fn(),
@@ -163,6 +169,124 @@ describe('semantic-job-search', () => {
       const a = await rankVacanciesBySemanticQuery({ query: 'same', vacancies, limit: 10 })
       const b = await rankVacanciesBySemanticQuery({ query: 'same', vacancies, limit: 10 })
       expect(a).toEqual(b)
+    })
+  })
+
+  describe('semanticScoreBand and semanticOverlapTierLabel', () => {
+    it('maps scores to existing project bands', () => {
+      expect(semanticScoreBand(0.8)).toBe('strong')
+      expect(semanticScoreBand(0.75)).toBe('strong')
+      expect(semanticScoreBand(0.6)).toBe('solid')
+      expect(semanticScoreBand(0.55)).toBe('solid')
+      expect(semanticScoreBand(0.4)).toBe('related')
+      expect(semanticScoreBand(0.35)).toBe('related')
+      expect(semanticScoreBand(0.1)).toBe('loose')
+      expect(semanticScoreBand(0)).toBeNull()
+      expect(semanticScoreBand(-1)).toBeNull()
+    })
+
+    it('returns tier labels aligned with bands', () => {
+      expect(semanticOverlapTierLabel(0.8)).toBe('Strong semantic overlap')
+      expect(semanticOverlapTierLabel(0.42)).toBe('Related semantic overlap')
+      expect(semanticOverlapTierLabel(0.1)).toBe('Loose semantic overlap')
+    })
+  })
+
+  describe('rankVacanciesBySemanticQueryFromEmbeddingWithStats', () => {
+    it('returns empty stats for invalid query embedding', () => {
+      const out = rankVacanciesBySemanticQueryFromEmbeddingWithStats({
+        queryEmbedding: [],
+        vacancies: [{ _id: 'a', embedding: [1, 0] }],
+      })
+      expect(out.results).toEqual([])
+      expect(out.weakResults).toEqual([])
+      expect(out.stats).toEqual({
+        checkedEmbeddings: 0,
+        compatibleEmbeddings: 0,
+        topSemanticScore: null,
+        bandCounts: { strong: 0, solid: 0, related: 0, loose: 0 },
+      })
+    })
+
+    it('counts checked vs compatible embeddings and band tallies', () => {
+      const q = embUnit(4, 0)
+      const vacancies: SemanticVacancyInput[] = [
+        { _id: 'skip-emb', title: 'X', embedding: undefined },
+        { _id: 'bad-dim', title: 'B', embedding: embUnit(3, 0) },
+        { _id: 'strong', title: 'S', embedding: q.slice() },
+        { _id: 'related', title: 'R', embedding: embUnit(4, 2) },
+        { _id: 'zero', title: 'Z', embedding: embUnit(4, 1) },
+      ]
+      const { results, weakResults, stats } = rankVacanciesBySemanticQueryFromEmbeddingWithStats({
+        queryEmbedding: q,
+        vacancies,
+      })
+      expect(stats.checkedEmbeddings).toBe(5)
+      expect(stats.compatibleEmbeddings).toBe(3)
+      expect(stats.topSemanticScore).not.toBeNull()
+      expect(stats.bandCounts.strong).toBeGreaterThanOrEqual(1)
+      for (const r of results) {
+        expect(r.semanticScore).toBeGreaterThanOrEqual(SEMANTIC_SCORE_BAND_RELATED)
+      }
+      for (const r of weakResults) {
+        expect(r.semanticScore).toBeGreaterThan(0)
+        expect(r.semanticScore).toBeLessThan(SEMANTIC_SCORE_BAND_RELATED)
+        expect(r.explanation.toLowerCase()).toContain('weak overlap')
+      }
+      expect(weakResults.length).toBeLessThanOrEqual(WEAK_SEMANTIC_RECOVERY_LIMIT)
+    })
+
+    it('places loose-band matches in weakResults, not primary results', () => {
+      const q = [1, 0]
+      // Raw cosine -0.6 maps to (cos+1)/2 = 0.2 on the project 0–1 scale.
+      const weakEmb = [-0.6, 0.8]
+      const { results, weakResults } = rankVacanciesBySemanticQueryFromEmbeddingWithStats({
+        queryEmbedding: q,
+        vacancies: [{ _id: 'w', title: 'Weak', embedding: weakEmb }],
+      })
+      expect(results).toHaveLength(0)
+      expect(weakResults).toHaveLength(1)
+      expect(weakResults[0]!.semanticScore).toBeCloseTo(0.2, 5)
+    })
+
+    it('keeps band counts on full ranked set while limit only trims results', () => {
+      const q = embUnit(2, 0)
+      const vacancies: SemanticVacancyInput[] = [
+        { _id: 'a', title: 'A', embedding: [1, 0] },
+        { _id: 'b', title: 'B', embedding: [1, 0] },
+        { _id: 'c', title: 'C', embedding: [0, 1] },
+      ]
+      const full = rankVacanciesBySemanticQueryFromEmbeddingWithStats({ queryEmbedding: q, vacancies })
+      const limited = rankVacanciesBySemanticQueryFromEmbeddingWithStats({
+        queryEmbedding: q,
+        vacancies,
+        limit: 1,
+      })
+      expect(limited.results).toHaveLength(1)
+      expect(limited.stats.bandCounts).toEqual(full.stats.bandCounts)
+      expect(limited.stats.topSemanticScore).toBe(full.stats.topSemanticScore)
+    })
+  })
+
+  describe('resolveWeakSemanticActivation', () => {
+    it('enables when only loose candidates exist', () => {
+      expect(
+        resolveWeakSemanticActivation({
+          primaryCount: 0,
+          weakCandidateCount: 2,
+          topSemanticScore: 0.2,
+        }),
+      ).toEqual({ enabled: true, reason: 'Only loose semantic overlap was found' })
+    })
+
+    it('disables when primary related matches exist', () => {
+      expect(
+        resolveWeakSemanticActivation({
+          primaryCount: 1,
+          weakCandidateCount: 1,
+          topSemanticScore: 0.5,
+        }),
+      ).toEqual({ enabled: false, reason: null })
     })
   })
 

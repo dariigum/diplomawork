@@ -3,6 +3,7 @@ import { Search, MapPin, Users, Briefcase, Star } from "lucide-react"
 import { Card, CardContent } from "@/components/ui/card"
 import { Badge } from "@/components/ui/badge"
 import { Header } from "@/components/jobs/header"
+import { formatEmployerName } from "@/lib/format-employer-name"
 import dbConnect from "@/lib/db/mongoose"
 import { User, Vacancy, SavedVacancy } from "@/lib/db/schema"
 import { getSession } from "@/lib/auth"
@@ -46,7 +47,7 @@ export default async function CompaniesPage() {
                       {company.logoUrl || "🏢"}
                     </div>
                     <div className="flex-1 min-w-0">
-                      <h3 className="font-semibold text-lg text-foreground truncate">{company.name}</h3>
+                      <h3 className="font-semibold text-lg text-foreground truncate">{formatEmployerName(company)}</h3>
                       <Badge variant="secondary" className="mt-1">{company.industry || 'Technology'}</Badge>
                     </div>
                   </div>

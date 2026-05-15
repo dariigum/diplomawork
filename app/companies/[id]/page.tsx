@@ -4,6 +4,9 @@ import { Card, CardContent } from "@/components/ui/card"
 import { Badge } from "@/components/ui/badge"
 import { Header } from "@/components/jobs/header"
 import dbConnect from "@/lib/db/mongoose"
+import { formatEmployerName } from "@/lib/format-employer-name"
+import { formatVacancySalary } from "@/lib/format-vacancy-salary"
+import { parseSafeExternalUrl } from "@/lib/vacancy-detail-display"
 import { User, Vacancy, SavedVacancy } from "@/lib/db/schema"
 import { getSession } from "@/lib/auth"
 
@@ -21,6 +24,8 @@ export default async function CompanyProfilePage({ params }: { params: Promise<{
   if (session && session.user.role === 'EMPLOYEE') {
     savedJobsCount = await SavedVacancy.countDocuments({ userId: session.user.id });
   }
+
+  const companyWebsite = company ? parseSafeExternalUrl(company.website) : null
 
   if (!company || company.role !== 'EMPLOYER') {
     return (
@@ -50,7 +55,7 @@ export default async function CompanyProfilePage({ params }: { params: Promise<{
             {company.logoUrl || "🏢"}
           </div>
           <div className="flex-1">
-            <h1 className="text-3xl font-bold text-foreground">{company.name}</h1>
+            <h1 className="text-3xl font-bold text-foreground">{formatEmployerName(company)}</h1>
             <div className="flex items-center gap-4 mt-2 mb-4">
               <Badge variant="secondary">{company.industry || 'Technology'}</Badge>
             </div>
@@ -69,8 +74,8 @@ export default async function CompanyProfilePage({ params }: { params: Promise<{
              </div>
              <div className="flex items-center gap-2">
                <Globe className="h-4 w-4 text-primary" />
-               {company.website ? (
-                 <a href={company.website} target="_blank" rel="noopener noreferrer" className="hover:underline transition-colors">
+               {companyWebsite ? (
+                 <a href={companyWebsite.href} target="_blank" rel="noopener noreferrer" className="hover:underline transition-colors">
                    Visit Website
                  </a>
                ) : (
@@ -106,7 +111,9 @@ export default async function CompanyProfilePage({ params }: { params: Promise<{
                         </div>
                       </div>
                       <div className="mt-4 pt-4 border-t border-border flex items-center justify-between">
-                         <span className="font-medium text-foreground">${job.salaryMin.toLocaleString()} - ${job.salaryMax.toLocaleString()}</span>
+                         <span className="font-medium text-foreground">
+                           {formatVacancySalary(job.salaryMin, job.salaryMax)}
+                         </span>
                          <span className="text-primary flex items-center gap-1 text-sm font-medium">View Job <ExternalLink className="h-3 w-3"/></span>
                       </div>
                     </CardContent>

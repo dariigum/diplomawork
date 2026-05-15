@@ -1,3 +1,27 @@
+import { normalizeStringArray } from '@/lib/normalize-string-array'
+
+function sanitizeRecommendationItem(item: unknown): RecommendationApiItem | null {
+  if (!item || typeof item !== 'object') return null
+  const r = item as Record<string, unknown>
+  if (typeof r.vacancyId !== 'string' || typeof r.title !== 'string' || typeof r.company !== 'string') {
+    return null
+  }
+  return {
+    ...(item as RecommendationApiItem),
+    matchedSkills: normalizeStringArray(r.matchedSkills),
+    behaviourExplanations: normalizeStringArray(r.behaviourExplanations),
+  }
+}
+
+function sanitizeBehaviourSession(session: unknown): BehaviourSessionInsights | null {
+  if (!session || typeof session !== 'object') return null
+  const s = session as BehaviourSessionInsights
+  return {
+    ...s,
+    dashboardLines: normalizeStringArray(s.dashboardLines),
+  }
+}
+
 /**
  * Session-level behaviour copy for dashboard / headers (API + UI).
  * All strings are produced from tracked events + profile heuristics only.
@@ -64,7 +88,12 @@ export function parseRecommendationsApiPayload(json: unknown): {
   behaviourSession: BehaviourSessionInsights | null
 } {
   if (Array.isArray(json)) {
-    return { recommendations: json as RecommendationApiItem[], behaviourSession: null }
+    return {
+      recommendations: json
+        .map(sanitizeRecommendationItem)
+        .filter((r): r is RecommendationApiItem => r != null),
+      behaviourSession: null,
+    }
   }
   if (
     json &&
@@ -73,8 +102,10 @@ export function parseRecommendationsApiPayload(json: unknown): {
   ) {
     const body = json as RecommendationsApiSuccessBody
     return {
-      recommendations: body.recommendations,
-      behaviourSession: body.behaviourSession ?? null,
+      recommendations: body.recommendations
+        .map(sanitizeRecommendationItem)
+        .filter((r): r is RecommendationApiItem => r != null),
+      behaviourSession: sanitizeBehaviourSession(body.behaviourSession),
     }
   }
   return { recommendations: [], behaviourSession: null }

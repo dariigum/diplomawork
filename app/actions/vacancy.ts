@@ -6,16 +6,10 @@ import { Vacancy, SavedVacancy } from '@/lib/db/schema';
 import { getSession } from '@/lib/auth';
 import { revalidatePath } from 'next/cache';
 import { recordVacancyBehaviourEvent } from '@/lib/vacancy-behaviour-events'
-
-/** Safe display for home / saved lists; ingestion rows may omit or null-out salary fields. */
-function formatVacancySalary(salaryMin: unknown, salaryMax: unknown): string {
-  const minOk = typeof salaryMin === 'number' && Number.isFinite(salaryMin)
-  const maxOk = typeof salaryMax === 'number' && Number.isFinite(salaryMax)
-  if (minOk && maxOk) {
-    return `$${salaryMin.toLocaleString()} - $${salaryMax.toLocaleString()}`
-  }
-  return 'Salary not specified'
-}
+import { formatVacancySalary } from '@/lib/format-vacancy-salary'
+import { employerDisplayInitials, formatEmployerName } from '@/lib/format-employer-name'
+import { normalizeVacancySkills } from '@/lib/normalize-vacancy-skills'
+import { formatPostedDate, formatVacancyTitle } from '@/lib/vacancy-detail-display'
 
 export async function toggleSaveVacancyAction(vacancyId: string) {
   const session = await getSession();
@@ -69,16 +63,16 @@ export async function getHomeData() {
 
   const jobs = rawVacancies.map((v: any) => ({
     id: v._id.toString(),
-    title: v.title,
-    company: v.employerId?.name || "Unknown Company",
-    companyLogo: v.employerId?.name?.slice(0, 2)?.toUpperCase() || "JC",
+    title: formatVacancyTitle(v.title),
+    company: formatEmployerName(v.employerId),
+    companyLogo: employerDisplayInitials(v.employerId),
     location: v.workMode === 'REMOTE' ? 'Remote' : [v.city, v.country].filter(Boolean).join(', ') || v.address || "Remote",
     salary: formatVacancySalary(v.salaryMin, v.salaryMax),
     employmentType: v.employmentType || "Full-time",
     experience: v.experience || "Any experience",
-    skills: v.skillsRequired ? v.skillsRequired.split(',').map((s: string) => s.trim()) : [],
+    skills: normalizeVacancySkills(v.skillsRequired),
     description: v.description || "No description provided.",
-    postedAt: new Date(v.createdAt).toLocaleDateString(),
+    postedAt: formatPostedDate(v.createdAt),
     isRemote: v.workMode === 'REMOTE',
     isFeatured: false,
   }));
@@ -107,8 +101,8 @@ export async function getSavedVacanciesAction() {
 
   return saves.map((s: any) => ({
     id: s.vacancyId._id.toString(),
-    title: s.vacancyId.title,
-    company: s.vacancyId.employerId?.name || "Unknown Company",
+    title: formatVacancyTitle(s.vacancyId.title),
+    company: formatEmployerName(s.vacancyId.employerId),
     salary: formatVacancySalary(s.vacancyId.salaryMin, s.vacancyId.salaryMax),
   }));
 }

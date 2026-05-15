@@ -3,7 +3,13 @@ import dbConnect from '@/lib/db/mongoose'
 import { Vacancy } from '@/lib/db/schema'
 import { getEmbedding } from '@/lib/ml'
 import {
-  rankVacanciesBySemanticQueryFromEmbedding,
+  rankVacanciesByKeywordFallback,
+  resolveKeywordFallbackActivation,
+  type KeywordFallbackVacancyInput,
+} from '@/lib/semantic-keyword-fallback'
+import {
+  rankVacanciesBySemanticQueryFromEmbeddingWithStats,
+  resolveWeakSemanticActivation,
   type SemanticVacancyInput,
 } from '@/lib/semantic-job-search'
 import type { SemanticSearchApiErrorBody, SemanticSearchApiSuccessBody } from '@/lib/semantic-search-api-types'
@@ -59,17 +65,65 @@ export async function GET(request: NextRequest) {
 
   try {
     await dbConnect()
-    const docs = await Vacancy.find({
-      embedding: { $exists: true, $ne: null },
-    })
-      .populate('employerId', 'name')
-      .lean()
+    const [semanticDocs, allDocs] = await Promise.all([
+      Vacancy.find({
+        embedding: { $exists: true, $ne: null },
+      })
+        .populate('employerId', 'name')
+        .lean(),
+      Vacancy.find({})
+        .populate('employerId', 'name')
+        .lean(),
+    ])
 
-    const results = rankVacanciesBySemanticQueryFromEmbedding({
+    const docs = semanticDocs
+
+    const { results, weakResults, stats } = rankVacanciesBySemanticQueryFromEmbeddingWithStats({
       queryEmbedding,
       vacancies: docs as SemanticVacancyInput[],
       limit,
     })
+
+    const weakActivation = resolveWeakSemanticActivation({
+      primaryCount: results.length,
+      weakCandidateCount: weakResults.length,
+      topSemanticScore: stats.topSemanticScore,
+    })
+
+    let weakSemantic: SemanticSearchApiSuccessBody['weakSemantic']
+    if (weakActivation.enabled && weakActivation.reason && weakResults.length > 0) {
+      weakSemantic = {
+        enabled: true,
+        reason: weakActivation.reason,
+        results: weakResults,
+      }
+    }
+
+    const fallbackActivation = resolveKeywordFallbackActivation({
+      semanticCount: results.length,
+      topSemanticScore: stats.topSemanticScore,
+      compatibleEmbeddings: stats.compatibleEmbeddings,
+      checkedEmbeddings: stats.checkedEmbeddings,
+    })
+
+    let fallback: SemanticSearchApiSuccessBody['fallback']
+    if (fallbackActivation.enabled && fallbackActivation.reason) {
+      const excludeIds = new Set([
+        ...results.map((r) => r.vacancyId),
+        ...weakResults.map((r) => r.vacancyId),
+      ])
+      const fallbackResults = rankVacanciesByKeywordFallback({
+        query,
+        vacancies: allDocs as KeywordFallbackVacancyInput[],
+        excludeVacancyIds: excludeIds,
+        limit,
+      })
+      fallback = {
+        enabled: true,
+        reason: fallbackActivation.reason,
+        results: fallbackResults,
+      }
+    }
 
     const byId = new Map<string, (typeof docs)[number]>()
     for (const d of docs) {
@@ -98,6 +152,9 @@ export async function GET(request: NextRequest) {
       semantic: true,
       count: results.length,
       results,
+      stats,
+      ...(weakSemantic ? { weakSemantic } : {}),
+      ...(fallback ? { fallback } : {}),
       ...(concepts.length > 0 ? { concepts, conceptExplanation } : {}),
     }
     return NextResponse.json(body, { status: 200 })

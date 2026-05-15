@@ -6,6 +6,7 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { updateResumeAction } from "@/app/actions/employee";
+import { parseSafeExternalUrl } from "@/lib/vacancy-detail-display";
 import Link from "next/link";
 
 interface EditResumePageProps {
@@ -23,6 +24,8 @@ export default async function EditResumePage({ params }: EditResumePageProps) {
   await dbConnect();
   const resume = await Resume.findOne({ _id: id, userId: session.user.id }).lean() as any;
   if (!resume) notFound();
+
+  const cvFileLink = parseSafeExternalUrl(resume.cvFile);
 
   return (
     <div className="max-w-2xl mx-auto space-y-8">
@@ -69,11 +72,11 @@ export default async function EditResumePage({ params }: EditResumePageProps) {
             <div className="space-y-2">
               <label htmlFor="cvFile" className="text-sm font-medium">Upload CV (PDF)</label>
               <Input id="cvFile" name="cvFile" type="file" accept=".pdf" />
-              {resume.cvFile && (
+              {cvFileLink ? (
                 <p className="text-xs text-muted-foreground mt-1">
-                  Current file: <a href={resume.cvFile} target="_blank" rel="noopener noreferrer" className="text-primary hover:underline">View current CV</a>
+                  Current file: <a href={cvFileLink.href} target="_blank" rel="noopener noreferrer" className="text-primary hover:underline">View current CV</a>
                 </p>
-              )}
+              ) : null}
             </div>
 
             <div className="grid grid-cols-1 md:grid-cols-2 gap-4">

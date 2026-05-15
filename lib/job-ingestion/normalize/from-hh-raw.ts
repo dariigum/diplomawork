@@ -1,3 +1,4 @@
+import { formatEmployerName } from '@/lib/format-employer-name'
 import type { NormalizedVacancyInput } from '../types/normalized-vacancy'
 import type { RawHHVacancy } from '../types/raw-hh'
 import { detectRemoteFromText } from './detect-remote'
@@ -62,7 +63,7 @@ export function buildHhDescriptionForNormalization(
  */
 export function normalizeRawHhVacancy(raw: RawHHVacancy, now: Date = new Date()): NormalizedVacancyInput {
   const title = (raw.name ?? '').trim() || 'Untitled vacancy'
-  const company = raw.employer?.name?.trim() || 'Unknown employer'
+  const company = formatEmployerName(raw.employer)
   const location = pickLocation(raw)
   const description = buildHhDescriptionForNormalization(raw, title, company, location)
   const scheduleName = raw.schedule?.name ?? ''

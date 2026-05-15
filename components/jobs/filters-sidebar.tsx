@@ -65,7 +65,7 @@ export function FiltersSidebar({ onFiltersChange, filters, locationOptions = [],
   return (
     <aside className="w-full lg:w-80 bg-card rounded-xl border border-border p-5 h-fit sticky top-6">
       <div className="flex items-center justify-between mb-5">
-        <h2 className="font-semibold text-lg text-foreground">Filters</h2>
+        <h2 className="font-semibold text-lg text-foreground">Catalog filters</h2>
         {activeFiltersCount > 0 && (
           <Button
             variant="ghost"

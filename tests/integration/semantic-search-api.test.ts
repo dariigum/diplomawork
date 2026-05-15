@@ -8,6 +8,9 @@ import { afterAll, beforeAll, beforeEach, describe, expect, it, vi } from 'vites
 import { User, Vacancy } from '@/lib/db/schema'
 import { getEmbedding } from '@/lib/ml'
 import {
+  isSemanticRetrievalStats,
+  isSemanticSearchApiFallback,
+  isSemanticSearchApiWeakSemantic,
   isSemanticSearchApiSuccessBody,
   type SemanticSearchApiErrorBody,
   type SemanticSearchApiSuccessBody,
@@ -133,6 +136,10 @@ describe('GET /api/jobs/semantic-search', () => {
     expect(body.count).toBe(0)
     expect(body.results).toEqual([])
     expect(body.concepts).toBeUndefined()
+    expect(isSemanticRetrievalStats(body.stats)).toBe(true)
+    expect(body.stats.compatibleEmbeddings).toBe(0)
+    expect(body.stats.topSemanticScore).toBeNull()
+    expect(body.stats.bandCounts).toEqual({ strong: 0, solid: 0, related: 0, loose: 0 })
   })
 
   it('returns 200 with ranked matches, stable contract, and finite scores in (0,1]', async () => {
@@ -199,6 +206,17 @@ describe('GET /api/jobs/semantic-search', () => {
     const conceptKeys = new Set(body.concepts!.map((c) => c.concept))
     expect(conceptKeys.has('python')).toBe(true)
     expect(conceptKeys.has('docker')).toBe(true)
+
+    expect(isSemanticRetrievalStats(body.stats)).toBe(true)
+    expect(body.stats.checkedEmbeddings).toBeGreaterThanOrEqual(2)
+    expect(body.stats.compatibleEmbeddings).toBe(2)
+    expect(body.stats.topSemanticScore).toBe(body.results[0]!.semanticScore)
+    expect(body.stats.bandCounts.strong).toBe(2)
+    expect(body.stats.bandCounts.solid).toBe(0)
+    expect(body.stats.bandCounts.related).toBe(0)
+    expect(body.stats.bandCounts.loose).toBe(0)
+    expect(body.fallback).toBeUndefined()
+    expect(body.weakSemantic).toBeUndefined()
   })
 
   it('returns deterministic ordering for repeated GET with same fixtures', async () => {
@@ -261,5 +279,127 @@ describe('GET /api/jobs/semantic-search', () => {
     const body = (await res.json()) as SemanticSearchApiSuccessBody
     expect(body.count).toBe(1)
     expect(body.results[0]!.title).toBe('Good dim')
+    expect(body.stats.checkedEmbeddings).toBe(2)
+    expect(body.stats.compatibleEmbeddings).toBe(1)
+    expect(body.stats.topSemanticScore).toBe(body.results[0]!.semanticScore)
+  })
+
+  it('includes stats on every 200 success body validated by type guard', async () => {
+    mockedGetEmbedding.mockResolvedValue(emb8(3))
+    const employer = await User.create({
+      email: 'e5@t.dev',
+      passwordHash: 'x',
+      name: 'Stats Co',
+      role: 'EMPLOYER',
+    })
+    await Vacancy.create({
+      employerId: employer._id,
+      title: 'Loose match',
+      description: 'd',
+      skillsRequired: 's',
+      salaryMin: 1,
+      salaryMax: 2,
+      embedding: emb8(4),
+    })
+
+    const res = await GET(req('http://localhost/api/jobs/semantic-search?q=partial'))
+    expect(res.status).toBe(200)
+    const body = (await res.json()) as SemanticSearchApiSuccessBody
+    expect(isSemanticSearchApiSuccessBody(body)).toBe(true)
+    expect(body.stats.checkedEmbeddings).toBe(1)
+    if (body.count > 0) {
+      expect(body.stats.topSemanticScore).not.toBeNull()
+    } else {
+      expect(body.stats.topSemanticScore).toBeNull()
+    }
+  })
+
+  it('returns keyword fallback when semantic results are empty but text overlaps', async () => {
+    mockedGetEmbedding.mockResolvedValue(emb8(0))
+    const employer = await User.create({
+      email: 'e6@t.dev',
+      passwordHash: 'x',
+      name: 'Text Co',
+      role: 'EMPLOYER',
+    })
+    await Vacancy.create({
+      employerId: employer._id,
+      title: 'Python Backend Engineer',
+      description: 'backend APIs',
+      skillsRequired: 'Python, Django',
+      salaryMin: 1,
+      salaryMax: 2,
+    })
+
+    const res = await GET(req('http://localhost/api/jobs/semantic-search?q=python+backend'))
+    expect(res.status).toBe(200)
+    const body = (await res.json()) as SemanticSearchApiSuccessBody
+    expect(body.count).toBe(0)
+    expect(body.fallback).toBeDefined()
+    expect(isSemanticSearchApiFallback(body.fallback)).toBe(true)
+    expect(body.fallback!.enabled).toBe(true)
+    expect(['No strong semantic matches', 'Sparse embedding overlap']).toContain(body.fallback!.reason)
+    expect(body.fallback!.results.length).toBeGreaterThan(0)
+    const item = body.fallback!.results[0]!
+    expect(item).not.toHaveProperty('semanticScore')
+    expect(typeof item.textScore).toBe('number')
+    expect(item.explanation.toLowerCase()).toContain('text overlap')
+  })
+
+  it('omits fallback when top semantic score is at related band or higher', async () => {
+    mockedGetEmbedding.mockResolvedValue(emb8(0))
+    const employer = await User.create({
+      email: 'e7@t.dev',
+      passwordHash: 'x',
+      name: 'Strong',
+      role: 'EMPLOYER',
+    })
+    await Vacancy.create({
+      employerId: employer._id,
+      title: 'Exact',
+      description: 'd',
+      skillsRequired: 's',
+      salaryMin: 1,
+      salaryMax: 2,
+      embedding: emb8(0),
+    })
+
+    const res = await GET(req('http://localhost/api/jobs/semantic-search?q=exact'))
+    expect(res.status).toBe(200)
+    const body = (await res.json()) as SemanticSearchApiSuccessBody
+    expect(body.count).toBe(1)
+    expect(body.stats.topSemanticScore).toBeGreaterThanOrEqual(0.35)
+    expect(body.fallback).toBeUndefined()
+    expect(body.weakSemantic).toBeUndefined()
+  })
+
+  it('returns weakSemantic for loose-band embedding matches', async () => {
+    mockedGetEmbedding.mockResolvedValue([1, 0, 0, 0, 0, 0, 0, 0])
+    const employer = await User.create({
+      email: 'e8@t.dev',
+      passwordHash: 'x',
+      name: 'Loose Co',
+      role: 'EMPLOYER',
+    })
+    const loose = [-0.6, 0.8, 0, 0, 0, 0, 0, 0]
+    await Vacancy.create({
+      employerId: employer._id,
+      title: 'Distant role',
+      description: 'd',
+      skillsRequired: 's',
+      salaryMin: 1,
+      salaryMax: 2,
+      embedding: loose,
+    })
+
+    const res = await GET(req('http://localhost/api/jobs/semantic-search?q=engineer'))
+    expect(res.status).toBe(200)
+    const body = (await res.json()) as SemanticSearchApiSuccessBody
+    expect(body.count).toBe(0)
+    expect(body.weakSemantic).toBeDefined()
+    expect(isSemanticSearchApiWeakSemantic(body.weakSemantic)).toBe(true)
+    expect(body.weakSemantic!.results.length).toBeGreaterThan(0)
+    expect(body.weakSemantic!.results[0]!.semanticScore).toBeLessThan(0.35)
+    expect(body.weakSemantic!.results.length).toBeLessThanOrEqual(6)
   })
 })

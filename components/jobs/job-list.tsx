@@ -1,8 +1,7 @@
 "use client"
 
 import { useState } from "react"
-import { ArrowUpDown, Grid3X3, List } from "lucide-react"
-import { Button } from "@/components/ui/button"
+import { ArrowUpDown } from "lucide-react"
 import {
   Select,
   SelectContent,
@@ -25,7 +24,6 @@ type SortOption = "newest" | "salary-high" | "salary-low" | "relevance"
 
 export function JobList({ jobs, savedJobs, onSaveJob, canApply }: JobListProps) {
   const [sortBy, setSortBy] = useState<SortOption>("newest")
-  const [viewMode, setViewMode] = useState<"list" | "grid">("list")
   const [selectedJob, setSelectedJob] = useState<Job | null>(null)
   const [isApplyModalOpen, setIsApplyModalOpen] = useState(false)
 
@@ -78,39 +76,12 @@ export function JobList({ jobs, savedJobs, onSaveJob, canApply }: JobListProps) 
             </SelectContent>
           </Select>
 
-          {/* View Toggle */}
-          <div className="flex items-center border border-border rounded-lg overflow-hidden">
-            <Button
-              variant={viewMode === "list" ? "secondary" : "ghost"}
-              size="icon"
-              className="h-9 w-9 rounded-none"
-              onClick={() => setViewMode("list")}
-            >
-              <List className="h-4 w-4" />
-              <span className="sr-only">List view</span>
-            </Button>
-            <Button
-              variant={viewMode === "grid" ? "secondary" : "ghost"}
-              size="icon"
-              className="h-9 w-9 rounded-none"
-              onClick={() => setViewMode("grid")}
-            >
-              <Grid3X3 className="h-4 w-4" />
-              <span className="sr-only">Grid view</span>
-            </Button>
-          </div>
         </div>
       </div>
 
       {/* Job Cards */}
       {sortedJobs.length > 0 ? (
-        <div
-          className={
-            viewMode === "grid"
-              ? "grid grid-cols-1 xl:grid-cols-2 gap-4"
-              : "flex flex-col gap-4"
-          }
-        >
+        <div className="flex flex-col gap-4">
           {sortedJobs.map((job) => (
             <JobCard
               key={job.id}

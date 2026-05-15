@@ -5,6 +5,7 @@ import { MapPin, Clock, Briefcase, Heart, ExternalLink, Wifi } from "lucide-reac
 import { Button } from "@/components/ui/button"
 import { Badge } from "@/components/ui/badge"
 import { Card, CardContent } from "@/components/ui/card"
+import { SALARY_NOT_SPECIFIED_LABEL } from "@/lib/format-vacancy-salary"
 import { cn } from "@/lib/utils"
 import type { Job } from "@/lib/job-data"
 
@@ -44,11 +45,16 @@ export function JobCard({ job, onApply, onSave, isSaved, canApply }: JobCardProp
           {/* Job Info */}
           <div className="flex-1 min-w-0">
             <div className="flex items-start justify-between gap-4">
-              <div>
-                <h3 className="font-semibold text-lg text-foreground transition-colors line-clamp-1">
+              <div className="min-w-0 flex-1 pr-1">
+                <h3
+                  className="line-clamp-1 font-semibold text-lg text-foreground transition-colors"
+                  title={job.title}
+                >
                   {job.title}
                 </h3>
-                <p className="text-muted-foreground text-sm mt-0.5">{job.company}</p>
+                <p className="mt-0.5 truncate text-sm text-muted-foreground" title={job.company}>
+                  {job.company}
+                </p>
               </div>
               
               {/* Save Button */}
@@ -70,18 +76,24 @@ export function JobCard({ job, onApply, onSave, isSaved, canApply }: JobCardProp
             </div>
 
             {/* Job Meta */}
-            <div className="flex flex-wrap items-center gap-x-4 gap-y-2 mt-3 text-sm text-muted-foreground">
-              <div className="flex items-center gap-1.5">
-                <MapPin className="h-4 w-4" />
-                <span>{job.location}</span>
+            <div className="mt-3 flex min-w-0 flex-wrap items-center gap-x-4 gap-y-2 text-sm text-muted-foreground">
+              <div className="flex min-w-0 max-w-full items-center gap-1.5">
+                <MapPin className="h-4 w-4 shrink-0" aria-hidden />
+                <span className="truncate" title={job.location}>
+                  {job.location}
+                </span>
               </div>
-              <div className="flex items-center gap-1.5">
-                <Briefcase className="h-4 w-4" />
-                <span>{job.employmentType}</span>
+              <div className="flex min-w-0 max-w-full items-center gap-1.5">
+                <Briefcase className="h-4 w-4 shrink-0" aria-hidden />
+                <span className="truncate" title={job.employmentType}>
+                  {job.employmentType}
+                </span>
               </div>
-              <div className="flex items-center gap-1.5">
-                <Clock className="h-4 w-4" />
-                <span>{job.experience}</span>
+              <div className="flex min-w-0 max-w-full items-center gap-1.5">
+                <Clock className="h-4 w-4 shrink-0" aria-hidden />
+                <span className="truncate" title={job.experience}>
+                  {job.experience}
+                </span>
               </div>
               {job.isRemote && (
                 <span className="inline-flex items-center gap-1 rounded-md border border-border/60 bg-muted/60 px-2 py-0.5 text-xs font-medium text-muted-foreground">
@@ -92,7 +104,21 @@ export function JobCard({ job, onApply, onSave, isSaved, canApply }: JobCardProp
             </div>
 
             {/* Salary */}
-            <p className="text-foreground font-semibold mt-3">{job.salary}</p>
+            <div className="mt-3 flex min-w-0 flex-wrap items-baseline gap-x-1.5 gap-y-0.5">
+              {job.salary !== SALARY_NOT_SPECIFIED_LABEL ? (
+                <span className="text-xs text-muted-foreground sm:text-sm">Salary</span>
+              ) : null}
+              <span
+                className={cn(
+                  "text-sm leading-snug",
+                  job.salary === SALARY_NOT_SPECIFIED_LABEL
+                    ? "font-medium text-muted-foreground"
+                    : "font-semibold text-foreground tabular-nums",
+                )}
+              >
+                {job.salary}
+              </span>
+            </div>
 
             {/* Skills */}
             <div className="flex flex-wrap gap-2 mt-4">

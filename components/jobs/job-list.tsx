@@ -55,18 +55,18 @@ export function JobList({ jobs, savedJobs, onSaveJob, canApply }: JobListProps) 
   return (
     <div className="flex-1">
       {/* Header */}
-      <div className="flex items-center justify-between mb-6">
-        <div>
+      <div className="mb-6 flex min-w-0 flex-col gap-4 sm:flex-row sm:items-center sm:justify-between sm:gap-3">
+        <div className="min-w-0">
           <h1 className="text-2xl font-bold text-foreground">Browse all vacancies</h1>
-          <p className="text-muted-foreground mt-1">
+          <p className="mt-1 text-muted-foreground">
             {jobs.length} {jobs.length === 1 ? "job" : "jobs"} found
           </p>
         </div>
 
-        <div className="flex items-center gap-3">
+        <div className="flex min-w-0 flex-wrap items-center gap-2 sm:shrink-0 sm:justify-end sm:gap-3">
           {/* Sort */}
           <Select value={sortBy} onValueChange={(value) => setSortBy(value as SortOption)}>
-            <SelectTrigger className="w-44 bg-card border-border">
+            <SelectTrigger className="h-9 w-full min-w-[11rem] bg-card border-border sm:w-44">
               <ArrowUpDown className="h-4 w-4 mr-2 text-muted-foreground" />
               <SelectValue placeholder="Sort by" />
             </SelectTrigger>

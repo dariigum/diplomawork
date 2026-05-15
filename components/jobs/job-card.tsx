@@ -113,20 +113,20 @@ export function JobCard({ job, onApply, onSave, isSaved, canApply }: JobCardProp
             </div>
 
             {/* Description */}
-            <p className="text-sm text-muted-foreground mt-3 line-clamp-2">
+            <p className="mt-3 text-sm leading-snug text-muted-foreground line-clamp-2 sm:line-clamp-1">
               {job.description}
             </p>
 
             {/* Footer */}
-            <div className="flex items-center justify-between mt-4 pt-4 border-t border-border">
-              <span className="text-xs text-muted-foreground">{job.postedAt}</span>
-              
-              <div className="flex items-center gap-2">
-                <Link href={`/jobs/${job.id}`}>
+            <div className="mt-4 flex flex-col gap-3 border-t border-border pt-4 sm:flex-row sm:items-center sm:justify-between">
+              <span className="shrink-0 text-xs text-muted-foreground">{job.postedAt}</span>
+
+              <div className="flex w-full min-w-0 flex-col gap-2 sm:w-auto sm:flex-row sm:items-center sm:justify-end">
+                <Link href={`/jobs/${job.id}`} className="w-full sm:w-auto">
                   <Button
                     variant="outline"
                     size="sm"
-                    className="h-9 gap-1.5 text-muted-foreground hover:text-foreground"
+                    className="h-9 w-full gap-1.5 text-muted-foreground hover:text-foreground sm:w-auto"
                   >
                     <ExternalLink className="h-4 w-4" />
                     Details
@@ -135,7 +135,7 @@ export function JobCard({ job, onApply, onSave, isSaved, canApply }: JobCardProp
                 {canApply && (
                   <Button
                     size="sm"
-                    className="h-9 px-5 bg-primary text-primary-foreground hover:bg-primary/90"
+                    className="h-9 w-full bg-primary px-5 text-primary-foreground hover:bg-primary/90 sm:w-auto"
                     onClick={(e) => {
                       e.stopPropagation()
                       onApply(job)

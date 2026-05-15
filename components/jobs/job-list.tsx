@@ -57,7 +57,7 @@ export function JobList({ jobs, savedJobs, onSaveJob, canApply }: JobListProps) 
       {/* Header */}
       <div className="flex items-center justify-between mb-6">
         <div>
-          <h1 className="text-2xl font-bold text-foreground">Job Vacancies</h1>
+          <h1 className="text-2xl font-bold text-foreground">Browse all vacancies</h1>
           <p className="text-muted-foreground mt-1">
             {jobs.length} {jobs.length === 1 ? "job" : "jobs"} found
           </p>

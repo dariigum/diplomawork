@@ -640,6 +640,7 @@ export function SemanticJobSearchPanel() {
           <h2 className="text-sm font-semibold text-foreground tracking-tight">Search by meaning</h2>
           <span className="text-xs sm:text-[11px] text-muted-foreground">Separate from recommendations</span>
         </div>
+        <p className={`${TEXT_SECONDARY_MUTED}`}>Independent from catalog filters below.</p>
 
         <div className="flex gap-2">
           <div className="relative flex-1 min-w-0">

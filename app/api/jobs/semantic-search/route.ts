@@ -9,6 +9,7 @@ import {
 } from '@/lib/semantic-keyword-fallback'
 import {
   rankVacanciesBySemanticQueryFromEmbeddingWithStats,
+  resolveWeakSemanticActivation,
   type SemanticVacancyInput,
 } from '@/lib/semantic-job-search'
 import type { SemanticSearchApiErrorBody, SemanticSearchApiSuccessBody } from '@/lib/semantic-search-api-types'
@@ -77,11 +78,26 @@ export async function GET(request: NextRequest) {
 
     const docs = semanticDocs
 
-    const { results, stats } = rankVacanciesBySemanticQueryFromEmbeddingWithStats({
+    const { results, weakResults, stats } = rankVacanciesBySemanticQueryFromEmbeddingWithStats({
       queryEmbedding,
       vacancies: docs as SemanticVacancyInput[],
       limit,
     })
+
+    const weakActivation = resolveWeakSemanticActivation({
+      primaryCount: results.length,
+      weakCandidateCount: weakResults.length,
+      topSemanticScore: stats.topSemanticScore,
+    })
+
+    let weakSemantic: SemanticSearchApiSuccessBody['weakSemantic']
+    if (weakActivation.enabled && weakActivation.reason && weakResults.length > 0) {
+      weakSemantic = {
+        enabled: true,
+        reason: weakActivation.reason,
+        results: weakResults,
+      }
+    }
 
     const fallbackActivation = resolveKeywordFallbackActivation({
       semanticCount: results.length,
@@ -92,7 +108,10 @@ export async function GET(request: NextRequest) {
 
     let fallback: SemanticSearchApiSuccessBody['fallback']
     if (fallbackActivation.enabled && fallbackActivation.reason) {
-      const excludeIds = new Set(results.map((r) => r.vacancyId))
+      const excludeIds = new Set([
+        ...results.map((r) => r.vacancyId),
+        ...weakResults.map((r) => r.vacancyId),
+      ])
       const fallbackResults = rankVacanciesByKeywordFallback({
         query,
         vacancies: allDocs as KeywordFallbackVacancyInput[],
@@ -134,6 +153,7 @@ export async function GET(request: NextRequest) {
       count: results.length,
       results,
       stats,
+      ...(weakSemantic ? { weakSemantic } : {}),
       ...(fallback ? { fallback } : {}),
       ...(concepts.length > 0 ? { concepts, conceptExplanation } : {}),
     }

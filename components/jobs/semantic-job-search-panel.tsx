@@ -2,25 +2,29 @@
 
 import { useCallback, useEffect, useMemo, useRef, useState } from "react"
 import Link from "next/link"
-import { BrainCircuit, FileText, Loader2, MapPin, RefreshCw, Search, Sparkles, Briefcase } from "lucide-react"
+import { BrainCircuit, ChevronDown, FileText, Loader2, MapPin, RefreshCw, Search, Sparkles, Briefcase } from "lucide-react"
 import { Badge } from "@/components/ui/badge"
 import { Button } from "@/components/ui/button"
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
 import { Input } from "@/components/ui/input"
 import { Progress } from "@/components/ui/progress"
 import { Skeleton } from "@/components/ui/skeleton"
-import { semanticMatchStrengthLabel } from "@/lib/semantic-score-bands"
+import { Collapsible, CollapsibleContent, CollapsibleTrigger } from "@/components/ui/collapsible"
+import { semanticMatchStrengthLabel, weakSemanticTierLabel } from "@/lib/semantic-score-bands"
 import {
   isSemanticSearchApiSuccessBody,
   type SemanticSearchApiErrorBody,
   type SemanticSearchApiResultItem,
   type SemanticSearchConceptItem,
   type SemanticSearchApiFallbackItem,
+  type SemanticSearchApiWeakSemanticItem,
   type SemanticSearchApiSuccessBody,
 } from "@/lib/semantic-search-api-types"
 
 const DEBOUNCE_MS = 380
 const FETCH_LIMIT = 24
+const FALLBACK_SECTION_ID = "semantic-keyword-fallback-section"
+const WEAK_SEMANTIC_SECTION_ID = "semantic-weak-recovery-section"
 
 function scoreToPercent(score: number): number {
   if (!Number.isFinite(score)) return 0
@@ -41,6 +45,7 @@ function formatConceptDisplay(raw: string, maxLen: number): string {
 
 type PanelStats = SemanticSearchApiSuccessBody["stats"]
 type PanelFallback = SemanticSearchApiSuccessBody["fallback"]
+type PanelWeakSemantic = SemanticSearchApiSuccessBody["weakSemantic"]
 
 type PanelState =
   | { kind: "idle" }
@@ -52,12 +57,11 @@ type PanelState =
       concepts: SemanticSearchConceptItem[]
       conceptExplanation: string
       stats: PanelStats
+      weakSemantic?: PanelWeakSemantic
       fallback?: PanelFallback
     }
   | { kind: "unavailable"; query: string; message: string }
   | { kind: "error"; query: string; message: string }
-
-const FALLBACK_SECTION_ID = "semantic-keyword-fallback-section"
 
 function formatSemanticScore(score: number): string {
   return score.toFixed(2)
@@ -204,6 +208,61 @@ function KeywordFallbackSection({
   )
 }
 
+function WeakSemanticRecoverySection({
+  results,
+  reason,
+}: {
+  results: SemanticSearchApiWeakSemanticItem[]
+  reason: string
+}) {
+  if (results.length === 0) return null
+
+  return (
+    <Collapsible id={WEAK_SEMANTIC_SECTION_ID} defaultOpen={false} className="rounded-lg border border-border/60 bg-muted/10">
+      <CollapsibleTrigger className="flex w-full items-center justify-between gap-2 px-3 py-2.5 text-left text-sm hover:bg-muted/20 rounded-lg [&[data-state=open]>svg]:rotate-180">
+        <span className="font-medium text-foreground">
+          Loose semantic matches <span className="font-normal text-muted-foreground">(low confidence)</span>
+        </span>
+        <ChevronDown className="h-4 w-4 shrink-0 text-muted-foreground transition-transform" />
+      </CollapsibleTrigger>
+      <CollapsibleContent className="px-3 pb-3 space-y-2">
+        <p className="text-xs text-muted-foreground leading-relaxed">
+          {reason}. Approximate embedding relations — expand only if you want lower-confidence semantic candidates.
+        </p>
+        <ul className="grid gap-2 sm:grid-cols-2 list-none m-0 p-0">
+          {results.map((r) => (
+            <li key={r.vacancyId}>
+              <Card className="h-full border-border/50 bg-background/85 shadow-none">
+                <CardHeader className="py-2.5 px-3 pb-1.5 space-y-1">
+                  <div className="flex flex-wrap items-start justify-between gap-2">
+                    <CardTitle className="text-sm leading-snug font-medium">
+                      <Link href={`/jobs/${r.vacancyId}`} className="hover:underline underline-offset-2">
+                        {r.title}
+                      </Link>
+                    </CardTitle>
+                    <Badge variant="outline" className="shrink-0 text-[10px] font-normal text-muted-foreground">
+                      {weakSemanticTierLabel(r.semanticScore)}
+                    </Badge>
+                  </div>
+                  <p className="text-[11px] text-muted-foreground">
+                    {r.company} · {r.location}
+                  </p>
+                </CardHeader>
+                <CardContent className="px-3 pb-2.5 pt-0">
+                  <p className="text-[11px] text-muted-foreground leading-relaxed">{r.explanation}</p>
+                  <p className="text-[10px] text-muted-foreground/75 mt-1 tabular-nums">
+                    Semantic score: {r.semanticScore.toFixed(2)} (loose band)
+                  </p>
+                </CardContent>
+              </Card>
+            </li>
+          ))}
+        </ul>
+      </CollapsibleContent>
+    </Collapsible>
+  )
+}
+
 async function readErrorMessage(res: Response): Promise<string> {
   const body = (await res.json().catch(() => null)) as SemanticSearchApiErrorBody | null
   if (body && typeof body.error === "string") return body.error
@@ -268,6 +327,7 @@ export function SemanticJobSearchPanel() {
         concepts: body.concepts ?? [],
         conceptExplanation: body.conceptExplanation ?? "",
         stats: body.stats,
+        weakSemantic: body.weakSemantic,
         fallback: body.fallback,
       })
     } catch (e: unknown) {
@@ -313,9 +373,15 @@ export function SemanticJobSearchPanel() {
 
   const showSemanticResults = panel.kind === "results" && panel.results.length > 0
   const showLoading = panel.kind === "loading"
-  const showEmptySemantic = panel.kind === "results" && panel.results.length === 0
+  const showEmptySemantic =
+    panel.kind === "results" && panel.results.length === 0 && !weakPayload && !fallbackPayload
   const showUnavailable = panel.kind === "unavailable"
   const showError = panel.kind === "error"
+
+  const weakPayload =
+    panel.kind === "results" && panel.weakSemantic?.enabled && panel.weakSemantic.results.length > 0
+      ? panel.weakSemantic
+      : null
 
   const fallbackPayload =
     panel.kind === "results" && panel.fallback?.enabled && panel.fallback.results.length > 0
@@ -327,13 +393,16 @@ export function SemanticJobSearchPanel() {
       if (panel.results.length > 0) {
         return `${panel.results.length} role${panel.results.length === 1 ? "" : "s"} ranked by meaning for "${panel.query}".`
       }
+      if (weakPayload) {
+        return `No strong semantic matches for "${panel.query}" — loose semantic recovery available below.`
+      }
       if (fallbackPayload) {
         return `No embedding-based semantic matches for "${panel.query}" — showing text-based recovery below.`
       }
       return `No semantic matches above the retrieval threshold for "${panel.query}".`
     }
     return null
-  }, [panel, fallbackPayload])
+  }, [panel, weakPayload, fallbackPayload])
 
   const conceptChips = useMemo(() => {
     if (panel.kind !== "results" || panel.results.length === 0) {
@@ -509,11 +578,15 @@ export function SemanticJobSearchPanel() {
           </ul>
         )}
 
+        {weakPayload && panel.kind === "results" && (
+          <WeakSemanticRecoverySection results={weakPayload.results} reason={weakPayload.reason} />
+        )}
+
         {fallbackPayload && panel.kind === "results" && (
           <KeywordFallbackSection
             results={fallbackPayload.results}
             reason={fallbackPayload.reason}
-            primary={panel.results.length === 0}
+            primary={panel.results.length === 0 && !weakPayload}
           />
         )}
 

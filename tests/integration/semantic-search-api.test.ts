@@ -10,6 +10,7 @@ import { getEmbedding } from '@/lib/ml'
 import {
   isSemanticRetrievalStats,
   isSemanticSearchApiFallback,
+  isSemanticSearchApiWeakSemantic,
   isSemanticSearchApiSuccessBody,
   type SemanticSearchApiErrorBody,
   type SemanticSearchApiSuccessBody,
@@ -215,6 +216,7 @@ describe('GET /api/jobs/semantic-search', () => {
     expect(body.stats.bandCounts.related).toBe(0)
     expect(body.stats.bandCounts.loose).toBe(0)
     expect(body.fallback).toBeUndefined()
+    expect(body.weakSemantic).toBeUndefined()
   })
 
   it('returns deterministic ordering for repeated GET with same fixtures', async () => {
@@ -368,5 +370,36 @@ describe('GET /api/jobs/semantic-search', () => {
     expect(body.count).toBe(1)
     expect(body.stats.topSemanticScore).toBeGreaterThanOrEqual(0.35)
     expect(body.fallback).toBeUndefined()
+    expect(body.weakSemantic).toBeUndefined()
+  })
+
+  it('returns weakSemantic for loose-band embedding matches', async () => {
+    mockedGetEmbedding.mockResolvedValue([1, 0, 0, 0, 0, 0, 0, 0])
+    const employer = await User.create({
+      email: 'e8@t.dev',
+      passwordHash: 'x',
+      name: 'Loose Co',
+      role: 'EMPLOYER',
+    })
+    const loose = [-0.6, 0.8, 0, 0, 0, 0, 0, 0]
+    await Vacancy.create({
+      employerId: employer._id,
+      title: 'Distant role',
+      description: 'd',
+      skillsRequired: 's',
+      salaryMin: 1,
+      salaryMax: 2,
+      embedding: loose,
+    })
+
+    const res = await GET(req('http://localhost/api/jobs/semantic-search?q=engineer'))
+    expect(res.status).toBe(200)
+    const body = (await res.json()) as SemanticSearchApiSuccessBody
+    expect(body.count).toBe(0)
+    expect(body.weakSemantic).toBeDefined()
+    expect(isSemanticSearchApiWeakSemantic(body.weakSemantic)).toBe(true)
+    expect(body.weakSemantic!.results.length).toBeGreaterThan(0)
+    expect(body.weakSemantic!.results[0]!.semanticScore).toBeLessThan(0.35)
+    expect(body.weakSemantic!.results.length).toBeLessThanOrEqual(6)
   })
 })

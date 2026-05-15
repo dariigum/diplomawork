@@ -3,6 +3,9 @@ import { cosineSimilarity } from '@/lib/recommendation'
 import {
   emptySemanticScoreBandCounts,
   incrementSemanticScoreBandCount,
+  isPrimarySemanticScore,
+  isWeakSemanticScore,
+  SEMANTIC_SCORE_BAND_RELATED,
   semanticScoreBand,
   type SemanticScoreBand,
   type SemanticScoreBandCounts,
@@ -12,11 +15,21 @@ export {
   SEMANTIC_SCORE_BAND_RELATED,
   SEMANTIC_SCORE_BAND_SOLID,
   SEMANTIC_SCORE_BAND_STRONG,
+  isPrimarySemanticScore,
+  isWeakSemanticScore,
   semanticMatchStrengthLabel,
   semanticScoreBand,
+  weakSemanticTierLabel,
   type SemanticScoreBand,
   type SemanticScoreBandCounts,
 } from '@/lib/semantic-score-bands'
+
+/** Max weak semantic candidates surfaced in recovery (loose band only). */
+export const WEAK_SEMANTIC_RECOVERY_LIMIT = 6
+
+export type WeakSemanticRecoveryReason =
+  | 'Only low-confidence semantic relations were found'
+  | 'Semantic overlap is weak for this query'
 
 /**
  * Minimal vacancy shape for semantic ranking (e.g. Mongoose lean docs).
@@ -128,8 +141,50 @@ export type SemanticRetrievalStats = {
 }
 
 export type RankVacanciesBySemanticQueryFromEmbeddingResult = {
+  /** Related band and above (semanticScore >= 0.35). */
   results: SemanticJobSearchRankedItem[]
+  /** Loose band only (0 < semanticScore < 0.35), capped — separate from `results`. */
+  weakResults: SemanticJobSearchRankedItem[]
   stats: SemanticRetrievalStats
+}
+
+export type WeakSemanticActivation = {
+  enabled: boolean
+  reason: WeakSemanticRecoveryReason | null
+}
+
+/**
+ * Honest copy for weak-recovery rows (embedding cosine, explicitly low confidence).
+ */
+export function buildWeakSemanticSearchExplanation(params: { semanticScore: number }): string {
+  const s = params.semanticScore
+  const scoreNote = Number.isFinite(s) ? ` (${s.toFixed(2)} on the 0–1 cosine scale)` : ''
+  return `Approximate semantic relation from embedding cosine similarity${scoreNote} — low confidence, not a strong or related semantic match.`
+}
+
+/**
+ * Surface weak semantic recovery when only loose relations exist or top score is below related band.
+ */
+export function resolveWeakSemanticActivation(params: {
+  primaryCount: number
+  weakCandidateCount: number
+  topSemanticScore: number | null
+}): WeakSemanticActivation {
+  if (params.weakCandidateCount <= 0) {
+    return { enabled: false, reason: null }
+  }
+
+  const top = params.topSemanticScore
+  const belowRelated = top === null || top < SEMANTIC_SCORE_BAND_RELATED
+  if (!belowRelated && params.primaryCount > 0) {
+    return { enabled: false, reason: null }
+  }
+
+  if (params.primaryCount === 0) {
+    return { enabled: true, reason: 'Only low-confidence semantic relations were found' }
+  }
+
+  return { enabled: true, reason: 'Semantic overlap is weak for this query' }
 }
 
 function emptySemanticRetrievalStats(): SemanticRetrievalStats {
@@ -160,14 +215,14 @@ export function rankVacanciesBySemanticQueryFromEmbeddingWithStats(
 ): RankVacanciesBySemanticQueryFromEmbeddingResult {
   const queryEmbedding = params.queryEmbedding
   if (!Array.isArray(queryEmbedding) || queryEmbedding.length === 0) {
-    return { results: [], stats: emptySemanticRetrievalStats() }
+    return { results: [], weakResults: [], stats: emptySemanticRetrievalStats() }
   }
 
   const queryDim = queryEmbedding.length
   for (let i = 0; i < queryDim; i++) {
     const v = queryEmbedding[i]
     if (typeof v !== 'number' || !Number.isFinite(v)) {
-      return { results: [], stats: emptySemanticRetrievalStats() }
+      return { results: [], weakResults: [], stats: emptySemanticRetrievalStats() }
     }
   }
 
@@ -227,8 +282,18 @@ export function rankVacanciesBySemanticQueryFromEmbeddingWithStats(
     bandCounts,
   }
 
+  const primaryRows = rows.filter((r) => isPrimarySemanticScore(r.semanticScore))
+  const looseRows = rows
+    .filter((r) => isWeakSemanticScore(r.semanticScore))
+    .slice(0, WEAK_SEMANTIC_RECOVERY_LIMIT)
+    .map((r) => ({
+      ...r,
+      explanation: buildWeakSemanticSearchExplanation({ semanticScore: r.semanticScore }),
+    }))
+
   return {
-    results: applyResultLimit(rows, params.limit),
+    results: applyResultLimit(primaryRows, params.limit),
+    weakResults: looseRows,
     stats,
   }
 }

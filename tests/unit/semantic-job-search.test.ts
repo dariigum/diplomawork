@@ -4,10 +4,13 @@ import {
   rankVacanciesBySemanticQuery,
   rankVacanciesBySemanticQueryFromEmbedding,
   rankVacanciesBySemanticQueryFromEmbeddingWithStats,
+  resolveWeakSemanticActivation,
+  WEAK_SEMANTIC_RECOVERY_LIMIT,
   semanticMatchStrengthLabel,
   semanticScoreBand,
   type SemanticVacancyInput,
 } from '@/lib/semantic-job-search'
+import { SEMANTIC_SCORE_BAND_RELATED } from '@/lib/semantic-score-bands'
 
 vi.mock('@/lib/ml', () => ({
   getEmbedding: vi.fn(),
@@ -196,6 +199,7 @@ describe('semantic-job-search', () => {
         vacancies: [{ _id: 'a', embedding: [1, 0] }],
       })
       expect(out.results).toEqual([])
+      expect(out.weakResults).toEqual([])
       expect(out.stats).toEqual({
         checkedEmbeddings: 0,
         compatibleEmbeddings: 0,
@@ -213,17 +217,36 @@ describe('semantic-job-search', () => {
         { _id: 'related', title: 'R', embedding: embUnit(4, 2) },
         { _id: 'zero', title: 'Z', embedding: embUnit(4, 1) },
       ]
-      const { results, stats } = rankVacanciesBySemanticQueryFromEmbeddingWithStats({
+      const { results, weakResults, stats } = rankVacanciesBySemanticQueryFromEmbeddingWithStats({
         queryEmbedding: q,
         vacancies,
       })
       expect(stats.checkedEmbeddings).toBe(5)
       expect(stats.compatibleEmbeddings).toBe(3)
-      expect(stats.topSemanticScore).toBe(results[0]?.semanticScore ?? null)
+      expect(stats.topSemanticScore).not.toBeNull()
       expect(stats.bandCounts.strong).toBeGreaterThanOrEqual(1)
-      expect(stats.bandCounts.strong + stats.bandCounts.solid + stats.bandCounts.related + stats.bandCounts.loose).toBe(
-        results.length,
-      )
+      for (const r of results) {
+        expect(r.semanticScore).toBeGreaterThanOrEqual(SEMANTIC_SCORE_BAND_RELATED)
+      }
+      for (const r of weakResults) {
+        expect(r.semanticScore).toBeGreaterThan(0)
+        expect(r.semanticScore).toBeLessThan(SEMANTIC_SCORE_BAND_RELATED)
+        expect(r.explanation.toLowerCase()).toContain('low confidence')
+      }
+      expect(weakResults.length).toBeLessThanOrEqual(WEAK_SEMANTIC_RECOVERY_LIMIT)
+    })
+
+    it('places loose-band matches in weakResults, not primary results', () => {
+      const q = [1, 0]
+      // Raw cosine -0.6 maps to (cos+1)/2 = 0.2 on the project 0–1 scale.
+      const weakEmb = [-0.6, 0.8]
+      const { results, weakResults } = rankVacanciesBySemanticQueryFromEmbeddingWithStats({
+        queryEmbedding: q,
+        vacancies: [{ _id: 'w', title: 'Weak', embedding: weakEmb }],
+      })
+      expect(results).toHaveLength(0)
+      expect(weakResults).toHaveLength(1)
+      expect(weakResults[0]!.semanticScore).toBeCloseTo(0.2, 5)
     })
 
     it('keeps band counts on full ranked set while limit only trims results', () => {
@@ -242,6 +265,28 @@ describe('semantic-job-search', () => {
       expect(limited.results).toHaveLength(1)
       expect(limited.stats.bandCounts).toEqual(full.stats.bandCounts)
       expect(limited.stats.topSemanticScore).toBe(full.stats.topSemanticScore)
+    })
+  })
+
+  describe('resolveWeakSemanticActivation', () => {
+    it('enables when only loose candidates exist', () => {
+      expect(
+        resolveWeakSemanticActivation({
+          primaryCount: 0,
+          weakCandidateCount: 2,
+          topSemanticScore: 0.2,
+        }),
+      ).toEqual({ enabled: true, reason: 'Only low-confidence semantic relations were found' })
+    })
+
+    it('disables when primary related matches exist', () => {
+      expect(
+        resolveWeakSemanticActivation({
+          primaryCount: 1,
+          weakCandidateCount: 1,
+          topSemanticScore: 0.5,
+        }),
+      ).toEqual({ enabled: false, reason: null })
     })
   })
 

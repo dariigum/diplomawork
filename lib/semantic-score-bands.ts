@@ -38,3 +38,19 @@ export function emptySemanticScoreBandCounts(): SemanticScoreBandCounts {
 export function incrementSemanticScoreBandCount(counts: SemanticScoreBandCounts, band: SemanticScoreBand): void {
   counts[band] += 1
 }
+
+/** Primary semantic retrieval tier (related band and above). */
+export function isPrimarySemanticScore(score: number): boolean {
+  return Number.isFinite(score) && score >= SEMANTIC_SCORE_BAND_RELATED
+}
+
+/** Weak recovery tier: positive cosine below related band. */
+export function isWeakSemanticScore(score: number): boolean {
+  return Number.isFinite(score) && score > 0 && score < SEMANTIC_SCORE_BAND_RELATED
+}
+
+/** Label for weak-recovery UI — low-confidence wording only. */
+export function weakSemanticTierLabel(score: number): string {
+  if (isWeakSemanticScore(score)) return 'Loose semantic overlap'
+  return 'Weak semantic relation'
+}

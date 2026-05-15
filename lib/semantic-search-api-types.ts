@@ -1,4 +1,8 @@
-import type { SemanticJobSearchRankedItem, SemanticRetrievalStats } from '@/lib/semantic-job-search'
+import type {
+  SemanticJobSearchRankedItem,
+  SemanticRetrievalStats,
+  WeakSemanticRecoveryReason,
+} from '@/lib/semantic-job-search'
 import type {
   KeywordFallbackRankedItem,
   SemanticKeywordFallbackReason,
@@ -22,6 +26,15 @@ export type SemanticSearchApiFallback = {
   results: SemanticSearchApiFallbackItem[]
 }
 
+export type SemanticSearchApiWeakSemanticItem = SemanticJobSearchRankedItem
+
+/** Low-confidence semantic recovery (loose band) — never merged into `results`. */
+export type SemanticSearchApiWeakSemantic = {
+  enabled: boolean
+  reason: WeakSemanticRecoveryReason | ''
+  results: SemanticSearchApiWeakSemanticItem[]
+}
+
 /** Stable JSON body for 200 responses. */
 export type SemanticSearchApiSuccessBody = {
   query: string
@@ -30,6 +43,8 @@ export type SemanticSearchApiSuccessBody = {
   results: SemanticSearchApiResultItem[]
   /** Deterministic retrieval diagnostics (embedding pass counts and score-band tallies). */
   stats: SemanticRetrievalStats
+  /** Optional loose-band semantic recovery (never merged into `results`). */
+  weakSemantic?: SemanticSearchApiWeakSemantic
   /** Optional transparent keyword/text fallback (never merged into `results`). */
   fallback?: SemanticSearchApiFallback
   /** Present when `count > 0`: aggregated from matched vacancy text only (server-side). */
@@ -62,6 +77,35 @@ export function isSemanticSearchApiSuccessBody(json: unknown): json is SemanticS
   if (o.conceptExplanation !== undefined && typeof o.conceptExplanation !== 'string') return false
   if (!isSemanticRetrievalStats(o.stats)) return false
   if (o.fallback !== undefined && !isSemanticSearchApiFallback(o.fallback)) return false
+  if (o.weakSemantic !== undefined && !isSemanticSearchApiWeakSemantic(o.weakSemantic)) return false
+  return true
+}
+
+function isSemanticSearchApiWeakSemanticItem(value: unknown): value is SemanticSearchApiWeakSemanticItem {
+  if (!value || typeof value !== 'object') return false
+  const r = value as Record<string, unknown>
+  if (typeof r.vacancyId !== 'string' || typeof r.semanticScore !== 'number' || !Number.isFinite(r.semanticScore)) {
+    return false
+  }
+  if (r.semanticScore <= 0 || r.semanticScore >= 0.35) return false
+  if (typeof r.title !== 'string' || typeof r.company !== 'string') return false
+  if (typeof r.location !== 'string' || typeof r.employmentType !== 'string') return false
+  if (r.workMode !== 'REMOTE' && r.workMode !== 'ONSITE') return false
+  if (typeof r.explanation !== 'string' || r.explanation.length === 0) return false
+  if ('textScore' in r) return false
+  return true
+}
+
+export function isSemanticSearchApiWeakSemantic(value: unknown): value is SemanticSearchApiWeakSemantic {
+  if (!value || typeof value !== 'object') return false
+  const w = value as Record<string, unknown>
+  if (typeof w.enabled !== 'boolean') return false
+  if (typeof w.reason !== 'string') return false
+  if (!Array.isArray(w.results)) return false
+  for (const row of w.results) {
+    if (!isSemanticSearchApiWeakSemanticItem(row)) return false
+  }
+  if (w.enabled && w.reason === '') return false
   return true
 }
 

@@ -1,5 +1,5 @@
 import Link from 'next/link'
-import { Activity, BarChart3, Layers, Sparkles, TrendingUp } from 'lucide-react'
+import { Activity, Layers, Sparkles, TrendingUp } from 'lucide-react'
 import { Badge } from '@/components/ui/badge'
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
 import { Progress } from '@/components/ui/progress'
@@ -28,12 +28,6 @@ export function EmployeeBehaviourAnalyticsDashboard({ snapshot, variant = 'full'
   if (snapshot.coldStart) {
     return (
       <section className={cn('space-y-3', isCompact ? '' : 'pt-2')}>
-        {!isCompact ? (
-          <div className="flex items-center gap-2 text-xs font-semibold uppercase tracking-wider text-muted-foreground">
-            <BarChart3 className="h-4 w-4 text-primary" />
-            Behaviour analytics
-          </div>
-        ) : null}
         <Card className="border-dashed border-border/70 bg-muted/15 shadow-sm">
           <CardHeader className="pb-2">
             <CardTitle className="text-base flex items-center gap-2">
@@ -63,20 +57,16 @@ export function EmployeeBehaviourAnalyticsDashboard({ snapshot, variant = 'full'
     <section className={cn('space-y-4', isCompact ? '' : 'pt-2')}>
       <div className="flex flex-col sm:flex-row sm:items-end sm:justify-between gap-3">
         <div className="space-y-1">
-          {!isCompact ? (
-            <div className="flex items-center gap-2 text-xs font-semibold uppercase tracking-wider text-muted-foreground">
-              <BarChart3 className="h-4 w-4 text-primary" />
-              Behaviour analytics
-            </div>
-          ) : null}
           <h2 className={cn('font-semibold text-foreground tracking-tight', isCompact ? 'text-base' : 'text-lg')}>
-            Activity & adaptive signals
+            {isCompact ? 'Signals from your recent activity' : 'Activity & adaptive signals'}
           </h2>
           <p className="text-xs sm:text-sm text-muted-foreground max-w-2xl leading-relaxed">
-            Weighted from your saved interactions, using the same category rules as recommendations — not a separate ML
-            training pipeline.
+            {isCompact
+              ? 'Uses the same activity signals as your recommendations — summarized here in a shorter view.'
+              : 'Weighted from your saved interactions, using the same category rules as recommendations — not a separate ML training pipeline.'}
           </p>
         </div>
+      
         {!isCompact ? (
           <Badge variant="outline" className="rounded-full shrink-0 border-primary/25 bg-primary/[0.06] text-primary">
             <Sparkles className="h-3 w-3 mr-1" />

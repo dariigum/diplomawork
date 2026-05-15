@@ -21,7 +21,7 @@ export function ProfileChatDashboardShell({
   const [tab, setTab] = React.useState<Tab>('profile');
 
   return (
-    <div className="flex h-full min-h-0 flex-col gap-4">
+    <div className="flex flex-col gap-4">
       <div className="flex shrink-0 flex-col gap-3 sm:flex-row sm:items-end sm:justify-between">
         <div className="space-y-1">
           {subtitle ? (
@@ -38,11 +38,11 @@ export function ProfileChatDashboardShell({
           </TabsList>
         </Tabs>
       </div>
-      <div className="min-h-0 min-w-0 flex-1 overflow-hidden rounded-xl border border-border/60 bg-card/30">
+      <div className="min-w-0 rounded-xl border border-border/60 bg-card/30">
         {tab === 'profile' ? (
-          <div className="h-full overflow-y-auto overscroll-contain p-4 md:p-6">{profile}</div>
+          <div className="p-4 md:p-6">{profile}</div>
         ) : (
-          <div className="h-full min-h-0 min-w-0 p-2 md:p-4">{chat}</div>
+          <div className="min-h-0 min-w-0 p-2 md:p-4">{chat}</div>
         )}
       </div>
     </div>

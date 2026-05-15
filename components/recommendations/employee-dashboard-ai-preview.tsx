@@ -3,27 +3,19 @@
 import { useEffect, useState } from 'react'
 import Link from 'next/link'
 import {
-  Activity,
-  BrainCircuit,
   ChevronRight,
   Info,
   RefreshCw,
   Sparkles,
-  Target,
-  Zap,
 } from 'lucide-react'
 import { Badge } from '@/components/ui/badge'
 import { Button } from '@/components/ui/button'
-import { Progress } from '@/components/ui/progress'
 import { Skeleton } from '@/components/ui/skeleton'
 import { cn } from '@/lib/utils'
 import type { BehaviourSessionInsights, RecommendationApiItem } from '@/lib/recommendations-api-types'
 import { parseRecommendationsApiPayload } from '@/lib/recommendations-api-types'
 
 const PREVIEW_FETCH_LIMIT = 25
-
-const PREVIEW_PROGRESS =
-  'h-2 mt-1 bg-primary/12 [&_[data-slot=progress-indicator]]:transition-transform [&_[data-slot=progress-indicator]]:duration-700 [&_[data-slot=progress-indicator]]:ease-out'
 
 export type EmployeeDashboardAiServerHints = {
   hasResume: boolean
@@ -56,6 +48,14 @@ async function readPreviewErrorMessage(res: Response): Promise<string> {
 function scoreToPercent(score: number): number {
   if (!Number.isFinite(score)) return 0
   return Math.max(0, Math.min(100, Math.round(score * 100)))
+}
+
+function fitTierLabel(pct: number | null): string | null {
+  if (pct === null) return null
+  if (pct >= 85) return 'Strong fit'
+  if (pct >= 70) return 'Good fit'
+  if (pct >= 50) return 'Related'
+  return 'Exploratory'
 }
 
 function formatSyncedLabel(ts: number): string {
@@ -126,13 +126,16 @@ export function EmployeeDashboardAiPreview({ serverHints }: EmployeeDashboardAiP
   }, [])
 
   const insightLine =
-    state.kind === 'ok' && state.topPercent !== null && state.topTitle
-      ? `Strongest match in this preview: ${state.topTitle}${state.topCompany ? ` · ${state.topCompany}` : ''} · ${state.topPercent}% adaptive score.`
-      : state.kind === 'ok' && state.topPercent !== null
-        ? `${state.count} roles ranked in this window — best adaptive score ${state.topPercent}%.`
-        : state.kind === 'ok'
-          ? `${state.count} ranked roles in this preview window.`
-          : null
+    state.kind === 'ok' && state.topTitle
+      ? (() => {
+          const tier = fitTierLabel(state.topPercent)
+          return `Top pick: ${state.topTitle}${state.topCompany ? ` · ${state.topCompany}` : ''}${
+            tier ? ` · ${tier}` : ''
+          }`
+        })()
+      : state.kind === 'ok'
+        ? `${state.count} roles in this preview.`
+        : null
 
   return (
     <div
@@ -148,32 +151,19 @@ export function EmployeeDashboardAiPreview({ serverHints }: EmployeeDashboardAiP
 
       <div className="relative p-5 sm:p-6 md:p-7 flex flex-col gap-6 lg:flex-row lg:items-stretch lg:justify-between">
         <div className="space-y-5 min-w-0 flex-1">
-          <div className="flex flex-col gap-3 sm:flex-row sm:items-start sm:justify-between">
-            <div className="flex flex-wrap items-center gap-2">
-              <Badge className="gap-1.5 rounded-full border-primary/30 bg-primary/15 px-3 py-1 text-primary shadow-sm transition-colors hover:bg-primary/20">
-                <BrainCircuit className="h-3.5 w-3.5" />
-                Semantic AI matching
-              </Badge>
-              <Badge variant="outline" className="rounded-full border-violet-500/40 text-violet-700 dark:text-violet-300 text-xs shadow-sm">
-                SBERT embeddings
-              </Badge>
-              <Badge variant="secondary" className="rounded-full gap-1 text-xs shadow-sm transition-colors hover:bg-secondary/90">
-                <Zap className="h-3 w-3" />
-                Adaptive-ranked
-              </Badge>
-            </div>
+          <div className="flex flex-wrap items-center gap-2">
+            <Badge className="gap-1.5 rounded-full border-primary/30 bg-primary/15 px-3 py-1 text-primary shadow-sm transition-colors hover:bg-primary/20">
+              <Sparkles className="h-3.5 w-3.5" />
+              Semantic recommendations
+            </Badge>
           </div>
 
           <AiReadinessStrip serverHints={serverHints} state={state} />
 
           <div>
-            <h2 className="text-xl sm:text-2xl font-bold tracking-tight">Semantic job matches</h2>
+            <h2 className="text-xl sm:text-2xl font-bold tracking-tight">Roles matched for you</h2>
             <p className="text-sm text-muted-foreground mt-1.5 max-w-xl leading-relaxed">
-              Live preview of the same server ranking as your full list — semantic-first adaptive blend, not keyword
-              search.
-            </p>
-            <p className="text-[0.65rem] text-muted-foreground/80 mt-1 max-w-xl leading-snug tabular-nums">
-              Blend (deterministic): semantic×0.85 + behaviour×0.15 — behaviour capped at 15%.
+              Live preview from the same list as your recommendations page — personalized, not keyword search.
             </p>
           </div>
 
@@ -185,27 +175,25 @@ export function EmployeeDashboardAiPreview({ serverHints }: EmployeeDashboardAiP
           )}
 
           {state.kind === 'ok' && state.behaviourSession ? (
-            <div className="rounded-xl border border-amber-500/25 bg-amber-500/[0.05] dark:bg-amber-500/[0.08] px-3.5 py-3 max-w-2xl space-y-2">
-              <div className="flex flex-wrap items-center gap-2 text-xs font-semibold text-foreground">
+            <details className="rounded-xl border border-amber-500/25 bg-amber-500/[0.05] dark:bg-amber-500/[0.08] px-3.5 py-3 max-w-2xl">
+              <summary className="flex cursor-pointer list-none items-center gap-2 text-xs font-semibold text-foreground outline-none marker:content-none [&::-webkit-details-marker]:hidden">
                 <Info className="h-3.5 w-3.5 text-amber-700 dark:text-amber-300 shrink-0" />
-                <span>Lightweight activity insights</span>
+                Why these roles match you
+              </summary>
+              <div className="mt-3 space-y-2 pt-2 border-t border-border/40">
                 {state.behaviourSession.productBadge ? (
                   <Badge variant="secondary" className="rounded-full text-[0.65rem] font-normal">
                     {state.behaviourSession.productBadge}
                   </Badge>
-                ) : (
-                  <Badge variant="outline" className="rounded-full text-[0.65rem] font-normal">
-                    Semantic-only for now
-                  </Badge>
-                )}
+                ) : null}
+                <p className="text-xs text-muted-foreground leading-relaxed">{state.behaviourSession.neutralSemanticLine}</p>
+                <ul className="text-xs text-muted-foreground space-y-1 list-disc pl-3.5">
+                  {state.behaviourSession.dashboardLines.slice(0, 3).map((line, i) => (
+                    <li key={i}>{line}</li>
+                  ))}
+                </ul>
               </div>
-              <p className="text-xs text-muted-foreground leading-relaxed">{state.behaviourSession.neutralSemanticLine}</p>
-              <ul className="text-xs text-muted-foreground space-y-1 list-disc pl-3.5">
-                {state.behaviourSession.dashboardLines.slice(0, 3).map((line, i) => (
-                  <li key={i}>{line}</li>
-                ))}
-              </ul>
-            </div>
+            </details>
           ) : null}
 
           <div className="flex flex-wrap items-start gap-x-8 gap-y-5">
@@ -228,24 +216,23 @@ export function EmployeeDashboardAiPreview({ serverHints }: EmployeeDashboardAiP
               <div className="grid gap-4 grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 w-full max-w-3xl">
                 <div className="rounded-xl border border-border/55 bg-gradient-to-br from-primary/[0.08] to-background/95 p-4 shadow-sm transition-all duration-300 hover:border-primary/25 hover:shadow-md">
                   <p className="text-[0.65rem] font-semibold uppercase tracking-wide text-muted-foreground">
-                    Matches in preview
+                    In this preview
                   </p>
                   <p className="text-3xl font-bold tabular-nums tracking-tight text-foreground mt-1">{state.count}</p>
                   <p className="text-xs text-muted-foreground leading-snug mt-1.5">
-                    Server slice (max {PREVIEW_FETCH_LIMIT} per request)
+                    Previewing {state.count} matched roles
                   </p>
                 </div>
                 <div className="min-w-0 rounded-xl border border-border/55 bg-gradient-to-br from-emerald-500/[0.08] to-background/95 p-4 shadow-sm transition-all duration-300 hover:border-emerald-500/25 hover:shadow-md">
                   <p className="text-[0.65rem] font-semibold uppercase tracking-wide text-muted-foreground">
-                    Top semantic match
+                    Match strength
                   </p>
                   {state.topPercent !== null ? (
                     <>
-                      <div className="flex flex-wrap items-baseline gap-2 mt-1">
-                        <span className="text-3xl font-bold tabular-nums tracking-tight text-foreground">{state.topPercent}%</span>
-                        <span className="text-xs text-muted-foreground">final adaptive score → display %</span>
-                      </div>
-                      <Progress value={state.topPercent} className={PREVIEW_PROGRESS} />
+                      <p className="text-2xl font-bold tracking-tight text-foreground mt-1">
+                        {fitTierLabel(state.topPercent)}
+                      </p>
+                      <p className="text-[0.65rem] text-muted-foreground mt-1">Compared with other roles in this batch</p>
                     </>
                   ) : (
                     <p className="text-xs text-muted-foreground mt-2">—</p>
@@ -260,59 +247,64 @@ export function EmployeeDashboardAiPreview({ serverHints }: EmployeeDashboardAiP
                   )}
                 </div>
                 <div className="flex flex-col justify-center gap-1.5 rounded-xl border border-border/55 bg-muted/20 px-4 py-3 text-xs text-muted-foreground sm:col-span-2 lg:col-span-1 transition-colors duration-300 hover:bg-muted/30">
-                  <span className="inline-flex items-center gap-2 justify-start">
-                    <span className="relative flex h-2 w-2">
-                      <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-emerald-400 opacity-50" />
-                      <span className="relative inline-flex rounded-full h-2 w-2 bg-emerald-500" />
-                    </span>
-                    Preview in sync
-                  </span>
-                  <span className="tabular-nums text-foreground/80">Refreshed {formatSyncedLabel(state.syncedAt)}</span>
+                  <span className="text-foreground/80">Updated {formatSyncedLabel(state.syncedAt)}</span>
                 </div>
               </div>
             )}
 
             {state.kind === 'empty' && (
               <div className="space-y-3 max-w-lg">
+                <p className="text-sm font-medium text-foreground">No strong matches found yet.</p>
                 <p className="text-sm text-muted-foreground leading-relaxed">
-                  Matching ran, but nothing cleared the bar yet — try refreshing after seeding roles, or open technical
-                  details on the full recommendations page.
+                  Try updating your profile or resume, or browse more roles — then refresh.
                 </p>
                 <p className="text-xs text-muted-foreground tabular-nums">Checked {formatSyncedLabel(state.syncedAt)}</p>
                 {state.behaviourSession ? (
-                  <div className="rounded-lg border border-border/60 bg-muted/25 px-3 py-2.5 space-y-1.5">
-                    <p className="text-[0.65rem] font-semibold uppercase tracking-wide text-muted-foreground">
-                      Activity context (still shown)
-                    </p>
-                    <p className="text-xs text-muted-foreground">{state.behaviourSession.neutralSemanticLine}</p>
-                    <ul className="text-xs text-muted-foreground list-disc pl-3.5 space-y-0.5">
-                      {state.behaviourSession.dashboardLines.slice(0, 2).map((line, i) => (
-                        <li key={i}>{line}</li>
-                      ))}
-                    </ul>
-                  </div>
+                  <details className="rounded-lg border border-border/60 bg-muted/25 px-3 py-2.5">
+                    <summary className="cursor-pointer text-[0.65rem] font-semibold uppercase tracking-wide text-muted-foreground list-none marker:content-none [&::-webkit-details-marker]:hidden">
+                      Activity context
+                    </summary>
+                    <div className="mt-2 space-y-1.5">
+                      <p className="text-xs text-muted-foreground">{state.behaviourSession.neutralSemanticLine}</p>
+                      <ul className="text-xs text-muted-foreground list-disc pl-3.5 space-y-0.5">
+                        {state.behaviourSession.dashboardLines.slice(0, 2).map((line, i) => (
+                          <li key={i}>{line}</li>
+                        ))}
+                      </ul>
+                    </div>
+                  </details>
                 ) : null}
               </div>
             )}
 
             {state.kind === 'no_resume' && (
               <p className="text-sm text-muted-foreground leading-relaxed max-w-md">
-                Add a resume to build your profile — semantic ranking starts after your first save.
+                Add a resume to unlock personalized recommendations.
               </p>
             )}
 
             {state.kind === 'no_embedding' && (
-              <p className="text-sm text-muted-foreground leading-relaxed max-w-md">{state.message}</p>
+              <div className="space-y-2 max-w-md">
+                <p className="text-sm font-medium text-foreground">Finish setting up your profile</p>
+                <p className="text-sm text-muted-foreground leading-relaxed">
+                  Your resume is saved, but we still need a complete match profile. Re-save from the resume editor, then
+                  try again.
+                </p>
+              </div>
             )}
 
             {state.kind === 'pipeline_error' && (
-              <p className="text-sm text-muted-foreground leading-relaxed max-w-md">{state.message}</p>
+              <div className="space-y-2 max-w-md">
+                <p className="text-sm font-medium text-foreground">We couldn&apos;t load recommendations right now.</p>
+                <p className="text-sm text-muted-foreground leading-relaxed">Please try again in a moment.</p>
+              </div>
             )}
 
             {state.kind === 'error' && (
-              <p className="text-sm text-muted-foreground max-w-md">
-                Could not reach the matcher. Check your session and tap Refresh preview.
-              </p>
+              <div className="space-y-2 max-w-md">
+                <p className="text-sm font-medium text-foreground">We couldn&apos;t load recommendations right now.</p>
+                <p className="text-sm text-muted-foreground leading-relaxed">Please try again in a moment.</p>
+              </div>
             )}
           </div>
         </div>
@@ -336,11 +328,8 @@ export function EmployeeDashboardAiPreview({ serverHints }: EmployeeDashboardAiP
         </div>
       </div>
 
-      <div className="relative border-t border-border/50 bg-muted/20 px-5 py-2.5 sm:px-7 flex flex-wrap items-center gap-2 text-[0.7rem] sm:text-xs text-muted-foreground">
-        <Activity className="h-3.5 w-3.5 text-primary shrink-0" />
-        <span>
-          Embeddings computed server-side · adaptive sort on the API · UI shows returned scores only.
-        </span>
+      <div className="relative border-t border-border/50 bg-muted/20 px-5 py-2.5 sm:px-7 text-[0.7rem] sm:text-xs text-muted-foreground">
+        Personalized on the server — the numbers you see come from your latest data.
       </div>
     </div>
   )
@@ -353,63 +342,45 @@ function AiReadinessStrip({
   serverHints: EmployeeDashboardAiServerHints
   state: PreviewState
 }) {
-  const chips: { key: string; label: string; variant: 'default' | 'secondary' | 'outline' | 'destructive' }[] = []
+  let label = ''
+  let variant: 'default' | 'secondary' | 'outline' | 'destructive' = 'secondary'
 
   if (state.kind === 'loading' || state.kind === 'idle') {
-    chips.push({ key: 'sync', label: 'Checking matcher…', variant: 'secondary' })
-    if (serverHints.hasResume) {
-      chips.push({ key: 'resume', label: 'Resume on file', variant: 'outline' })
-    }
-    if (serverHints.embeddingIndexed) {
-      chips.push({ key: 'emb', label: 'Resume embedding stored', variant: 'outline' })
-    }
-    if (!serverHints.hasResume) {
-      chips.push({ key: 'nr', label: 'No resume yet', variant: 'outline' })
-    } else if (!serverHints.embeddingIndexed) {
-      chips.push({ key: 'pend', label: 'Embedding not stored', variant: 'outline' })
-    }
+    label = 'Preparing recommendations…'
+    variant = 'secondary'
   } else if (state.kind === 'ok') {
-    chips.push({ key: 'live', label: 'Recommendations available', variant: 'default' })
-    chips.push({ key: 'idx', label: 'Semantic profile indexed', variant: 'outline' })
-    if (state.behaviourSession && !state.behaviourSession.coldStart) {
-      chips.push({ key: 'beh', label: 'Behaviour-aware notes on', variant: 'outline' })
-    }
+    label = 'Recommendations ready'
+    variant = 'default'
   } else if (state.kind === 'empty') {
-    chips.push({ key: 'ready', label: 'Matcher online', variant: 'outline' })
-    chips.push({ key: 'short', label: 'Shortlist empty', variant: 'secondary' })
-    if (serverHints.embeddingIndexed) {
-      chips.push({ key: 'idx', label: 'Resume embedding stored', variant: 'outline' })
-    }
+    label = 'No matches in this preview'
+    variant = 'outline'
   } else if (state.kind === 'no_resume') {
-    chips.push({ key: 'nr', label: 'Resume required for AI matches', variant: 'secondary' })
+    label = 'Resume needed'
+    variant = 'secondary'
   } else if (state.kind === 'no_embedding') {
-    chips.push({ key: 'pend', label: 'Embedding pending', variant: 'secondary' })
-    chips.push({ key: 'resume', label: 'Resume on file', variant: 'outline' })
+    label = 'Profile setup needed'
+    variant = 'secondary'
   } else if (state.kind === 'pipeline_error' || state.kind === 'error') {
-    chips.push({ key: 'off', label: 'Matcher unavailable', variant: 'destructive' })
+    label = 'Unavailable'
+    variant = 'destructive'
   }
 
-  if (chips.length === 0) return null
+  if (!label) return null
 
   return (
     <div className="flex flex-wrap items-center gap-2">
-      <span className="text-[0.65rem] font-semibold uppercase tracking-wide text-muted-foreground mr-1">AI status</span>
-      {chips.map((c) => (
-        <Badge
-          key={c.key}
-          variant={c.variant}
-          className={cn(
-            'rounded-full text-xs font-normal transition-all duration-200 shadow-sm',
-            c.variant === 'default' && 'bg-primary text-primary-foreground hover:bg-primary/90',
-          )}
-        >
-          {c.label}
-        </Badge>
-      ))}
-      <Badge variant="outline" className="rounded-full gap-1 text-[0.65rem] font-normal border-primary/20 shadow-sm">
-        <Target className="h-3 w-3" />
-        Live data
+      <Badge
+        variant={variant}
+        className={cn(
+          'rounded-full text-xs font-normal shadow-sm',
+          variant === 'default' && 'bg-primary text-primary-foreground hover:bg-primary/90',
+        )}
+      >
+        {label}
       </Badge>
+      {(state.kind === 'loading' || state.kind === 'idle') && !serverHints.hasResume ? (
+        <span className="text-xs text-muted-foreground">Add a resume to get started.</span>
+      ) : null}
     </div>
   )
 }

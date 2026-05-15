@@ -113,7 +113,7 @@ export default async function EmployeeDashboard() {
                 </h2>
               </div>
               <Button variant="outline" size="sm" asChild className="shrink-0 rounded-full">
-                <Link href="/dashboard/employee/recommendations">Open full match list</Link>
+                <Link href="/dashboard/employee/recommendations">View all recommendations</Link>
               </Button>
             </div>
             <EmployeeDashboardAiPreview serverHints={{ hasResume, embeddingIndexed }} />

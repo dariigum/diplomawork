@@ -6,7 +6,6 @@ import { ChevronDown, FileText, Loader2, MapPin, RefreshCw, Search, Briefcase } 
 import { Badge } from "@/components/ui/badge"
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
-import { Progress } from "@/components/ui/progress"
 import { Skeleton } from "@/components/ui/skeleton"
 import { Collapsible, CollapsibleContent, CollapsibleTrigger } from "@/components/ui/collapsible"
 import {
@@ -65,6 +64,25 @@ function tierBadgeClassName(band: SemanticScoreBand | null): string {
     default:
       return `${base} border-border bg-muted text-muted-foreground`
   }
+}
+
+/** Decorative overlap cue — muted, not a confidence or loading meter. */
+function RetrievalOverlapHint({ score }: { score: number }) {
+  const fill = scoreToBarFill(score)
+  return (
+    <div
+      className="hidden sm:flex flex-1 min-w-[2rem] max-w-[4.5rem] items-center self-center"
+      aria-hidden
+      title="Retrieval overlap hint (mapped cosine scale)"
+    >
+      <span className="relative block h-px w-full overflow-hidden rounded-full bg-border/50">
+        <span
+          className="absolute inset-y-0 left-0 rounded-full bg-muted-foreground/30"
+          style={{ width: `${fill}%` }}
+        />
+      </span>
+    </div>
+  )
 }
 
 function SemanticScoreReadout({ score, compact }: { score: number; compact?: boolean }) {
@@ -357,7 +375,6 @@ async function readErrorMessage(res: Response): Promise<string> {
 }
 
 function SemanticResultCard({ r }: { r: SemanticSearchApiResultItem }) {
-  const barFill = scoreToBarFill(r.semanticScore)
   const band = semanticScoreBand(r.semanticScore)
 
   return (
@@ -381,11 +398,7 @@ function SemanticResultCard({ r }: { r: SemanticSearchApiResultItem }) {
           <Badge variant="outline" className={tierBadgeClassName(band)} title={semanticMatchStrengthLabel(r.semanticScore)}>
             {tierShortLabel(r.semanticScore)}
           </Badge>
-          <Progress
-            value={barFill}
-            className="hidden sm:block h-0.5 flex-1 min-w-[3rem] max-w-[6rem] bg-muted/50 opacity-60"
-            aria-hidden
-          />
+          <RetrievalOverlapHint score={r.semanticScore} />
         </div>
 
         <p className="text-[10px] text-muted-foreground truncate">
@@ -640,7 +653,7 @@ export function SemanticJobSearchPanel() {
                 <Skeleton className="h-6 w-10" />
               </div>
               <Skeleton className="h-4 w-24" />
-              <Skeleton className="h-1 w-full" />
+              <Skeleton className="hidden sm:block h-px w-16 max-w-[4.5rem] opacity-50" />
             </div>
           ))}
         </div>

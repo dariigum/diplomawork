@@ -13,6 +13,7 @@ import {
   pickBehaviourCardTagline,
   resolveCardAdaptationHint,
 } from '@/lib/behaviour-ui-explanations'
+import { normalizeVacancySkills } from '@/lib/normalize-vacancy-skills'
 
 function truncateText(text: string, max: number): string {
   const t = (text ?? '').trim()
@@ -28,16 +29,8 @@ function matchedSkillsFromResumeAndVacancy(
 ): string[] {
   const resumeLower = resumeBlob.toLowerCase()
   const phrases = [
-    ...skillsRequired
-      .split(',')
-      .map((s) => s.trim())
-      .filter(Boolean),
-    ...requirements.flatMap((r) =>
-      String(r)
-        .split(/[,;]/)
-        .map((s) => s.trim())
-        .filter(Boolean),
-    ),
+    ...normalizeVacancySkills(skillsRequired),
+    ...requirements.flatMap((r) => normalizeVacancySkills(r)),
   ]
   const out: string[] = []
   const seen = new Set<string>()

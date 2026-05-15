@@ -11,6 +11,7 @@ import { Vacancy, SavedVacancy } from "@/lib/db/schema"
 import { getSession } from "@/lib/auth"
 import { recordVacancyBehaviourEvent } from "@/lib/vacancy-behaviour-events"
 import { formatVacancySalary } from "@/lib/format-vacancy-salary"
+import { normalizeVacancySkills } from "@/lib/normalize-vacancy-skills"
 
 export const dynamic = "force-dynamic"
 
@@ -156,9 +157,9 @@ export default async function JobDetailsPage({ params }: { params: Promise<{ id:
               </CardHeader>
               <CardContent>
                 <div className="flex flex-wrap gap-2">
-                  {jobRecord.skillsRequired.split(',').map((skill: string) => (
+                  {normalizeVacancySkills(jobRecord.skillsRequired).map((skill) => (
                     <Badge key={skill} variant="secondary" className="px-3 py-1">
-                      {skill.trim()}
+                      {skill}
                     </Badge>
                   ))}
                 </div>

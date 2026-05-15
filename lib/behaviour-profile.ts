@@ -1,6 +1,7 @@
 import mongoose from 'mongoose'
 import dbConnect from '@/lib/db/mongoose'
 import { Vacancy, VacancyBehaviourEvent, type VacancyBehaviourEventType } from '@/lib/db/schema'
+import { normalizeVacancySkills } from '@/lib/normalize-vacancy-skills'
 
 /** Weights: weak (view) < medium (save) < strong (apply). Tunable constants, no ML. */
 export const BEHAVIOUR_EVENT_WEIGHTS: Record<
@@ -235,11 +236,8 @@ export function normalizeBehaviourToken(s: string): string {
 }
 
 /** Shared vacancy skill split (comma/semicolon/etc.) — used by profile builder and behaviour scoring. */
-export function splitVacancySkillPhrases(skillsRequired: string): string[] {
-  return skillsRequired
-    .split(/[,;/|]/)
-    .map((s) => normalizeBehaviourToken(s))
-    .filter((s) => s.length >= 2 && s.length <= 80)
+export function splitVacancySkillPhrases(skillsRequired: unknown): string[] {
+  return normalizeVacancySkills(skillsRequired, { lowercase: true, minLength: 2, maxLength: 80 })
 }
 
 /** Title word tokens for deterministic keyword/concept pipelines (length ≥3, stopword-filtered). */

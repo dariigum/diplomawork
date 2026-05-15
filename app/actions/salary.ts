@@ -3,6 +3,7 @@
 import dbConnect from '@/lib/db/mongoose';
 import { Vacancy } from '@/lib/db/schema';
 import { isValidSalaryAmount } from '@/lib/format-vacancy-salary';
+import { normalizeVacancySkills } from '@/lib/normalize-vacancy-skills';
 
 export async function getAvgSalaryForSkills(skills: string[]) {
   if (skills.length === 0) return null;
@@ -10,9 +11,10 @@ export async function getAvgSalaryForSkills(skills: string[]) {
   await dbConnect();
   const allVacancies = await Vacancy.find({});
   
-  const matched = allVacancies.filter(v => {
-    const vSkills = v.skillsRequired.toLowerCase();
-    return skills.some(s => vSkills.includes(s.toLowerCase()));
+  const matched = allVacancies.filter((v) => {
+    const vSkills = normalizeVacancySkills(v.skillsRequired, { lowercase: true }).join(' ');
+    if (!vSkills) return false;
+    return skills.some((s) => vSkills.includes(s.trim().toLowerCase()));
   });
   
   if (matched.length === 0) return null;

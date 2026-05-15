@@ -7,6 +7,7 @@ import { getSession } from '@/lib/auth';
 import { revalidatePath } from 'next/cache';
 import { recordVacancyBehaviourEvent } from '@/lib/vacancy-behaviour-events'
 import { formatVacancySalary } from '@/lib/format-vacancy-salary'
+import { normalizeVacancySkills } from '@/lib/normalize-vacancy-skills'
 
 export async function toggleSaveVacancyAction(vacancyId: string) {
   const session = await getSession();
@@ -67,7 +68,7 @@ export async function getHomeData() {
     salary: formatVacancySalary(v.salaryMin, v.salaryMax),
     employmentType: v.employmentType || "Full-time",
     experience: v.experience || "Any experience",
-    skills: v.skillsRequired ? v.skillsRequired.split(',').map((s: string) => s.trim()) : [],
+    skills: normalizeVacancySkills(v.skillsRequired),
     description: v.description || "No description provided.",
     postedAt: new Date(v.createdAt).toLocaleDateString(),
     isRemote: v.workMode === 'REMOTE',

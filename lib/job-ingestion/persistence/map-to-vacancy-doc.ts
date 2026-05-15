@@ -1,5 +1,7 @@
 import type { Types } from 'mongoose'
 
+import { normalizeVacancySkills } from '@/lib/normalize-vacancy-skills'
+
 import type { NormalizedVacancyInput } from '../types'
 
 export function salaryMinMaxFromNormalized(salary: NormalizedVacancyInput['salary']): { salaryMin: number; salaryMax: number } {
@@ -18,10 +20,7 @@ export function salaryMinMaxFromNormalized(salary: NormalizedVacancyInput['salar
 }
 
 export function requirementsFromSkills(skillsRequired: string): string[] {
-  return skillsRequired
-    .split(',')
-    .map((s) => s.trim())
-    .filter(Boolean)
+  return normalizeVacancySkills(skillsRequired)
 }
 
 /**

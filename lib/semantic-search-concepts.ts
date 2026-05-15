@@ -51,7 +51,6 @@ export function extractSemanticConceptsFromVacancies(
     if (!v || typeof v !== 'object') continue
 
     const title = String(v.title ?? '')
-    const skills = String(v.skillsRequired ?? '')
     const desc = String(v.description ?? '').slice(0, maxDesc)
 
     const best = new Map<string, number>()
@@ -63,7 +62,7 @@ export function extractSemanticConceptsFromVacancies(
       best.set(k, Math.max(best.get(k) ?? 0, w))
     }
 
-    for (const p of splitVacancySkillPhrases(skills)) {
+    for (const p of splitVacancySkillPhrases(v.skillsRequired)) {
       add(p, 3)
     }
     for (const p of splitVacancySkillPhrases(title)) {

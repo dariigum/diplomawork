@@ -82,7 +82,7 @@ export function tokenizeKeywordFallbackQuery(query: string): Set<string> {
   return terms
 }
 
-function collectFieldTerms(title: string, skills: string, description: string): {
+function collectFieldTerms(title: string, skills: unknown, description: string): {
   titleTerms: Set<string>
   skillTerms: Set<string>
   descTerms: Set<string>
@@ -177,11 +177,14 @@ export function rankVacanciesByKeywordFallback(
     if (exclude.has(vacancyId)) continue
 
     const title = typeof v.title === 'string' ? v.title.trim() : ''
-    const skills = typeof v.skillsRequired === 'string' ? v.skillsRequired.trim() : ''
+    const skillsInput = v.skillsRequired
     const description = typeof v.description === 'string' ? v.description.trim() : ''
-    if (!title && !skills && !description) continue
+    const hasSkills =
+      (typeof skillsInput === 'string' && skillsInput.trim().length > 0) ||
+      (Array.isArray(skillsInput) && skillsInput.length > 0)
+    if (!title && !hasSkills && !description) continue
 
-    const { titleTerms, skillTerms, descTerms } = collectFieldTerms(title, skills, description)
+    const { titleTerms, skillTerms, descTerms } = collectFieldTerms(title, skillsInput, description)
     const titleHits = countSetOverlap(queryTerms, titleTerms)
     const skillHits = countSetOverlap(queryTerms, skillTerms)
     const descHits = countSetOverlap(queryTerms, descTerms)

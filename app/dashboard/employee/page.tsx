@@ -1,6 +1,7 @@
 import Link from "next/link";
 import { Sparkles, BrainCircuit } from "lucide-react";
 import { getSession } from "@/lib/auth";
+import { formatVacancySalary } from "@/lib/format-vacancy-salary";
 import dbConnect from "@/lib/db/mongoose";
 import { Response, User, Resume, SavedVacancy } from "@/lib/db/schema";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
@@ -194,7 +195,9 @@ export default async function EmployeeDashboard() {
                       <div className="flex justify-between items-start">
                         <div>
                           <p className="font-medium">{v.title}</p>
-                          <p className="text-sm text-muted-foreground">${v.salaryMin} - ${v.salaryMax}</p>
+                          <p className="text-sm text-muted-foreground">
+                            {formatVacancySalary(v.salaryMin, v.salaryMax)}
+                          </p>
                         </div>
                         <Button variant="outline" size="sm" asChild>
                           <Link href={`/jobs/${v._id.toString()}`}>View</Link>
@@ -227,7 +230,7 @@ export default async function EmployeeDashboard() {
                         <div>
                           <p className="font-medium">{vacancy.title}</p>
                           <p className="text-sm text-muted-foreground">
-                            ${vacancy.salaryMin} - ${vacancy.salaryMax}
+                            {formatVacancySalary(vacancy.salaryMin, vacancy.salaryMax)}
                           </p>
                         </div>
                         <span className="text-xs rounded-full bg-secondary px-2 py-1 text-secondary-foreground">

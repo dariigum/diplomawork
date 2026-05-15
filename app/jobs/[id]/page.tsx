@@ -10,6 +10,7 @@ import dbConnect from "@/lib/db/mongoose"
 import { Vacancy, SavedVacancy } from "@/lib/db/schema"
 import { getSession } from "@/lib/auth"
 import { recordVacancyBehaviourEvent } from "@/lib/vacancy-behaviour-events"
+import { formatVacancySalary } from "@/lib/format-vacancy-salary"
 
 export const dynamic = "force-dynamic"
 
@@ -108,7 +109,9 @@ export default async function JobDetailsPage({ params }: { params: Promise<{ id:
                       )}
                     </div>
 
-                    <p className="text-xl font-semibold text-foreground mt-4">${jobRecord.salaryMin.toLocaleString()} - ${jobRecord.salaryMax.toLocaleString()}</p>
+                    <p className="text-xl font-semibold text-foreground mt-4">
+                      {formatVacancySalary(jobRecord.salaryMin, jobRecord.salaryMax)}
+                    </p>
                   </div>
                 </div>
               </CardContent>

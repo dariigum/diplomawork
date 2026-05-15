@@ -7,6 +7,7 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Textarea } from "@/components/ui/textarea";
 import { updateEmployerProfileAction } from "@/app/actions/employer";
+import { formatVacancySalary } from "@/lib/format-vacancy-salary";
 
 export const dynamic = "force-dynamic";
 
@@ -75,7 +76,9 @@ export default async function EmployerDashboard() {
                     <div className="flex justify-between items-start">
                       <div>
                         <p className="font-medium">{v.title}</p>
-                        <p className="text-sm text-muted-foreground">${v.salaryMin} - ${v.salaryMax}</p>
+                        <p className="text-sm text-muted-foreground">
+                          {formatVacancySalary(v.salaryMin, v.salaryMax)}
+                        </p>
                       </div>
                       <Button variant="secondary" size="sm">Edit</Button>
                     </div>

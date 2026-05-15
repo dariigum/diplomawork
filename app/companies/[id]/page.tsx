@@ -4,6 +4,7 @@ import { Card, CardContent } from "@/components/ui/card"
 import { Badge } from "@/components/ui/badge"
 import { Header } from "@/components/jobs/header"
 import dbConnect from "@/lib/db/mongoose"
+import { formatVacancySalary } from "@/lib/format-vacancy-salary"
 import { User, Vacancy, SavedVacancy } from "@/lib/db/schema"
 import { getSession } from "@/lib/auth"
 
@@ -106,7 +107,9 @@ export default async function CompanyProfilePage({ params }: { params: Promise<{
                         </div>
                       </div>
                       <div className="mt-4 pt-4 border-t border-border flex items-center justify-between">
-                         <span className="font-medium text-foreground">${job.salaryMin.toLocaleString()} - ${job.salaryMax.toLocaleString()}</span>
+                         <span className="font-medium text-foreground">
+                           {formatVacancySalary(job.salaryMin, job.salaryMax)}
+                         </span>
                          <span className="text-primary flex items-center gap-1 text-sm font-medium">View Job <ExternalLink className="h-3 w-3"/></span>
                       </div>
                     </CardContent>

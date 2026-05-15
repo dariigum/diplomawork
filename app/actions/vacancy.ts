@@ -6,16 +6,7 @@ import { Vacancy, SavedVacancy } from '@/lib/db/schema';
 import { getSession } from '@/lib/auth';
 import { revalidatePath } from 'next/cache';
 import { recordVacancyBehaviourEvent } from '@/lib/vacancy-behaviour-events'
-
-/** Safe display for home / saved lists; ingestion rows may omit or null-out salary fields. */
-function formatVacancySalary(salaryMin: unknown, salaryMax: unknown): string {
-  const minOk = typeof salaryMin === 'number' && Number.isFinite(salaryMin)
-  const maxOk = typeof salaryMax === 'number' && Number.isFinite(salaryMax)
-  if (minOk && maxOk) {
-    return `$${salaryMin.toLocaleString()} - $${salaryMax.toLocaleString()}`
-  }
-  return 'Salary not specified'
-}
+import { formatVacancySalary } from '@/lib/format-vacancy-salary'
 
 export async function toggleSaveVacancyAction(vacancyId: string) {
   const session = await getSession();

@@ -4,6 +4,7 @@ import Link from "next/link"
 import { FileText, Video, BookOpen, Users, ArrowRight, Clock } from "lucide-react"
 import { Card, CardContent } from "@/components/ui/card"
 import { Badge } from "@/components/ui/badge"
+import { useI18n } from "@/lib/i18n/provider"
 
 interface Article {
   id: string
@@ -19,16 +20,17 @@ interface Article {
 }
 
 export default function ResourcesClient({ initialArticles }: { initialArticles: Article[] }) {
+  const { t } = useI18n()
   const [activeLang, setActiveLang] = useState<string>("ru")
   const [activeCat, setActiveCat] = useState<string>("All")
 
   const categoriesList = [
-    { id: 'All', title: 'All Topics', icon: BookOpen },
-    { id: 'Technology', title: 'Tech Breakdown', icon: FileText },
-    { id: 'Comparison', title: 'Comparisons', icon: Users },
-    { id: 'Career', title: 'Career & Market', icon: Users },
-    { id: 'Anti-patterns', title: 'Anti-patterns', icon: Video },
-    { id: 'AI', title: 'AI & Trends', icon: Video }
+    { id: 'All', title: t.resources.allTopics, icon: BookOpen },
+    { id: 'Technology', title: t.resources.techBreakdown, icon: FileText },
+    { id: 'Comparison', title: t.resources.comparisons, icon: Users },
+    { id: 'Career', title: t.resources.careerMarket, icon: Users },
+    { id: 'Anti-patterns', title: t.resources.antiPatterns, icon: Video },
+    { id: 'AI', title: t.resources.aiTrends, icon: Video }
   ]
 
   const languages = [
@@ -50,9 +52,9 @@ export default function ResourcesClient({ initialArticles }: { initialArticles: 
       {/* Page Header */}
       <div className="mb-8 flex flex-col md:flex-row md:items-center justify-between gap-4">
         <div>
-          <h1 className="text-3xl font-bold text-foreground">Career Resources</h1>
+          <h1 className="text-3xl font-bold text-foreground">{t.resources.careerResources}</h1>
           <p className="text-muted-foreground mt-2">
-            Expert advice, guides, and technical deep-dives.
+            {t.resources.expertAdvice}
           </p>
         </div>
 
@@ -98,13 +100,13 @@ export default function ResourcesClient({ initialArticles }: { initialArticles: 
       <div className="mb-12">
         <div className="flex items-center justify-between mb-6">
           <h2 className="text-2xl font-bold text-foreground">
-            {activeCat === 'All' ? 'Latest Articles' : `${activeCat} Articles`}
+            {activeCat === 'All' ? t.resources.latestArticles : `${activeCat} ${t.resources.articles}`}
           </h2>
         </div>
 
         {filteredArticles.length === 0 ? (
           <div className="text-center py-12 text-muted-foreground">
-            No articles found for this language and category.
+            {t.resources.noArticles}
           </div>
         ) : (
           <div className="grid md:grid-cols-2 lg:grid-cols-3 gap-6">
@@ -129,7 +131,7 @@ export default function ResourcesClient({ initialArticles }: { initialArticles: 
                         <span>{article.readTime}</span>
                       </div>
                       <div className="flex items-center gap-1 text-primary font-semibold">
-                        Read <ArrowRight className="h-3 w-3" />
+                        {t.resources.read} <ArrowRight className="h-3 w-3" />
                       </div>
                     </div>
                   </CardContent>
@@ -143,18 +145,18 @@ export default function ResourcesClient({ initialArticles }: { initialArticles: 
       {/* Newsletter */}
       <Card className="bg-primary text-primary-foreground max-w-4xl mx-auto">
         <CardContent className="p-8 text-center">
-          <h2 className="text-2xl font-bold mb-2">Stay Updated</h2>
+          <h2 className="text-2xl font-bold mb-2">{t.resources.stayUpdated}</h2>
           <p className="opacity-90 mb-6 max-w-md mx-auto">
-            Get the latest career tips and job market insights delivered to your inbox.
+            {t.resources.getLatestTips}
           </p>
           <div className="flex gap-3 max-w-md mx-auto">
             <input
               type="email"
-              placeholder="Enter your email"
+              placeholder={t.resources.enterEmail}
               className="flex-1 px-4 py-2 rounded-lg bg-background text-foreground placeholder:text-muted-foreground"
             />
             <button className="px-6 py-2 bg-foreground text-background rounded-lg font-medium hover:bg-foreground/90 transition-colors">
-              Subscribe
+              {t.resources.subscribe}
             </button>
           </div>
         </CardContent>

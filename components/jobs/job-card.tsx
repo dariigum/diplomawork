@@ -8,6 +8,7 @@ import { Badge } from "@/components/ui/badge"
 import { Card, CardContent } from "@/components/ui/card"
 import { cn } from "@/lib/utils"
 import type { Job } from "@/lib/job-data"
+import { useI18n } from "@/lib/i18n/provider"
 
 interface JobCardProps {
   job: Job
@@ -18,6 +19,7 @@ interface JobCardProps {
 }
 
 export function JobCard({ job, onApply, onSave, isSaved, canApply }: JobCardProps) {
+  const { t } = useI18n()
   const [isHovered, setIsHovered] = useState(false)
 
   return (
@@ -32,7 +34,7 @@ export function JobCard({ job, onApply, onSave, isSaved, canApply }: JobCardProp
       {job.isFeatured && (
         <div className="absolute top-0 right-0">
           <div className="bg-primary text-primary-foreground text-xs font-medium px-3 py-1 rounded-bl-lg">
-            Featured
+            {t.common.featured}
           </div>
         </div>
       )}
@@ -70,7 +72,7 @@ export function JobCard({ job, onApply, onSave, isSaved, canApply }: JobCardProp
                 }}
               >
                 <Heart className={cn("h-5 w-5", isSaved && "fill-current")} />
-                <span className="sr-only">{isSaved ? "Remove from saved" : "Save job"}</span>
+                <span className="sr-only">{isSaved ? t.common.saved : t.common.save}</span>
               </Button>
             </div>
 
@@ -91,7 +93,7 @@ export function JobCard({ job, onApply, onSave, isSaved, canApply }: JobCardProp
               {job.isRemote && (
                 <div className="flex items-center gap-1.5 text-accent">
                   <Wifi className="h-4 w-4" />
-                  <span className="font-medium">Remote</span>
+                  <span className="font-medium">{t.filters.remote}</span>
                 </div>
               )}
             </div>
@@ -134,7 +136,7 @@ export function JobCard({ job, onApply, onSave, isSaved, canApply }: JobCardProp
                     className="h-9 gap-1.5 text-muted-foreground hover:text-foreground"
                   >
                     <ExternalLink className="h-4 w-4" />
-                    Details
+                    {t.common.details}
                   </Button>
                 </Link>
                 {canApply && (
@@ -146,7 +148,7 @@ export function JobCard({ job, onApply, onSave, isSaved, canApply }: JobCardProp
                       onApply(job)
                     }}
                   >
-                    Apply Now
+                    {t.common.applyNow}
                   </Button>
                 )}
               </div>

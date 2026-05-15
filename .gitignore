@@ -12,6 +12,9 @@ next.user-config.*
 .env
 .env*.local
 
+# Chat uploads (private)
+data/chat-uploads/
+
 # Common ignores
 node_modules/
 .next/

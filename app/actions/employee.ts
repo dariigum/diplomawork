@@ -2,7 +2,7 @@
 
 import dbConnect from '@/lib/db/mongoose';
 import mongoose from 'mongoose';
-import { Response, Resume, SavedVacancy, User, Vacancy } from '@/lib/db/schema';
+import { Response, Resume, SavedVacancy, User, Vacancy, Chat, Message } from '@/lib/db/schema';
 import { clearSession, getSession } from '@/lib/auth';
 import { revalidatePath } from 'next/cache';
 import { redirect } from 'next/navigation';
@@ -144,11 +144,43 @@ export async function deleteEmployeeAccountAction() {
   const session = await getSession();
   if (!session || session.user.role !== 'EMPLOYEE') throw new Error('Unauthorized');
 
+  const userId = session.user.id;
+  const userObjectId = new mongoose.Types.ObjectId(userId);
+
   await dbConnect();
-  await Response.deleteMany({ userId: session.user.id });
-  await SavedVacancy.deleteMany({ userId: session.user.id });
-  await Resume.deleteMany({ userId: session.user.id });
-  await User.findByIdAndDelete(session.user.id);
+
+  const resumes = await Resume.find({ userId }).lean();
+  for (const r of resumes) {
+    const cv = (r as { cvFile?: string }).cvFile;
+    if (cv && cv.startsWith('/uploads/')) {
+      try {
+        const fp = path.join(process.cwd(), 'public', cv);
+        await fs.promises.unlink(fp);
+      } catch {
+        /* ignore missing file */
+      }
+    }
+  }
+
+  const chats = await Chat.find({ employeeId: userObjectId }).select('_id').lean();
+  const chatIds = chats.map((c) => c._id);
+  if (chatIds.length > 0) {
+    await Message.deleteMany({ chatId: { $in: chatIds } });
+    for (const cid of chatIds) {
+      const dir = path.join(process.cwd(), 'data', 'chat-uploads', cid.toString());
+      try {
+        await fs.promises.rm(dir, { recursive: true, force: true });
+      } catch {
+        /* ignore */
+      }
+    }
+    await Chat.deleteMany({ _id: { $in: chatIds } });
+  }
+
+  await Response.deleteMany({ userId: userId });
+  await SavedVacancy.deleteMany({ userId: userId });
+  await Resume.deleteMany({ userId: userId });
+  await User.findByIdAndDelete(userId);
 
   await clearSession();
   redirect('/signup');
@@ -177,6 +209,7 @@ export async function submitVacancyResponseAction(formData: FormData) {
 
   const vacancyId = formData.get('vacancyId') as string;
   const mode = formData.get('mode') as 'existing' | 'custom';
+  const coverLetter = formData.get('coverLetter') as string;
 
   if (!vacancyId || !mongoose.Types.ObjectId.isValid(vacancyId)) {
     return { error: 'Vacancy not found.' };
@@ -265,12 +298,31 @@ export async function submitVacancyResponseAction(formData: FormData) {
     resumeId = createdResume._id.toString();
   }
 
-  await Response.create({
+  const createdResponse = await Response.create({
     userId: new mongoose.Types.ObjectId(session.user.id),
     vacancyId: new mongoose.Types.ObjectId(vacancyId),
     resumeId: new mongoose.Types.ObjectId(resumeId),
     status: 'PENDING',
   });
+
+  const { ensureChatForResponseId, persistMessage } = await import('@/lib/chat/chat-service');
+  await ensureChatForResponseId(createdResponse._id.toString());
+
+  if (coverLetter && coverLetter.trim()) {
+    const chat = await Chat.findOne({
+      employeeId: new mongoose.Types.ObjectId(session.user.id),
+      vacancyId: new mongoose.Types.ObjectId(vacancyId),
+    }).lean();
+
+    if (chat && chat.employerId) {
+      await persistMessage({
+        chatId: chat._id.toString(),
+        senderId: session.user.id,
+        receiverId: chat.employerId.toString(),
+        text: coverLetter.trim(),
+      });
+    }
+  }
 
   revalidatePath('/dashboard/employee');
   revalidatePath(`/jobs/${vacancyId}`);

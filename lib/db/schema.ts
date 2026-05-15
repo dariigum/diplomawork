@@ -4,7 +4,7 @@ export interface IUser extends Document {
   email: string;
   passwordHash: string;
   name: string;
-  role: 'EMPLOYEE' | 'EMPLOYER';
+  role: 'EMPLOYEE' | 'EMPLOYER' | 'ADMIN';
   industry?: string;
   description?: string;
   location?: string;
@@ -18,7 +18,7 @@ const UserSchema = new Schema<IUser>({
   email: { type: String, required: true, unique: true },
   passwordHash: { type: String, required: true },
   name: { type: String, required: true },
-  role: { type: String, enum: ['EMPLOYEE', 'EMPLOYER'], required: true },
+  role: { type: String, enum: ['EMPLOYEE', 'EMPLOYER', 'ADMIN'], required: true },
   industry: { type: String },
   description: { type: String },
   location: { type: String },
@@ -161,3 +161,90 @@ const ArticleSchema = new Schema<IArticle>({
 });
 
 export const Article: Model<IArticle> = mongoose.models.Article || mongoose.model<IArticle>('Article', ArticleSchema);
+
+export interface IChat extends Document {
+  employerId: mongoose.Types.ObjectId | IUser;
+  employeeId: mongoose.Types.ObjectId | IUser;
+  vacancyId: mongoose.Types.ObjectId | IVacancy;
+  applicationId?: mongoose.Types.ObjectId | IResponse;
+  lastMessage?: mongoose.Types.ObjectId | IMessage;
+  lastMessagePreview?: string;
+  lastMessageAt?: Date;
+  unreadCountEmployer: number;
+  unreadCountEmployee: number;
+  createdAt: Date;
+  updatedAt: Date;
+}
+
+const ChatSchema = new Schema<IChat>({
+  employerId: { type: Schema.Types.ObjectId, ref: 'User', required: true },
+  employeeId: { type: Schema.Types.ObjectId, ref: 'User', required: true },
+  vacancyId: { type: Schema.Types.ObjectId, ref: 'Vacancy', required: true },
+  applicationId: { type: Schema.Types.ObjectId, ref: 'Response' },
+  lastMessage: { type: Schema.Types.ObjectId, ref: 'Message' },
+  lastMessagePreview: { type: String, default: '' },
+  lastMessageAt: { type: Date },
+  unreadCountEmployer: { type: Number, default: 0 },
+  unreadCountEmployee: { type: Number, default: 0 },
+  createdAt: { type: Date, default: Date.now },
+  updatedAt: { type: Date, default: Date.now }
+});
+
+ChatSchema.index({ employeeId: 1, vacancyId: 1 }, { unique: true });
+ChatSchema.index({ employerId: 1, updatedAt: -1 });
+ChatSchema.index({ employeeId: 1, updatedAt: -1 });
+ChatSchema.index({ vacancyId: 1 });
+
+export const Chat: Model<IChat> = mongoose.models.Chat || mongoose.model<IChat>('Chat', ChatSchema);
+
+export interface IAttachment {
+  fileName: string;
+  mimeType: string;
+  size: number;
+  /** Legacy direct URL; prefer storageKey + signed download */
+  url?: string;
+  storageKey?: string;
+}
+
+export interface IMessage extends Document {
+  chatId: mongoose.Types.ObjectId | IChat;
+  senderId: mongoose.Types.ObjectId | IUser;
+  receiverId: mongoose.Types.ObjectId | IUser;
+  /** Stored plaintext or `enc:v1:...` when CHAT_MESSAGE_KEY is set */
+  text: string;
+  attachments: IAttachment[];
+  isRead: boolean;
+  readAt?: Date;
+  editedAt?: Date;
+  deletedAt?: Date;
+  createdAt: Date;
+  updatedAt: Date;
+}
+
+const MessageSchema = new Schema<IMessage>({
+  chatId: { type: Schema.Types.ObjectId, ref: 'Chat', required: true },
+  senderId: { type: Schema.Types.ObjectId, ref: 'User', required: true },
+  receiverId: { type: Schema.Types.ObjectId, ref: 'User', required: true },
+  text: { type: String, default: '' },
+  attachments: [
+    {
+      fileName: String,
+      mimeType: String,
+      size: Number,
+      url: { type: String, required: false },
+      storageKey: { type: String, required: false },
+    },
+  ],
+  isRead: { type: Boolean, default: false },
+  readAt: { type: Date },
+  editedAt: { type: Date },
+  deletedAt: { type: Date },
+  createdAt: { type: Date, default: Date.now },
+  updatedAt: { type: Date, default: Date.now }
+});
+
+MessageSchema.index({ chatId: 1, createdAt: -1 });
+MessageSchema.index({ chatId: 1, isRead: 1 });
+MessageSchema.index({ receiverId: 1, isRead: 1 });
+
+export const Message: Model<IMessage> = mongoose.models.Message || mongoose.model<IMessage>('Message', MessageSchema);

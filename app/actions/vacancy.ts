@@ -50,7 +50,7 @@ export async function getHomeData() {
     company: v.employerId?.name || "Unknown Company",
     companyLogo: v.employerId?.name?.slice(0, 2)?.toUpperCase() || "JC",
     location: v.workMode === 'REMOTE' ? 'Remote' : [v.city, v.country].filter(Boolean).join(', ') || v.address || "Remote",
-    salary: `$${v.salaryMin.toLocaleString()} - ${v.salaryMax.toLocaleString()}`,
+    salary: v.salaryMin != null && v.salaryMax != null ? `$${v.salaryMin.toLocaleString()} - $${v.salaryMax.toLocaleString()}` : "Not specified",
     employmentType: v.employmentType || "Full-time",
     experience: v.experience || "Any experience",
     skills: v.skillsRequired ? v.skillsRequired.split(',').map((s: string) => s.trim()) : [],
@@ -86,6 +86,6 @@ export async function getSavedVacanciesAction() {
     id: s.vacancyId._id.toString(),
     title: s.vacancyId.title,
     company: s.vacancyId.employerId?.name || "Unknown Company",
-    salary: `$${s.vacancyId.salaryMin.toLocaleString()} - $${s.vacancyId.salaryMax.toLocaleString()}`
+    salary: s.vacancyId.salaryMin != null && s.vacancyId.salaryMax != null ? `$${s.vacancyId.salaryMin.toLocaleString()} - $${s.vacancyId.salaryMax.toLocaleString()}` : "Not specified"
   }));
 }

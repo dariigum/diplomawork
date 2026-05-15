@@ -99,7 +99,11 @@ export default async function JobDetailsPage({ params }: { params: Promise<{ id:
                       )}
                     </div>
 
-                    <p className="text-xl font-semibold text-foreground mt-4">${jobRecord.salaryMin.toLocaleString()} - ${jobRecord.salaryMax.toLocaleString()}</p>
+                    <p className="text-xl font-semibold text-foreground mt-4">
+                      {jobRecord.salaryMin != null && jobRecord.salaryMax != null 
+                        ? `$${jobRecord.salaryMin.toLocaleString()} - $${jobRecord.salaryMax.toLocaleString()}` 
+                        : "Not specified"}
+                    </p>
                   </div>
                 </div>
               </CardContent>

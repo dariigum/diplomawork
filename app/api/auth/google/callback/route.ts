@@ -2,7 +2,7 @@ import { NextRequest, NextResponse } from 'next/server';
 import dbConnect from '@/lib/db/mongoose';
 import { setSession } from '@/lib/auth';
 import { User } from '@/lib/db/schema';
-import { hashPassword } from '@/lib/auth';
+import { signGooglePendingToken } from '@/lib/google-pending-signup';
 
 interface GoogleUserInfo {
   email?: string;
@@ -63,19 +63,21 @@ export async function GET(request: NextRequest) {
     }
 
     await dbConnect();
-    let user = await User.findOne({ email });
+    const user = await User.findOne({ email });
 
     if (!user) {
-      const generatedPassword = crypto.randomUUID();
-      const passwordHash = await hashPassword(generatedPassword);
-      const displayName = `${userInfo.given_name || ''} ${userInfo.family_name || ''}`.trim() || userInfo.name || email;
-
-      user = await User.create({
-        email,
-        passwordHash,
-        name: displayName,
-        role: 'EMPLOYEE',
+      const displayName =
+        `${userInfo.given_name || ''} ${userInfo.family_name || ''}`.trim() || userInfo.name || email;
+      const pendingToken = await signGooglePendingToken(email, displayName);
+      const res = NextResponse.redirect(new URL(`${appUrl.replace(/\/$/, '')}/signup/complete-google`, appUrl));
+      res.cookies.set('google_signup_pending', pendingToken, {
+        httpOnly: true,
+        sameSite: 'lax',
+        secure: process.env.NODE_ENV === 'production',
+        maxAge: 900,
+        path: '/',
       });
+      return res;
     }
 
     await setSession({ id: user.id, role: user.role, email: user.email });

@@ -13,6 +13,7 @@ import {
 import { JobCard } from "./job-card"
 import { ApplyModal } from "./apply-modal"
 import type { Job } from "@/lib/job-data"
+import { useI18n } from "@/lib/i18n/provider"
 
 interface JobListProps {
   jobs: Job[]
@@ -24,6 +25,7 @@ interface JobListProps {
 type SortOption = "newest" | "salary-high" | "salary-low" | "relevance"
 
 export function JobList({ jobs, savedJobs, onSaveJob, canApply }: JobListProps) {
+  const { t } = useI18n()
   const [sortBy, setSortBy] = useState<SortOption>("newest")
   const [viewMode, setViewMode] = useState<"list" | "grid">("list")
   const [selectedJob, setSelectedJob] = useState<Job | null>(null)
@@ -57,9 +59,9 @@ export function JobList({ jobs, savedJobs, onSaveJob, canApply }: JobListProps) 
       {/* Header */}
       <div className="flex items-center justify-between mb-6">
         <div>
-          <h1 className="text-2xl font-bold text-foreground">Job Vacancies</h1>
+          <h1 className="text-2xl font-bold text-foreground">{t.home.jobVacancies}</h1>
           <p className="text-muted-foreground mt-1">
-            {jobs.length} {jobs.length === 1 ? "job" : "jobs"} found
+            {jobs.length} {jobs.length === 1 ? t.home.jobFound : t.home.jobsFound}
           </p>
         </div>
 
@@ -68,13 +70,13 @@ export function JobList({ jobs, savedJobs, onSaveJob, canApply }: JobListProps) 
           <Select value={sortBy} onValueChange={(value) => setSortBy(value as SortOption)}>
             <SelectTrigger className="w-44 bg-card border-border">
               <ArrowUpDown className="h-4 w-4 mr-2 text-muted-foreground" />
-              <SelectValue placeholder="Sort by" />
+              <SelectValue placeholder={t.home.sortBy} />
             </SelectTrigger>
             <SelectContent>
-              <SelectItem value="newest">Newest first</SelectItem>
-              <SelectItem value="relevance">Relevance</SelectItem>
-              <SelectItem value="salary-high">Salary: High to Low</SelectItem>
-              <SelectItem value="salary-low">Salary: Low to High</SelectItem>
+              <SelectItem value="newest">{t.home.newestFirst}</SelectItem>
+              <SelectItem value="relevance">{t.home.relevance}</SelectItem>
+              <SelectItem value="salary-high">{t.home.salaryHigh}</SelectItem>
+              <SelectItem value="salary-low">{t.home.salaryLow}</SelectItem>
             </SelectContent>
           </Select>
 
@@ -87,7 +89,7 @@ export function JobList({ jobs, savedJobs, onSaveJob, canApply }: JobListProps) 
               onClick={() => setViewMode("list")}
             >
               <List className="h-4 w-4" />
-              <span className="sr-only">List view</span>
+              <span className="sr-only">{t.home.listView}</span>
             </Button>
             <Button
               variant={viewMode === "grid" ? "secondary" : "ghost"}
@@ -96,7 +98,7 @@ export function JobList({ jobs, savedJobs, onSaveJob, canApply }: JobListProps) 
               onClick={() => setViewMode("grid")}
             >
               <Grid3X3 className="h-4 w-4" />
-              <span className="sr-only">Grid view</span>
+              <span className="sr-only">{t.home.gridView}</span>
             </Button>
           </div>
         </div>
@@ -129,9 +131,9 @@ export function JobList({ jobs, savedJobs, onSaveJob, canApply }: JobListProps) 
               🔍
             </span>
           </div>
-          <h3 className="text-lg font-semibold text-foreground mb-2">No jobs found</h3>
+          <h3 className="text-lg font-semibold text-foreground mb-2">{t.home.noJobsFound}</h3>
           <p className="text-muted-foreground">
-            Try adjusting your filters or search criteria
+            {t.home.tryAdjustingFilters}
           </p>
         </div>
       )}

@@ -1,0 +1,175 @@
+'use client';
+
+import Link from 'next/link';
+import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
+import { Button } from '@/components/ui/button';
+import { DeleteEmployeeAccountButton } from '@/components/dashboard/delete-employee-account-button';
+import { deleteResumeAction } from '@/app/actions/employee';
+import { useI18n } from '@/lib/i18n/provider';
+
+export type EmployeeProfileProps = {
+  userName: string;
+  userEmail: string;
+  resumes: { id: string; title: string; skills: string; cvFile?: string }[];
+  savedVacancies: { id: string; title: string; salaryMin: number; salaryMax: number }[];
+  responses: {
+    id: string;
+    status: string;
+    vacancyTitle: string;
+    salaryMin: number;
+    salaryMax: number;
+    resumeTitle: string | null;
+  }[];
+};
+
+export function EmployeeProfileSection({
+  userName,
+  userEmail,
+  resumes,
+  savedVacancies,
+  responses,
+}: EmployeeProfileProps) {
+  const { t } = useI18n();
+
+  return (
+    <div className="space-y-8">
+      <div className="grid grid-cols-1 gap-8 md:grid-cols-2">
+        <Card className="rounded-xl shadow-sm">
+          <CardHeader>
+            <CardTitle>{t.dashboard.myProfile}</CardTitle>
+          </CardHeader>
+          <CardContent className="space-y-4">
+            <div>
+              <p className="text-sm text-muted-foreground">{t.dashboard.name}</p>
+              <p className="font-medium">{userName}</p>
+            </div>
+            <div>
+              <p className="text-sm text-muted-foreground">{t.auth.email}</p>
+              <p className="font-medium">{userEmail}</p>
+            </div>
+            <Button variant="outline" type="button" disabled>
+              {t.dashboard.editProfile}
+            </Button>
+            <DeleteEmployeeAccountButton />
+          </CardContent>
+        </Card>
+
+        <Card className="rounded-xl shadow-sm">
+          <CardHeader className="flex flex-row items-center justify-between pb-2">
+            <CardTitle>{t.dashboard.myResumes}</CardTitle>
+            <Button size="sm" asChild>
+              <Link href="/dashboard/employee/resume/new">{t.dashboard.addResume}</Link>
+            </Button>
+          </CardHeader>
+          <CardContent>
+            {resumes.length === 0 ? (
+              <p className="mt-4 text-sm text-muted-foreground">{t.dashboard.noResumesYet}</p>
+            ) : (
+              <ul className="mt-4 space-y-4">
+                {resumes.map((r) => (
+                  <li
+                    key={r.id}
+                    className="flex items-center justify-between gap-3 rounded-lg border p-4"
+                  >
+                    <div className="min-w-0 flex-1">
+                      <p className="truncate font-medium leading-none">{r.title}</p>
+                      <p className="mt-2 truncate text-sm text-muted-foreground">{r.skills}</p>
+                      {r.cvFile ? (
+                        <p className="mt-2 text-xs">
+                          <a
+                            href={r.cvFile}
+                            target="_blank"
+                            rel="noopener noreferrer"
+                            className="text-primary hover:underline"
+                          >
+                            {t.dashboard.viewCv}
+                          </a>
+                        </p>
+                      ) : null}
+                    </div>
+                    <div className="flex shrink-0 items-center gap-2">
+                      <Button variant="secondary" size="sm" asChild>
+                        <Link href={`/dashboard/employee/resume/${r.id}`}>{t.common.edit}</Link>
+                      </Button>
+                      <form action={deleteResumeAction}>
+                        <input type="hidden" name="id" value={r.id} />
+                        <Button variant="destructive" size="sm" type="submit">
+                          {t.common.delete}
+                        </Button>
+                      </form>
+                    </div>
+                  </li>
+                ))}
+              </ul>
+            )}
+          </CardContent>
+        </Card>
+      </div>
+
+      <div className="grid grid-cols-1 gap-8 md:grid-cols-2">
+        <Card className="rounded-xl shadow-sm">
+          <CardHeader>
+            <CardTitle>{t.header.savedVacancies}</CardTitle>
+          </CardHeader>
+          <CardContent>
+            {savedVacancies.length === 0 ? (
+              <p className="mt-4 text-sm text-muted-foreground">{t.header.noSavedJobs}</p>
+            ) : (
+              <ul className="mt-4 space-y-4">
+                {savedVacancies.map((v) => (
+                  <li key={v.id} className="flex flex-col gap-2 rounded-lg border p-4">
+                    <div className="flex items-start justify-between">
+                      <div>
+                        <p className="font-medium">{v.title}</p>
+                        <p className="text-sm text-muted-foreground">
+                          ${v.salaryMin} - ${v.salaryMax}
+                        </p>
+                      </div>
+                      <Button variant="outline" size="sm" asChild>
+                        <Link href={`/jobs/${v.id}`}>{t.dashboard.view}</Link>
+                      </Button>
+                    </div>
+                  </li>
+                ))}
+              </ul>
+            )}
+          </CardContent>
+        </Card>
+
+        <Card className="rounded-xl shadow-sm">
+          <CardHeader>
+            <CardTitle>{t.dashboard.myApplications}</CardTitle>
+          </CardHeader>
+          <CardContent>
+            {responses.length === 0 ? (
+              <p className="text-sm text-muted-foreground">{t.dashboard.noApplicationsYet}</p>
+            ) : (
+              <ul className="mt-4 space-y-4">
+                {responses.map((response) => (
+                  <li key={response.id} className="space-y-2 rounded-lg border p-4">
+                    <div className="flex items-start justify-between gap-3">
+                      <div>
+                        <p className="font-medium">{response.vacancyTitle}</p>
+                        <p className="text-sm text-muted-foreground">
+                          ${response.salaryMin} - ${response.salaryMax}
+                        </p>
+                      </div>
+                      {response.status !== 'PENDING' && (
+                        <span className="rounded-full bg-secondary px-2 py-1 text-xs text-secondary-foreground">
+                          {response.status}
+                        </span>
+                      )}
+                    </div>
+                    <p className="text-xs text-muted-foreground">
+                      {t.dashboard.resume}: {response.resumeTitle || t.dashboard.customResume}
+                    </p>
+                  </li>
+                ))}
+              </ul>
+            )}
+          </CardContent>
+        </Card>
+      </div>
+    </div>
+  );
+}

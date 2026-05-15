@@ -1,4 +1,8 @@
 import type { SemanticJobSearchRankedItem, SemanticRetrievalStats } from '@/lib/semantic-job-search'
+import type {
+  KeywordFallbackRankedItem,
+  SemanticKeywordFallbackReason,
+} from '@/lib/semantic-keyword-fallback'
 
 /** Concept row returned with semantic search (matches domain `SemanticConceptEntry` shape). */
 export type SemanticSearchConceptItem = {
@@ -9,6 +13,15 @@ export type SemanticSearchConceptItem = {
 /** One row in GET /api/jobs/semantic-search success body — semantic-only fields. */
 export type SemanticSearchApiResultItem = SemanticJobSearchRankedItem
 
+export type SemanticSearchApiFallbackItem = KeywordFallbackRankedItem
+
+/** Text-based recovery layer — separate from embedding semantic results. */
+export type SemanticSearchApiFallback = {
+  enabled: boolean
+  reason: SemanticKeywordFallbackReason | ''
+  results: SemanticSearchApiFallbackItem[]
+}
+
 /** Stable JSON body for 200 responses. */
 export type SemanticSearchApiSuccessBody = {
   query: string
@@ -17,6 +30,8 @@ export type SemanticSearchApiSuccessBody = {
   results: SemanticSearchApiResultItem[]
   /** Deterministic retrieval diagnostics (embedding pass counts and score-band tallies). */
   stats: SemanticRetrievalStats
+  /** Optional transparent keyword/text fallback (never merged into `results`). */
+  fallback?: SemanticSearchApiFallback
   /** Present when `count > 0`: aggregated from matched vacancy text only (server-side). */
   concepts?: SemanticSearchConceptItem[]
   conceptExplanation?: string
@@ -46,6 +61,35 @@ export function isSemanticSearchApiSuccessBody(json: unknown): json is SemanticS
   }
   if (o.conceptExplanation !== undefined && typeof o.conceptExplanation !== 'string') return false
   if (!isSemanticRetrievalStats(o.stats)) return false
+  if (o.fallback !== undefined && !isSemanticSearchApiFallback(o.fallback)) return false
+  return true
+}
+
+function isSemanticSearchApiFallbackItem(value: unknown): value is SemanticSearchApiFallbackItem {
+  if (!value || typeof value !== 'object') return false
+  const r = value as Record<string, unknown>
+  if (typeof r.vacancyId !== 'string' || typeof r.textScore !== 'number' || !Number.isFinite(r.textScore)) {
+    return false
+  }
+  if (r.textScore <= 0) return false
+  if (typeof r.title !== 'string' || typeof r.company !== 'string') return false
+  if (typeof r.location !== 'string' || typeof r.employmentType !== 'string') return false
+  if (r.workMode !== 'REMOTE' && r.workMode !== 'ONSITE') return false
+  if (typeof r.explanation !== 'string' || r.explanation.length === 0) return false
+  if ('semanticScore' in r) return false
+  return true
+}
+
+export function isSemanticSearchApiFallback(value: unknown): value is SemanticSearchApiFallback {
+  if (!value || typeof value !== 'object') return false
+  const f = value as Record<string, unknown>
+  if (typeof f.enabled !== 'boolean') return false
+  if (typeof f.reason !== 'string') return false
+  if (!Array.isArray(f.results)) return false
+  for (const row of f.results) {
+    if (!isSemanticSearchApiFallbackItem(row)) return false
+  }
+  if (f.enabled && f.reason === '') return false
   return true
 }
 

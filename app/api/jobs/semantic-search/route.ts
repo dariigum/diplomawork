@@ -3,6 +3,11 @@ import dbConnect from '@/lib/db/mongoose'
 import { Vacancy } from '@/lib/db/schema'
 import { getEmbedding } from '@/lib/ml'
 import {
+  rankVacanciesByKeywordFallback,
+  resolveKeywordFallbackActivation,
+  type KeywordFallbackVacancyInput,
+} from '@/lib/semantic-keyword-fallback'
+import {
   rankVacanciesBySemanticQueryFromEmbeddingWithStats,
   type SemanticVacancyInput,
 } from '@/lib/semantic-job-search'
@@ -59,17 +64,47 @@ export async function GET(request: NextRequest) {
 
   try {
     await dbConnect()
-    const docs = await Vacancy.find({
-      embedding: { $exists: true, $ne: null },
-    })
-      .populate('employerId', 'name')
-      .lean()
+    const [semanticDocs, allDocs] = await Promise.all([
+      Vacancy.find({
+        embedding: { $exists: true, $ne: null },
+      })
+        .populate('employerId', 'name')
+        .lean(),
+      Vacancy.find({})
+        .populate('employerId', 'name')
+        .lean(),
+    ])
+
+    const docs = semanticDocs
 
     const { results, stats } = rankVacanciesBySemanticQueryFromEmbeddingWithStats({
       queryEmbedding,
       vacancies: docs as SemanticVacancyInput[],
       limit,
     })
+
+    const fallbackActivation = resolveKeywordFallbackActivation({
+      semanticCount: results.length,
+      topSemanticScore: stats.topSemanticScore,
+      compatibleEmbeddings: stats.compatibleEmbeddings,
+      checkedEmbeddings: stats.checkedEmbeddings,
+    })
+
+    let fallback: SemanticSearchApiSuccessBody['fallback']
+    if (fallbackActivation.enabled && fallbackActivation.reason) {
+      const excludeIds = new Set(results.map((r) => r.vacancyId))
+      const fallbackResults = rankVacanciesByKeywordFallback({
+        query,
+        vacancies: allDocs as KeywordFallbackVacancyInput[],
+        excludeVacancyIds: excludeIds,
+        limit,
+      })
+      fallback = {
+        enabled: true,
+        reason: fallbackActivation.reason,
+        results: fallbackResults,
+      }
+    }
 
     const byId = new Map<string, (typeof docs)[number]>()
     for (const d of docs) {
@@ -99,6 +134,7 @@ export async function GET(request: NextRequest) {
       count: results.length,
       results,
       stats,
+      ...(fallback ? { fallback } : {}),
       ...(concepts.length > 0 ? { concepts, conceptExplanation } : {}),
     }
     return NextResponse.json(body, { status: 200 })

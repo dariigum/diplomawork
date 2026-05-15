@@ -9,6 +9,7 @@ import { User, Vacancy } from '@/lib/db/schema'
 import { getEmbedding } from '@/lib/ml'
 import {
   isSemanticRetrievalStats,
+  isSemanticSearchApiFallback,
   isSemanticSearchApiSuccessBody,
   type SemanticSearchApiErrorBody,
   type SemanticSearchApiSuccessBody,
@@ -213,6 +214,7 @@ describe('GET /api/jobs/semantic-search', () => {
     expect(body.stats.bandCounts.solid).toBe(0)
     expect(body.stats.bandCounts.related).toBe(0)
     expect(body.stats.bandCounts.loose).toBe(0)
+    expect(body.fallback).toBeUndefined()
   })
 
   it('returns deterministic ordering for repeated GET with same fixtures', async () => {
@@ -308,5 +310,63 @@ describe('GET /api/jobs/semantic-search', () => {
     } else {
       expect(body.stats.topSemanticScore).toBeNull()
     }
+  })
+
+  it('returns keyword fallback when semantic results are empty but text overlaps', async () => {
+    mockedGetEmbedding.mockResolvedValue(emb8(0))
+    const employer = await User.create({
+      email: 'e6@t.dev',
+      passwordHash: 'x',
+      name: 'Text Co',
+      role: 'EMPLOYER',
+    })
+    await Vacancy.create({
+      employerId: employer._id,
+      title: 'Python Backend Engineer',
+      description: 'backend APIs',
+      skillsRequired: 'Python, Django',
+      salaryMin: 1,
+      salaryMax: 2,
+    })
+
+    const res = await GET(req('http://localhost/api/jobs/semantic-search?q=python+backend'))
+    expect(res.status).toBe(200)
+    const body = (await res.json()) as SemanticSearchApiSuccessBody
+    expect(body.count).toBe(0)
+    expect(body.fallback).toBeDefined()
+    expect(isSemanticSearchApiFallback(body.fallback)).toBe(true)
+    expect(body.fallback!.enabled).toBe(true)
+    expect(['No strong semantic matches', 'Sparse embedding overlap']).toContain(body.fallback!.reason)
+    expect(body.fallback!.results.length).toBeGreaterThan(0)
+    const item = body.fallback!.results[0]!
+    expect(item).not.toHaveProperty('semanticScore')
+    expect(typeof item.textScore).toBe('number')
+    expect(item.explanation.toLowerCase()).toContain('text overlap')
+  })
+
+  it('omits fallback when top semantic score is at related band or higher', async () => {
+    mockedGetEmbedding.mockResolvedValue(emb8(0))
+    const employer = await User.create({
+      email: 'e7@t.dev',
+      passwordHash: 'x',
+      name: 'Strong',
+      role: 'EMPLOYER',
+    })
+    await Vacancy.create({
+      employerId: employer._id,
+      title: 'Exact',
+      description: 'd',
+      skillsRequired: 's',
+      salaryMin: 1,
+      salaryMax: 2,
+      embedding: emb8(0),
+    })
+
+    const res = await GET(req('http://localhost/api/jobs/semantic-search?q=exact'))
+    expect(res.status).toBe(200)
+    const body = (await res.json()) as SemanticSearchApiSuccessBody
+    expect(body.count).toBe(1)
+    expect(body.stats.topSemanticScore).toBeGreaterThanOrEqual(0.35)
+    expect(body.fallback).toBeUndefined()
   })
 })

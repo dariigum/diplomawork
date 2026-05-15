@@ -2,7 +2,7 @@
 
 import { useCallback, useEffect, useMemo, useRef, useState } from "react"
 import Link from "next/link"
-import { BrainCircuit, Loader2, MapPin, RefreshCw, Search, Sparkles, Briefcase } from "lucide-react"
+import { BrainCircuit, FileText, Loader2, MapPin, RefreshCw, Search, Sparkles, Briefcase } from "lucide-react"
 import { Badge } from "@/components/ui/badge"
 import { Button } from "@/components/ui/button"
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
@@ -15,6 +15,7 @@ import {
   type SemanticSearchApiErrorBody,
   type SemanticSearchApiResultItem,
   type SemanticSearchConceptItem,
+  type SemanticSearchApiFallbackItem,
   type SemanticSearchApiSuccessBody,
 } from "@/lib/semantic-search-api-types"
 
@@ -39,21 +40,24 @@ function formatConceptDisplay(raw: string, maxLen: number): string {
 }
 
 type PanelStats = SemanticSearchApiSuccessBody["stats"]
+type PanelFallback = SemanticSearchApiSuccessBody["fallback"]
 
 type PanelState =
   | { kind: "idle" }
   | { kind: "loading"; query: string }
   | {
-      kind: "ok"
+      kind: "results"
       query: string
       results: SemanticSearchApiResultItem[]
       concepts: SemanticSearchConceptItem[]
       conceptExplanation: string
       stats: PanelStats
+      fallback?: PanelFallback
     }
-  | { kind: "empty"; query: string; stats: PanelStats }
   | { kind: "unavailable"; query: string; message: string }
   | { kind: "error"; query: string; message: string }
+
+const FALLBACK_SECTION_ID = "semantic-keyword-fallback-section"
 
 function formatSemanticScore(score: number): string {
   return score.toFixed(2)
@@ -79,7 +83,17 @@ function SemanticConfidenceSummary({ stats }: { stats: PanelStats }) {
   )
 }
 
-function SemanticEmptyState({ query, stats }: { query: string; stats: PanelStats }) {
+function SemanticEmptyState({
+  query,
+  stats,
+  hasFallback,
+  onShowFallback,
+}: {
+  query: string
+  stats: PanelStats
+  hasFallback: boolean
+  onShowFallback?: () => void
+}) {
   return (
     <div className="rounded-xl border border-dashed border-border/80 bg-muted/20 px-4 py-6 text-left max-w-lg mx-auto space-y-4">
       <div className="text-center sm:text-left">
@@ -104,10 +118,89 @@ function SemanticEmptyState({ query, stats }: { query: string; stats: PanelStats
         <ul className="list-disc pl-5 text-muted-foreground space-y-1 leading-relaxed">
           <li>try broader role or skill wording</li>
           <li>use simpler job titles or technology names</li>
-          <li>browse vacancies below while you refine the query</li>
+          {hasFallback ? (
+            <li>review text-based matches below — plain keyword overlap, not embeddings</li>
+          ) : (
+            <li>browse vacancies below while you refine the query</li>
+          )}
         </ul>
       </div>
+      {hasFallback && onShowFallback ? (
+        <Button type="button" variant="outline" size="sm" className="gap-2" onClick={onShowFallback}>
+          <FileText className="h-4 w-4" />
+          Show text-based matches
+        </Button>
+      ) : null}
     </div>
+  )
+}
+
+function KeywordFallbackSection({
+  results,
+  reason,
+  primary,
+}: {
+  results: SemanticSearchApiFallbackItem[]
+  reason: string
+  primary: boolean
+}) {
+  if (results.length === 0) return null
+
+  return (
+    <section
+      id={FALLBACK_SECTION_ID}
+      className={
+        primary
+          ? "rounded-xl border border-border/80 bg-muted/15 px-4 py-4 space-y-3"
+          : "rounded-xl border border-dashed border-muted-foreground/30 bg-muted/10 px-4 py-4 space-y-3 mt-2"
+      }
+      aria-label="Keyword and text fallback matches"
+    >
+      <div className="space-y-1">
+        <div className="flex flex-wrap items-center gap-2">
+          <h3 className="text-sm font-medium text-foreground tracking-tight">Additional keyword/text matches</h3>
+          <Badge variant="outline" className="text-[10px] font-normal text-muted-foreground border-border/70">
+            Not embedding-based
+          </Badge>
+        </div>
+        <p className="text-xs text-muted-foreground leading-relaxed">
+          {reason}. These listings matched by plain text overlap on title, skills, and description — not semantic
+          embedding retrieval.
+        </p>
+      </div>
+      <ul className="grid gap-2 sm:grid-cols-2 list-none m-0 p-0">
+        {results.map((r) => (
+          <li key={r.vacancyId}>
+            <Card className="h-full border-border/60 bg-background/90 shadow-none">
+              <CardHeader className="pb-2 space-y-1.5 py-3 px-3">
+                <CardTitle className="text-sm leading-snug font-medium">
+                  <Link href={`/jobs/${r.vacancyId}`} className="hover:text-foreground hover:underline underline-offset-2">
+                    {r.title}
+                  </Link>
+                </CardTitle>
+                <div className="flex flex-wrap gap-x-2 gap-y-0.5 text-[11px] text-muted-foreground">
+                  <span className="inline-flex items-center gap-1">
+                    <Briefcase className="h-3 w-3 shrink-0" />
+                    {r.company}
+                  </span>
+                  <span className="inline-flex items-center gap-1">
+                    <MapPin className="h-3 w-3 shrink-0" />
+                    {r.location}
+                  </span>
+                </div>
+              </CardHeader>
+              <CardContent className="pt-0 px-3 pb-3">
+                <p className="text-[11px] text-muted-foreground leading-relaxed">
+                  <span className="font-medium text-foreground/85">Text match: </span>
+                  {r.explanation}
+                </p>
+                <p className="text-[10px] text-muted-foreground/80 mt-1.5 tabular-nums">Text overlap score: {r.textScore}</p>
+              </CardContent>
+            </Card>
+          </li>
+        ))}
+      </ul>
+    </section>
   )
 }
 
@@ -168,18 +261,15 @@ export function SemanticJobSearchPanel() {
 
       const body = json
 
-      if (body.count === 0) {
-        setPanel({ kind: "empty", query: trimmed, stats: body.stats })
-      } else {
-        setPanel({
-          kind: "ok",
-          query: trimmed,
-          results: body.results,
-          concepts: body.concepts ?? [],
-          conceptExplanation: body.conceptExplanation ?? "",
-          stats: body.stats,
-        })
-      }
+      setPanel({
+        kind: "results",
+        query: trimmed,
+        results: body.results,
+        concepts: body.concepts ?? [],
+        conceptExplanation: body.conceptExplanation ?? "",
+        stats: body.stats,
+        fallback: body.fallback,
+      })
     } catch (e: unknown) {
       if (myId !== requestIdRef.current) return
       if (e instanceof DOMException && e.name === "AbortError") return
@@ -217,24 +307,38 @@ export function SemanticJobSearchPanel() {
     }
   }, [])
 
-  const showResults = panel.kind === "ok"
+  const scrollToFallback = useCallback(() => {
+    document.getElementById(FALLBACK_SECTION_ID)?.scrollIntoView({ behavior: "smooth", block: "nearest" })
+  }, [])
+
+  const showSemanticResults = panel.kind === "results" && panel.results.length > 0
   const showLoading = panel.kind === "loading"
-  const showEmpty = panel.kind === "empty"
+  const showEmptySemantic = panel.kind === "results" && panel.results.length === 0
   const showUnavailable = panel.kind === "unavailable"
   const showError = panel.kind === "error"
 
+  const fallbackPayload =
+    panel.kind === "results" && panel.fallback?.enabled && panel.fallback.results.length > 0
+      ? panel.fallback
+      : null
+
   const subtitle = useMemo(() => {
-    if (panel.kind === "ok") {
-      return `${panel.results.length} role${panel.results.length === 1 ? "" : "s"} ranked by meaning for "${panel.query}".`
-    }
-    if (panel.kind === "empty") {
+    if (panel.kind === "results") {
+      if (panel.results.length > 0) {
+        return `${panel.results.length} role${panel.results.length === 1 ? "" : "s"} ranked by meaning for "${panel.query}".`
+      }
+      if (fallbackPayload) {
+        return `No embedding-based semantic matches for "${panel.query}" — showing text-based recovery below.`
+      }
       return `No semantic matches above the retrieval threshold for "${panel.query}".`
     }
     return null
-  }, [panel])
+  }, [panel, fallbackPayload])
 
   const conceptChips = useMemo(() => {
-    if (panel.kind !== "ok") return [] as { key: string; label: string; titleAttr: string }[]
+    if (panel.kind !== "results" || panel.results.length === 0) {
+      return [] as { key: string; label: string; titleAttr: string }[]
+    }
     return panel.concepts.map((c) => ({
       key: c.concept,
       label: formatConceptDisplay(c.concept, 34),
@@ -311,7 +415,14 @@ export function SemanticJobSearchPanel() {
           </div>
         )}
 
-        {showEmpty && panel.kind === "empty" && <SemanticEmptyState query={panel.query} stats={panel.stats} />}
+        {showEmptySemantic && panel.kind === "results" && (
+          <SemanticEmptyState
+            query={panel.query}
+            stats={panel.stats}
+            hasFallback={Boolean(fallbackPayload)}
+            onShowFallback={fallbackPayload ? scrollToFallback : undefined}
+          />
+        )}
 
         {showUnavailable && (
           <div className="rounded-xl border border-amber-500/25 bg-amber-500/[0.06] px-4 py-5 flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3">
@@ -339,11 +450,11 @@ export function SemanticJobSearchPanel() {
           </div>
         )}
 
-        {showResults && panel.kind === "ok" && (
+        {showSemanticResults && panel.kind === "results" && (
           <SemanticConfidenceSummary stats={panel.stats} />
         )}
 
-        {showResults && (
+        {showSemanticResults && panel.kind === "results" && (
           <ul className="grid gap-3 sm:grid-cols-2 pt-1 list-none m-0 p-0">
             {panel.results.map((r) => {
               const pct = scoreToPercent(r.semanticScore)
@@ -398,7 +509,15 @@ export function SemanticJobSearchPanel() {
           </ul>
         )}
 
-        {showResults && panel.kind === "ok" && panel.concepts.length > 0 && conceptChips.length > 0 && (
+        {fallbackPayload && panel.kind === "results" && (
+          <KeywordFallbackSection
+            results={fallbackPayload.results}
+            reason={fallbackPayload.reason}
+            primary={panel.results.length === 0}
+          />
+        )}
+
+        {showSemanticResults && panel.kind === "results" && panel.concepts.length > 0 && conceptChips.length > 0 && (
           <div className="rounded-xl border border-border/60 bg-card/50 px-4 py-4 space-y-3 mt-2">
             <h3 className="text-sm font-medium text-foreground tracking-tight">Related semantic concepts</h3>
             <div className="flex flex-wrap gap-1.5" role="list" aria-label="Semantic concepts derived from matched vacancies">

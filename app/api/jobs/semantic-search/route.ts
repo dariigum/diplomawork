@@ -3,7 +3,7 @@ import dbConnect from '@/lib/db/mongoose'
 import { Vacancy } from '@/lib/db/schema'
 import { getEmbedding } from '@/lib/ml'
 import {
-  rankVacanciesBySemanticQueryFromEmbedding,
+  rankVacanciesBySemanticQueryFromEmbeddingWithStats,
   type SemanticVacancyInput,
 } from '@/lib/semantic-job-search'
 import type { SemanticSearchApiErrorBody, SemanticSearchApiSuccessBody } from '@/lib/semantic-search-api-types'
@@ -65,7 +65,7 @@ export async function GET(request: NextRequest) {
       .populate('employerId', 'name')
       .lean()
 
-    const results = rankVacanciesBySemanticQueryFromEmbedding({
+    const { results, stats } = rankVacanciesBySemanticQueryFromEmbeddingWithStats({
       queryEmbedding,
       vacancies: docs as SemanticVacancyInput[],
       limit,
@@ -98,6 +98,7 @@ export async function GET(request: NextRequest) {
       semantic: true,
       count: results.length,
       results,
+      stats,
       ...(concepts.length > 0 ? { concepts, conceptExplanation } : {}),
     }
     return NextResponse.json(body, { status: 200 })

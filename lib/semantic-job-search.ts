@@ -1,5 +1,22 @@
 import { getEmbedding } from '@/lib/ml'
 import { cosineSimilarity } from '@/lib/recommendation'
+import {
+  emptySemanticScoreBandCounts,
+  incrementSemanticScoreBandCount,
+  semanticScoreBand,
+  type SemanticScoreBand,
+  type SemanticScoreBandCounts,
+} from '@/lib/semantic-score-bands'
+
+export {
+  SEMANTIC_SCORE_BAND_RELATED,
+  SEMANTIC_SCORE_BAND_SOLID,
+  SEMANTIC_SCORE_BAND_STRONG,
+  semanticMatchStrengthLabel,
+  semanticScoreBand,
+  type SemanticScoreBand,
+  type SemanticScoreBandCounts,
+} from '@/lib/semantic-score-bands'
 
 /**
  * Minimal vacancy shape for semantic ranking (e.g. Mongoose lean docs).
@@ -103,38 +120,77 @@ export type RankVacanciesBySemanticQueryFromEmbeddingParams = {
   limit?: number
 }
 
-/**
- * Rank vacancies using a precomputed query embedding (same rules as {@link rankVacanciesBySemanticQuery}).
- * Synchronous: use when the query vector is already available (e.g. API layer handles ML errors separately).
- */
-export function rankVacanciesBySemanticQueryFromEmbedding(
-  params: RankVacanciesBySemanticQueryFromEmbeddingParams,
+export type SemanticRetrievalStats = {
+  checkedEmbeddings: number
+  compatibleEmbeddings: number
+  topSemanticScore: number | null
+  bandCounts: SemanticScoreBandCounts
+}
+
+export type RankVacanciesBySemanticQueryFromEmbeddingResult = {
+  results: SemanticJobSearchRankedItem[]
+  stats: SemanticRetrievalStats
+}
+
+function emptySemanticRetrievalStats(): SemanticRetrievalStats {
+  return {
+    checkedEmbeddings: 0,
+    compatibleEmbeddings: 0,
+    topSemanticScore: null,
+    bandCounts: emptySemanticScoreBandCounts(),
+  }
+}
+
+function applyResultLimit(
+  ranked: SemanticJobSearchRankedItem[],
+  limit: number | undefined,
 ): SemanticJobSearchRankedItem[] {
+  const lim = limit
+  if (lim !== undefined && Number.isFinite(lim) && lim > 0) {
+    return ranked.slice(0, Math.floor(lim))
+  }
+  return ranked
+}
+
+/**
+ * Rank vacancies and collect retrieval diagnostics in one pass (same cosine rules as ranking-only path).
+ */
+export function rankVacanciesBySemanticQueryFromEmbeddingWithStats(
+  params: RankVacanciesBySemanticQueryFromEmbeddingParams,
+): RankVacanciesBySemanticQueryFromEmbeddingResult {
   const queryEmbedding = params.queryEmbedding
   if (!Array.isArray(queryEmbedding) || queryEmbedding.length === 0) {
-    return []
+    return { results: [], stats: emptySemanticRetrievalStats() }
   }
 
   const queryDim = queryEmbedding.length
   for (let i = 0; i < queryDim; i++) {
     const v = queryEmbedding[i]
     if (typeof v !== 'number' || !Number.isFinite(v)) {
-      return []
+      return { results: [], stats: emptySemanticRetrievalStats() }
     }
   }
 
   const rows: SemanticJobSearchRankedItem[] = []
+  const bandCounts = emptySemanticScoreBandCounts()
+  let checkedEmbeddings = 0
+  let compatibleEmbeddings = 0
 
   for (const v of params.vacancies) {
+    checkedEmbeddings += 1
     const emb = v.embedding
     if (!isValidEmbeddingForQuery(emb, queryDim)) {
       continue
     }
+    compatibleEmbeddings += 1
 
     const semanticScore = cosineSimilarity(queryEmbedding, emb)
     if (!Number.isFinite(semanticScore) || semanticScore <= 0) {
       continue
     }
+
+    const band = semanticScoreBand(semanticScore)
+    if (band) incrementSemanticScoreBandCount(bandCounts, band)
 
     const vacancyId = vacancyIdString(v._id)
     const title = typeof v.title === 'string' && v.title.trim() ? v.title.trim() : 'Untitled vacancy'
@@ -163,14 +219,28 @@ export function rankVacanciesBySemanticQueryFromEmbedding(
     return a.vacancyId.localeCompare(b.vacancyId)
   })
 
-  const ranked = rows
-
-  const lim = params.limit
-  if (lim !== undefined && Number.isFinite(lim) && lim > 0) {
-    return ranked.slice(0, Math.floor(lim))
+  const topSemanticScore = rows.length > 0 ? rows[0]!.semanticScore : null
+  const stats: SemanticRetrievalStats = {
+    checkedEmbeddings,
+    compatibleEmbeddings,
+    topSemanticScore,
+    bandCounts,
   }
 
-  return ranked
+  return {
+    results: applyResultLimit(rows, params.limit),
+    stats,
+  }
+}
+
+/**
+ * Rank vacancies using a precomputed query embedding (same rules as {@link rankVacanciesBySemanticQuery}).
+ * Synchronous: use when the query vector is already available (e.g. API layer handles ML errors separately).
+ */
+export function rankVacanciesBySemanticQueryFromEmbedding(
+  params: RankVacanciesBySemanticQueryFromEmbeddingParams,
+): SemanticJobSearchRankedItem[] {
+  return rankVacanciesBySemanticQueryFromEmbeddingWithStats(params).results
 }
 
 /**

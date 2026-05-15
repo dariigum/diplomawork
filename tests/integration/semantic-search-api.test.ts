@@ -8,6 +8,7 @@ import { afterAll, beforeAll, beforeEach, describe, expect, it, vi } from 'vites
 import { User, Vacancy } from '@/lib/db/schema'
 import { getEmbedding } from '@/lib/ml'
 import {
+  isSemanticRetrievalStats,
   isSemanticSearchApiSuccessBody,
   type SemanticSearchApiErrorBody,
   type SemanticSearchApiSuccessBody,
@@ -133,6 +134,10 @@ describe('GET /api/jobs/semantic-search', () => {
     expect(body.count).toBe(0)
     expect(body.results).toEqual([])
     expect(body.concepts).toBeUndefined()
+    expect(isSemanticRetrievalStats(body.stats)).toBe(true)
+    expect(body.stats.compatibleEmbeddings).toBe(0)
+    expect(body.stats.topSemanticScore).toBeNull()
+    expect(body.stats.bandCounts).toEqual({ strong: 0, solid: 0, related: 0, loose: 0 })
   })
 
   it('returns 200 with ranked matches, stable contract, and finite scores in (0,1]', async () => {
@@ -199,6 +204,15 @@ describe('GET /api/jobs/semantic-search', () => {
     const conceptKeys = new Set(body.concepts!.map((c) => c.concept))
     expect(conceptKeys.has('python')).toBe(true)
     expect(conceptKeys.has('docker')).toBe(true)
+
+    expect(isSemanticRetrievalStats(body.stats)).toBe(true)
+    expect(body.stats.checkedEmbeddings).toBeGreaterThanOrEqual(2)
+    expect(body.stats.compatibleEmbeddings).toBe(2)
+    expect(body.stats.topSemanticScore).toBe(body.results[0]!.semanticScore)
+    expect(body.stats.bandCounts.strong).toBe(2)
+    expect(body.stats.bandCounts.solid).toBe(0)
+    expect(body.stats.bandCounts.related).toBe(0)
+    expect(body.stats.bandCounts.loose).toBe(0)
   })
 
   it('returns deterministic ordering for repeated GET with same fixtures', async () => {
@@ -261,5 +275,38 @@ describe('GET /api/jobs/semantic-search', () => {
     const body = (await res.json()) as SemanticSearchApiSuccessBody
     expect(body.count).toBe(1)
     expect(body.results[0]!.title).toBe('Good dim')
+    expect(body.stats.checkedEmbeddings).toBe(2)
+    expect(body.stats.compatibleEmbeddings).toBe(1)
+    expect(body.stats.topSemanticScore).toBe(body.results[0]!.semanticScore)
+  })
+
+  it('includes stats on every 200 success body validated by type guard', async () => {
+    mockedGetEmbedding.mockResolvedValue(emb8(3))
+    const employer = await User.create({
+      email: 'e5@t.dev',
+      passwordHash: 'x',
+      name: 'Stats Co',
+      role: 'EMPLOYER',
+    })
+    await Vacancy.create({
+      employerId: employer._id,
+      title: 'Loose match',
+      description: 'd',
+      skillsRequired: 's',
+      salaryMin: 1,
+      salaryMax: 2,
+      embedding: emb8(4),
+    })
+
+    const res = await GET(req('http://localhost/api/jobs/semantic-search?q=partial'))
+    expect(res.status).toBe(200)
+    const body = (await res.json()) as SemanticSearchApiSuccessBody
+    expect(isSemanticSearchApiSuccessBody(body)).toBe(true)
+    expect(body.stats.checkedEmbeddings).toBe(1)
+    if (body.count > 0) {
+      expect(body.stats.topSemanticScore).not.toBeNull()
+    } else {
+      expect(body.stats.topSemanticScore).toBeNull()
+    }
   })
 })

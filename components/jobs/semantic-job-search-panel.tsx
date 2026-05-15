@@ -9,24 +9,17 @@ import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
 import { Input } from "@/components/ui/input"
 import { Progress } from "@/components/ui/progress"
 import { Skeleton } from "@/components/ui/skeleton"
+import { semanticMatchStrengthLabel } from "@/lib/semantic-score-bands"
 import {
   isSemanticSearchApiSuccessBody,
   type SemanticSearchApiErrorBody,
   type SemanticSearchApiResultItem,
   type SemanticSearchConceptItem,
+  type SemanticSearchApiSuccessBody,
 } from "@/lib/semantic-search-api-types"
 
 const DEBOUNCE_MS = 380
 const FETCH_LIMIT = 24
-
-/** Short, honest labels for cards — deterministic from score only (no behaviour layer). */
-function semanticMatchStrengthLabel(score: number): string {
-  if (!Number.isFinite(score) || score <= 0) return "Semantic similarity"
-  if (score >= 0.75) return "Strong semantic similarity"
-  if (score >= 0.55) return "Solid semantic overlap"
-  if (score >= 0.35) return "Related semantic overlap"
-  return "Loose semantic overlap"
-}
 
 function scoreToPercent(score: number): number {
   if (!Number.isFinite(score)) return 0
@@ -45,13 +38,78 @@ function formatConceptDisplay(raw: string, maxLen: number): string {
   return `${pretty.slice(0, Math.max(1, maxLen - 1)).trimEnd()}…`
 }
 
+type PanelStats = SemanticSearchApiSuccessBody["stats"]
+
 type PanelState =
   | { kind: "idle" }
   | { kind: "loading"; query: string }
-  | { kind: "ok"; query: string; results: SemanticSearchApiResultItem[]; concepts: SemanticSearchConceptItem[]; conceptExplanation: string }
-  | { kind: "empty"; query: string }
+  | {
+      kind: "ok"
+      query: string
+      results: SemanticSearchApiResultItem[]
+      concepts: SemanticSearchConceptItem[]
+      conceptExplanation: string
+      stats: PanelStats
+    }
+  | { kind: "empty"; query: string; stats: PanelStats }
   | { kind: "unavailable"; query: string; message: string }
   | { kind: "error"; query: string; message: string }
+
+function formatSemanticScore(score: number): string {
+  return score.toFixed(2)
+}
+
+function SemanticConfidenceSummary({ stats }: { stats: PanelStats }) {
+  const top = stats.topSemanticScore
+  if (top === null || !Number.isFinite(top) || top <= 0) return null
+
+  return (
+    <div
+      className="rounded-lg border border-border/70 bg-muted/25 px-3 py-2.5 text-sm space-y-0.5"
+      aria-label="Semantic retrieval summary"
+    >
+      <p className="text-foreground">
+        <span className="text-muted-foreground">Top semantic similarity: </span>
+        <span className="tabular-nums font-medium">{formatSemanticScore(top)}</span>
+      </p>
+      <p className="text-muted-foreground text-xs">
+        Tier: <span className="text-foreground/90">{semanticMatchStrengthLabel(top)}</span>
+      </p>
+    </div>
+  )
+}
+
+function SemanticEmptyState({ query, stats }: { query: string; stats: PanelStats }) {
+  return (
+    <div className="rounded-xl border border-dashed border-border/80 bg-muted/20 px-4 py-6 text-left max-w-lg mx-auto space-y-4">
+      <div className="text-center sm:text-left">
+        <p className="text-foreground font-medium">No strong semantic matches were found.</p>
+        <p className="mt-1 text-sm text-muted-foreground">
+          Query: <span className="text-foreground/90">&ldquo;{query}&rdquo;</span>
+        </p>
+      </div>
+      <div className="text-sm space-y-2">
+        <p className="font-medium text-foreground text-xs uppercase tracking-wide">Possible reasons</p>
+        <ul className="list-disc pl-5 text-muted-foreground space-y-1 leading-relaxed">
+          <li>low embedding overlap between your wording and indexed vacancy vectors</li>
+          <li>
+            incompatible or missing vacancy embeddings ({stats.compatibleEmbeddings} of {stats.checkedEmbeddings}{" "}
+            checked vectors were dimension-compatible)
+          </li>
+          <li>sparse skills or descriptions in indexed listings</li>
+        </ul>
+      </div>
+      <div className="text-sm space-y-2">
+        <p className="font-medium text-foreground text-xs uppercase tracking-wide">Suggestions</p>
+        <ul className="list-disc pl-5 text-muted-foreground space-y-1 leading-relaxed">
+          <li>try broader role or skill wording</li>
+          <li>use simpler job titles or technology names</li>
+          <li>browse vacancies below while you refine the query</li>
+        </ul>
+      </div>
+    </div>
+  )
+}
 
 async function readErrorMessage(res: Response): Promise<string> {
   const body = (await res.json().catch(() => null)) as SemanticSearchApiErrorBody | null
@@ -111,7 +169,7 @@ export function SemanticJobSearchPanel() {
       const body = json
 
       if (body.count === 0) {
-        setPanel({ kind: "empty", query: trimmed })
+        setPanel({ kind: "empty", query: trimmed, stats: body.stats })
       } else {
         setPanel({
           kind: "ok",
@@ -119,6 +177,7 @@ export function SemanticJobSearchPanel() {
           results: body.results,
           concepts: body.concepts ?? [],
           conceptExplanation: body.conceptExplanation ?? "",
+          stats: body.stats,
         })
       }
     } catch (e: unknown) {
@@ -169,7 +228,7 @@ export function SemanticJobSearchPanel() {
       return `${panel.results.length} role${panel.results.length === 1 ? "" : "s"} ranked by meaning for "${panel.query}".`
     }
     if (panel.kind === "empty") {
-      return `No semantic matches for "${panel.query}".`
+      return `No semantic matches above the retrieval threshold for "${panel.query}".`
     }
     return null
   }, [panel])
@@ -252,15 +311,7 @@ export function SemanticJobSearchPanel() {
           </div>
         )}
 
-        {showEmpty && (
-          <div className="rounded-xl border border-dashed border-border/80 bg-muted/20 px-4 py-8 text-center">
-            <p className="text-foreground font-medium">No semantic matches found for this query yet.</p>
-            <p className="mt-2 text-sm text-muted-foreground max-w-md mx-auto leading-relaxed">
-              Try broader skills or role wording. Semantic search still uses embedding-based retrieval only — nothing here
-              invents new roles or autonomous "insights."
-            </p>
-          </div>
-        )}
+        {showEmpty && panel.kind === "empty" && <SemanticEmptyState query={panel.query} stats={panel.stats} />}
 
         {showUnavailable && (
           <div className="rounded-xl border border-amber-500/25 bg-amber-500/[0.06] px-4 py-5 flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3">
@@ -286,6 +337,10 @@ export function SemanticJobSearchPanel() {
               Retry
             </Button>
           </div>
+        )}
+
+        {showResults && panel.kind === "ok" && (
+          <SemanticConfidenceSummary stats={panel.stats} />
         )}
 
         {showResults && (

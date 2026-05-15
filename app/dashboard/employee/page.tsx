@@ -28,7 +28,10 @@ export default async function EmployeeDashboard() {
   const t = getDictionary(locale as "en" | "ru" | "kz");
 
   const userData = await User.findById(session.user.id);
-  const userResumes = await Resume.find({ userId: session.user.id });
+  const userResumes = await Resume.find({ userId: session.user.id }).sort({
+    activeForAi: -1,
+    createdAt: -1,
+  });
   const savedVacanciesRecords = (await SavedVacancy.find({ userId: session.user.id })
     .populate("vacancyId")
     .lean()) as Array<{ vacancyId?: { _id: { toString(): string }; title: string; salaryMin: number; salaryMax: number } | null }>;
@@ -56,6 +59,7 @@ export default async function EmployeeDashboard() {
     title: r.title,
     skills: r.skills,
     cvFile: r.cvFile || undefined,
+    activeForAi: !!r.activeForAi,
   }));
 
   const savedVacancies = savedVacanciesRecords

@@ -1,3 +1,4 @@
+import { formatEmployerName } from '@/lib/format-employer-name'
 import { getEmbedding } from '@/lib/ml'
 import { cosineSimilarity } from '@/lib/recommendation'
 import {
@@ -62,14 +63,6 @@ export type SemanticJobSearchRankedItem = {
 function vacancyIdString(id: SemanticVacancyInput['_id']): string {
   if (typeof id === 'string') return id
   return id.toString()
-}
-
-function companyNameFromEmployer(employerId: unknown): string {
-  if (employerId && typeof employerId === 'object' && 'name' in employerId) {
-    const n = (employerId as { name?: unknown }).name
-    if (typeof n === 'string' && n.trim()) return n
-  }
-  return 'Unknown Company'
 }
 
 function normalizeWorkMode(raw: unknown): 'REMOTE' | 'ONSITE' {
@@ -259,7 +252,7 @@ export function rankVacanciesBySemanticQueryFromEmbeddingWithStats(
       vacancyId,
       semanticScore,
       title,
-      company: companyNameFromEmployer(v.employerId),
+      company: formatEmployerName(v.employerId),
       location: formatLocation(v),
       employmentType,
       workMode,

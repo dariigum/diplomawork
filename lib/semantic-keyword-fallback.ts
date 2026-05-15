@@ -3,6 +3,7 @@ import {
   splitVacancySkillPhrases,
   splitVacancyTitleWords,
 } from '@/lib/behaviour-profile'
+import { formatEmployerName } from '@/lib/format-employer-name'
 import { SEMANTIC_SCORE_BAND_RELATED } from '@/lib/semantic-score-bands'
 
 /** Vacancy fields used for deterministic text overlap (no embeddings). */
@@ -43,14 +44,6 @@ const DEFAULT_DESC_SLICE = 800
 function vacancyIdString(id: KeywordFallbackVacancyInput['_id']): string {
   if (typeof id === 'string') return id
   return id.toString()
-}
-
-function companyNameFromEmployer(employerId: unknown): string {
-  if (employerId && typeof employerId === 'object' && 'name' in employerId) {
-    const n = (employerId as { name?: unknown }).name
-    if (typeof n === 'string' && n.trim()) return n
-  }
-  return 'Unknown Company'
 }
 
 function normalizeWorkMode(raw: unknown): 'REMOTE' | 'ONSITE' {
@@ -201,7 +194,7 @@ export function rankVacanciesByKeywordFallback(
       vacancyId,
       textScore,
       title: title || 'Untitled vacancy',
-      company: companyNameFromEmployer(v.employerId),
+      company: formatEmployerName(v.employerId),
       location: formatLocation(v),
       employmentType,
       workMode,

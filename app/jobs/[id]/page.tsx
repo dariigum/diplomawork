@@ -10,6 +10,7 @@ import dbConnect from "@/lib/db/mongoose"
 import { Vacancy, SavedVacancy } from "@/lib/db/schema"
 import { getSession } from "@/lib/auth"
 import { recordVacancyBehaviourEvent } from "@/lib/vacancy-behaviour-events"
+import { formatEmployerName } from "@/lib/format-employer-name"
 import { formatVacancySalary } from "@/lib/format-vacancy-salary"
 import { normalizeVacancySkills } from "@/lib/normalize-vacancy-skills"
 
@@ -51,6 +52,11 @@ export default async function JobDetailsPage({ params }: { params: Promise<{ id:
   }
 
   const company = jobRecord.employerId as any;
+  const companyName = formatEmployerName(company);
+  const companyProfileId =
+    company && typeof company === 'object' && company._id != null
+      ? String(company._id)
+      : null;
 
   return (
     <div className="min-h-screen bg-background">
@@ -77,7 +83,7 @@ export default async function JobDetailsPage({ params }: { params: Promise<{ id:
                     <div className="flex items-start justify-between">
                       <div>
                         <h1 className="text-2xl font-bold text-foreground">{jobRecord.title}</h1>
-                        <p className="text-lg text-muted-foreground mt-1">{company.name}</p>
+                        <p className="text-lg text-muted-foreground mt-1">{companyName}</p>
                       </div>
                       <div className="flex gap-2">
                         <Button variant="ghost" size="icon">
@@ -176,7 +182,7 @@ export default async function JobDetailsPage({ params }: { params: Promise<{ id:
                   job={{
                     id,
                     title: jobRecord.title,
-                    company: company.name,
+                    company: companyName,
                     location: jobRecord.workMode === 'REMOTE' ? 'Remote' : `${jobRecord.city || jobRecord.address}${jobRecord.country ? `, ${jobRecord.country}` : ''}`,
                   }}
                   initialSaved={isSaved}
@@ -199,21 +205,21 @@ export default async function JobDetailsPage({ params }: { params: Promise<{ id:
                     {company?.logoUrl || "🏢"}
                   </div>
                   <div>
-                    <h3 className="font-semibold text-foreground">{company.name}</h3>
-                    <p className="text-sm text-muted-foreground">{company.industry || "Technology"}</p>
+                    <h3 className="font-semibold text-foreground">{companyName}</h3>
+                    <p className="text-sm text-muted-foreground">{company?.industry || "Technology"}</p>
                   </div>
                 </div>
 
                 <div className="space-y-3 text-sm">
                   <div className="flex items-center gap-3 text-muted-foreground">
                     <Building2 className="h-4 w-4" />
-                    <span>{company.employees || "51-200 employees"}</span>
+                    <span>{company?.employees || "51-200 employees"}</span>
                   </div>
                   <div className="flex items-center gap-3 text-muted-foreground">
                     <MapPin className="h-4 w-4" />
-                    <span>{company.location || "Multiple Locations"}</span>
+                    <span>{company?.location || "Multiple Locations"}</span>
                   </div>
-                  {company.website && (
+                  {company?.website && (
                     <div className="flex items-center gap-3 text-muted-foreground">
                       <Globe className="h-4 w-4" />
                       <a href={company.website} target="_blank" rel="noopener noreferrer" className="hover:text-foreground hover:underline">
@@ -227,11 +233,13 @@ export default async function JobDetailsPage({ params }: { params: Promise<{ id:
                   </div>
                 </div>
 
-                <Link href={`/companies/${company._id.toString()}`}>
-                  <Button variant="outline" className="w-full mt-2">
-                    View Company Profile
-                  </Button>
-                </Link>
+                {companyProfileId ? (
+                  <Link href={`/companies/${companyProfileId}`}>
+                    <Button variant="outline" className="w-full mt-2">
+                      View Company Profile
+                    </Button>
+                  </Link>
+                ) : null}
               </CardContent>
             </Card>
 

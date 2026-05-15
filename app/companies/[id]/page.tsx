@@ -4,6 +4,7 @@ import { Card, CardContent } from "@/components/ui/card"
 import { Badge } from "@/components/ui/badge"
 import { Header } from "@/components/jobs/header"
 import dbConnect from "@/lib/db/mongoose"
+import { formatEmployerName } from "@/lib/format-employer-name"
 import { formatVacancySalary } from "@/lib/format-vacancy-salary"
 import { User, Vacancy, SavedVacancy } from "@/lib/db/schema"
 import { getSession } from "@/lib/auth"
@@ -51,7 +52,7 @@ export default async function CompanyProfilePage({ params }: { params: Promise<{
             {company.logoUrl || "🏢"}
           </div>
           <div className="flex-1">
-            <h1 className="text-3xl font-bold text-foreground">{company.name}</h1>
+            <h1 className="text-3xl font-bold text-foreground">{formatEmployerName(company)}</h1>
             <div className="flex items-center gap-4 mt-2 mb-4">
               <Badge variant="secondary">{company.industry || 'Technology'}</Badge>
             </div>

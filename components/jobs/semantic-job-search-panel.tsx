@@ -2,7 +2,7 @@
 
 import { useCallback, useEffect, useMemo, useRef, useState } from "react"
 import Link from "next/link"
-import { ChevronDown, FileText, Loader2, MapPin, RefreshCw, Search, Briefcase } from "lucide-react"
+import { ChevronDown, FileText, Loader2, RefreshCw, Search } from "lucide-react"
 import { Badge } from "@/components/ui/badge"
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
@@ -28,8 +28,6 @@ const DEBOUNCE_MS = 380
 const FETCH_LIMIT = 24
 const FALLBACK_SECTION_ID = "semantic-keyword-fallback-section"
 const WEAK_SEMANTIC_SECTION_ID = "semantic-weak-recovery-section"
-const EXPLANATION_PREVIEW_LEN = 72
-
 const CARD_INTERACTION =
   "transition-[border-color,box-shadow] duration-200 hover:border-border hover:shadow-sm focus-within:ring-2 focus-within:ring-ring/30 focus-within:ring-offset-1 focus-within:ring-offset-background"
 
@@ -43,11 +41,8 @@ const TEXT_SECONDARY_MUTED = "text-xs sm:text-[11px] leading-snug text-muted-for
 const COLLAPSIBLE_TRIGGER =
   "flex w-full items-center justify-between gap-2 rounded-md text-left text-xs min-h-11 py-3 px-3 sm:min-h-9 sm:py-2 sm:px-2.5 touch-manipulation [&[data-state=open]>svg]:rotate-180"
 
-/** Bar fill 0–100 from mapped cosine score — visual only, not shown as a percent. */
-function scoreToBarFill(score: number): number {
-  if (!Number.isFinite(score)) return 0
-  return Math.max(0, Math.min(100, Math.round(score * 100)))
-}
+const CARD_EXPLANATION_TRIGGER =
+  "flex w-full items-center justify-between gap-2 rounded-md text-left text-xs min-h-10 py-2 px-1 sm:min-h-8 sm:py-1.5 touch-manipulation font-medium text-muted-foreground hover:text-foreground underline-offset-2 hover:underline [&[data-state=open]>svg]:rotate-180"
 
 function tierShortLabel(score: number): string {
   const band = semanticScoreBand(score)
@@ -75,76 +70,51 @@ function tierBadgeClassName(band: SemanticScoreBand | null): string {
   }
 }
 
-/** Decorative overlap cue — muted retrieval hint, not a loading indicator. */
-function RetrievalOverlapHint({ score }: { score: number }) {
-  const fill = scoreToBarFill(score)
+function SemanticScoreReadout({ score }: { score: number }) {
+  const formatted = formatSemanticScore(score)
   return (
-    <div
-      className="hidden sm:flex flex-1 min-w-[2rem] max-w-[4.5rem] items-center self-center"
-      aria-hidden
-      title="Retrieval overlap hint (mapped cosine scale)"
+    <span
+      className="tabular-nums text-xs sm:text-[11px] text-muted-foreground"
+      title={SCORE_SCALE_HINT}
+      aria-label={`Mapped cosine similarity ${formatted}`}
     >
-      <span className="relative block h-px w-full overflow-hidden rounded-full bg-border/50">
-        <span
-          className="absolute inset-y-0 left-0 rounded-full bg-muted-foreground/30"
-          style={{ width: `${fill}%` }}
-        />
-      </span>
-    </div>
+      {formatted}
+    </span>
   )
 }
 
-function VacancyMetaLines({
-  company,
-  location,
-  employmentType,
-  workMode,
-}: {
+function buildSemanticResultMetaLine(params: {
   company: string
   location: string
   employmentType: string
   workMode: "REMOTE" | "ONSITE"
-}) {
-  const modeLabel = workMode === "REMOTE" ? "Remote" : "On-site"
-  return (
-    <div className="flex flex-col gap-1.5 sm:flex-row sm:flex-wrap sm:gap-x-2 sm:gap-y-1 sm:items-center min-w-0">
-      <span className={`inline-flex items-start gap-1.5 min-w-0 max-w-full ${TEXT_SECONDARY}`}>
-        <Briefcase className="h-3 w-3 shrink-0 mt-0.5 opacity-70" aria-hidden />
-        <span className="break-words">{company}</span>
-      </span>
-      <span className={`inline-flex items-start gap-1.5 min-w-0 max-w-full ${TEXT_SECONDARY}`}>
-        <MapPin className="h-3 w-3 shrink-0 mt-0.5 opacity-70" aria-hidden />
-        <span className="break-words">{location}</span>
-      </span>
-      <span className={`${TEXT_SECONDARY} break-words`}>{employmentType}</span>
-      <span className={`${TEXT_SECONDARY} break-words`}>{modeLabel}</span>
-    </div>
-  )
+}): string {
+  const modeLabel = params.workMode === "REMOTE" ? "Remote" : "On-site"
+  const parts: string[] = []
+  const company = params.company.trim()
+  const location = params.location.trim()
+  const employment = params.employmentType.trim()
+
+  if (company) parts.push(company)
+  if (location && location.toLowerCase() !== company.toLowerCase()) parts.push(location)
+  if (employment && employment.toLowerCase() !== modeLabel.toLowerCase()) parts.push(employment)
+  if (!parts.includes(modeLabel)) parts.push(modeLabel)
+
+  return parts.join(" · ")
 }
 
-function SemanticScoreReadout({ score, compact }: { score: number; compact?: boolean }) {
-  const formatted = formatSemanticScore(score)
-  if (compact) {
-    return (
-      <span
-        className="tabular-nums text-xs sm:text-[11px] text-muted-foreground"
-        title={SCORE_SCALE_HINT}
-        aria-label={`Mapped cosine similarity ${formatted}`}
-      >
-        {formatted}
-      </span>
-    )
+function tierTextClassName(band: SemanticScoreBand | null): string {
+  switch (band) {
+    case "strong":
+      return "text-primary"
+    case "solid":
+      return "text-teal-800 dark:text-teal-300"
+    case "related":
+    case "loose":
+      return "text-muted-foreground"
+    default:
+      return "text-muted-foreground"
   }
-  return (
-    <div
-      className="flex flex-col items-end gap-0.5 shrink-0 text-right"
-      title={SCORE_SCALE_HINT}
-      aria-label={`Mapped cosine similarity ${formatted}`}
-    >
-      <span className="tabular-nums text-base font-semibold leading-none text-foreground">{formatted}</span>
-      <span className="text-xs sm:text-[11px] text-muted-foreground leading-tight">mapped cosine</span>
-    </div>
-  )
 }
 
 function formatConceptDisplay(raw: string, maxLen: number): string {
@@ -215,24 +185,14 @@ function CardRankingExplanation({ explanation }: { explanation: string }) {
   const trimmed = explanation.trim()
   if (!trimmed) return null
 
-  const needsExpand = trimmed.length > EXPLANATION_PREVIEW_LEN
-  const preview = needsExpand ? `${trimmed.slice(0, EXPLANATION_PREVIEW_LEN).trimEnd()}…` : trimmed
-
-  if (!needsExpand) {
-    return <p className={TEXT_SECONDARY_MUTED}>{trimmed}</p>
-  }
-
   return (
-    <Collapsible>
-      <p className={`${TEXT_SECONDARY_MUTED} line-clamp-2`}>{preview}</p>
-      <CollapsibleTrigger
-        className={`${COLLAPSIBLE_TRIGGER} mt-1 -mx-1 w-[calc(100%+0.5rem)] font-medium text-muted-foreground hover:bg-muted/30 hover:text-foreground underline-offset-2 hover:underline sm:min-h-10 sm:py-2`}
-      >
-        <span>Why this matched</span>
+    <Collapsible defaultOpen={false}>
+      <CollapsibleTrigger className={CARD_EXPLANATION_TRIGGER}>
+        <span>Why matched</span>
         <ChevronDown className="h-4 w-4 shrink-0 opacity-70 sm:h-3.5 sm:w-3.5" />
       </CollapsibleTrigger>
       <CollapsibleContent>
-        <p className={`mt-2 ${TEXT_SECONDARY_MUTED}`}>{trimmed}</p>
+        <p className={`mt-1.5 pb-0.5 ${TEXT_SECONDARY_MUTED}`}>{trimmed}</p>
       </CollapsibleContent>
     </Collapsible>
   )
@@ -318,7 +278,7 @@ function WeakSemanticMatchCard({ item }: { item: SemanticSearchApiWeakSemanticIt
         >
           {item.title}
         </Link>
-        <SemanticScoreReadout score={item.semanticScore} compact />
+        <SemanticScoreReadout score={item.semanticScore} />
       </div>
       <Badge variant="outline" className={tierBadgeClassName(band)} title={weakSemanticTierLabel(item.semanticScore)}>
         {weakSemanticTierLabel(item.semanticScore)}
@@ -428,13 +388,20 @@ async function readErrorMessage(res: Response): Promise<string> {
 
 function SemanticResultCard({ r }: { r: SemanticSearchApiResultItem }) {
   const band = semanticScoreBand(r.semanticScore)
+  const scoreFormatted = formatSemanticScore(r.semanticScore)
+  const metaLine = buildSemanticResultMetaLine({
+    company: r.company,
+    location: r.location,
+    employmentType: r.employmentType,
+    workMode: r.workMode,
+  })
 
   return (
     <article
       className={`h-full flex flex-col rounded-lg border border-border/70 bg-card/95 shadow-none ${CARD_INTERACTION}`}
     >
-      <div className="p-3 pb-2.5 sm:p-2.5 sm:pb-2 space-y-2.5 sm:space-y-2 flex-1 min-w-0">
-        <div className="flex items-start justify-between gap-3">
+      <div className="p-2.5 sm:p-2 space-y-1.5 sm:space-y-1 flex-1 min-w-0">
+        <div className="flex items-start justify-between gap-2 min-w-0">
           <h3 className="text-sm font-semibold leading-snug text-foreground min-w-0 flex-1">
             <Link
               href={`/jobs/${r.vacancyId}`}
@@ -443,26 +410,27 @@ function SemanticResultCard({ r }: { r: SemanticSearchApiResultItem }) {
               {r.title}
             </Link>
           </h3>
-          <SemanticScoreReadout score={r.semanticScore} />
+          <span
+            className="tabular-nums text-sm font-semibold leading-none text-foreground shrink-0"
+            title={SCORE_SCALE_HINT}
+            aria-label={`Mapped cosine similarity ${scoreFormatted}`}
+          >
+            {scoreFormatted}
+          </span>
         </div>
 
-        <div className="flex flex-wrap items-center gap-2">
-          <Badge variant="outline" className={tierBadgeClassName(band)} title={semanticOverlapTierLabel(r.semanticScore)}>
-            {tierShortLabel(r.semanticScore)}
-          </Badge>
-          <RetrievalOverlapHint score={r.semanticScore} />
-        </div>
+        <p
+          className={`text-xs sm:text-[11px] leading-snug ${tierTextClassName(band)}`}
+          title={semanticOverlapTierLabel(r.semanticScore)}
+        >
+          {tierShortLabel(r.semanticScore)}
+        </p>
 
-        <VacancyMetaLines
-          company={r.company}
-          location={r.location}
-          employmentType={r.employmentType}
-          workMode={r.workMode}
-        />
+        {metaLine ? (
+          <p className={`${TEXT_SECONDARY} line-clamp-2 break-words`}>{metaLine}</p>
+        ) : null}
 
-        <div className="pt-1 sm:pt-0.5 border-t border-border/30">
-          <CardRankingExplanation explanation={r.explanation} />
-        </div>
+        <CardRankingExplanation explanation={r.explanation} />
       </div>
     </article>
   )
@@ -683,13 +651,14 @@ export function SemanticJobSearchPanel() {
       {showLoading ? (
         <div className="grid gap-2.5 sm:gap-2 sm:grid-cols-2">
           {[0, 1].map((i) => (
-            <div key={i} className="rounded-lg border border-border/60 bg-card/50 p-3 sm:p-2.5 space-y-2.5 sm:space-y-2">
+            <div key={i} className="rounded-lg border border-border/60 bg-card/50 p-2.5 sm:p-2 space-y-1.5 sm:space-y-1">
               <div className="flex justify-between gap-2">
                 <Skeleton className="h-4 w-2/3" />
-                <Skeleton className="h-6 w-10" />
+                <Skeleton className="h-4 w-10" />
               </div>
-              <Skeleton className="h-4 w-24" />
-              <Skeleton className="hidden sm:block h-px w-16 max-w-[4.5rem] opacity-50" />
+              <Skeleton className="h-3 w-20" />
+              <Skeleton className="h-3 w-full max-w-[12rem]" />
+              <Skeleton className="h-3 w-24" />
             </div>
           ))}
         </div>

@@ -6,7 +6,7 @@ import {
   rankVacanciesBySemanticQueryFromEmbeddingWithStats,
   resolveWeakSemanticActivation,
   WEAK_SEMANTIC_RECOVERY_LIMIT,
-  semanticMatchStrengthLabel,
+  semanticOverlapTierLabel,
   semanticScoreBand,
   type SemanticVacancyInput,
 } from '@/lib/semantic-job-search'
@@ -172,7 +172,7 @@ describe('semantic-job-search', () => {
     })
   })
 
-  describe('semanticScoreBand and semanticMatchStrengthLabel', () => {
+  describe('semanticScoreBand and semanticOverlapTierLabel', () => {
     it('maps scores to existing project bands', () => {
       expect(semanticScoreBand(0.8)).toBe('strong')
       expect(semanticScoreBand(0.75)).toBe('strong')
@@ -186,9 +186,9 @@ describe('semantic-job-search', () => {
     })
 
     it('returns tier labels aligned with bands', () => {
-      expect(semanticMatchStrengthLabel(0.8)).toBe('Strong semantic similarity')
-      expect(semanticMatchStrengthLabel(0.42)).toBe('Related semantic overlap')
-      expect(semanticMatchStrengthLabel(0.1)).toBe('Loose semantic overlap')
+      expect(semanticOverlapTierLabel(0.8)).toBe('Strong semantic overlap')
+      expect(semanticOverlapTierLabel(0.42)).toBe('Related semantic overlap')
+      expect(semanticOverlapTierLabel(0.1)).toBe('Loose semantic overlap')
     })
   })
 

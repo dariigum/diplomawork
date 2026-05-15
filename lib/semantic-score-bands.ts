@@ -21,14 +21,14 @@ export function semanticScoreBand(score: number): SemanticScoreBand | null {
   return 'loose'
 }
 
-/** Short tier label for UI — deterministic from score only. */
-export function semanticMatchStrengthLabel(score: number): string {
+/** Short overlap-tier label for UI — deterministic from mapped cosine score only. */
+export function semanticOverlapTierLabel(score: number): string {
   const band = semanticScoreBand(score)
-  if (band === 'strong') return 'Strong semantic similarity'
+  if (band === 'strong') return 'Strong semantic overlap'
   if (band === 'solid') return 'Solid semantic overlap'
   if (band === 'related') return 'Related semantic overlap'
   if (band === 'loose') return 'Loose semantic overlap'
-  return 'Semantic similarity'
+  return 'Semantic overlap'
 }
 
 export function emptySemanticScoreBandCounts(): SemanticScoreBandCounts {

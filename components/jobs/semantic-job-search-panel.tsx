@@ -9,7 +9,7 @@ import { Input } from "@/components/ui/input"
 import { Skeleton } from "@/components/ui/skeleton"
 import { Collapsible, CollapsibleContent, CollapsibleTrigger } from "@/components/ui/collapsible"
 import {
-  semanticMatchStrengthLabel,
+  semanticOverlapTierLabel,
   semanticScoreBand,
   weakSemanticTierLabel,
   type SemanticScoreBand,
@@ -66,7 +66,7 @@ function tierBadgeClassName(band: SemanticScoreBand | null): string {
   }
 }
 
-/** Decorative overlap cue — muted, not a confidence or loading meter. */
+/** Decorative overlap cue — muted retrieval hint, not a loading indicator. */
 function RetrievalOverlapHint({ score }: { score: number }) {
   const fill = scoreToBarFill(score)
   return (
@@ -155,7 +155,7 @@ function SemanticRetrievalSummary({ stats }: { stats: PanelStats }) {
         Top retrieval score{" "}
         <span className="tabular-nums font-medium text-foreground">{formatSemanticScore(top)}</span>
         <span className="mx-1.5 text-border">·</span>
-        <span className="text-foreground/90">{semanticMatchStrengthLabel(top)}</span>
+        <span className="text-foreground/90">{semanticOverlapTierLabel(top)}</span>
       </p>
       <p className="text-[10px] text-muted-foreground/80 leading-snug">{SCORE_SCALE_HINT}</p>
     </div>
@@ -395,7 +395,7 @@ function SemanticResultCard({ r }: { r: SemanticSearchApiResultItem }) {
         </div>
 
         <div className="flex flex-wrap items-center gap-2">
-          <Badge variant="outline" className={tierBadgeClassName(band)} title={semanticMatchStrengthLabel(r.semanticScore)}>
+          <Badge variant="outline" className={tierBadgeClassName(band)} title={semanticOverlapTierLabel(r.semanticScore)}>
             {tierShortLabel(r.semanticScore)}
           </Badge>
           <RetrievalOverlapHint score={r.semanticScore} />

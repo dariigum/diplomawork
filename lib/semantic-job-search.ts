@@ -17,7 +17,7 @@ export {
   SEMANTIC_SCORE_BAND_STRONG,
   isPrimarySemanticScore,
   isWeakSemanticScore,
-  semanticMatchStrengthLabel,
+  semanticOverlapTierLabel,
   semanticScoreBand,
   weakSemanticTierLabel,
   type SemanticScoreBand,
@@ -98,15 +98,15 @@ export function buildSemanticSearchExplanation(params: { semanticScore: number }
     'Semantic overlap is scored with embedding-based retrieval: cosine similarity on vectors, mapped to 0–1 — not keyword matching alone.'
 
   if (s < 0.35) {
-    return `${base} Match strength on that scale is low.`
+    return `${base} Overlap tier on the mapped scale is low.`
   }
   if (s < 0.55) {
-    return `${base} Match strength on that scale is moderate.`
+    return `${base} Overlap tier on the mapped scale is moderate.`
   }
   if (s < 0.75) {
-    return `${base} Match strength on that scale is relatively strong; related vacancy wording may align even when keywords differ.`
+    return `${base} Overlap tier on the mapped scale is relatively high; related vacancy wording may align even when keywords differ.`
   }
-  return `${base} Match strength on that scale is high; the vacancy embedding is close to the query embedding in vector space.`
+  return `${base} Overlap tier on the mapped scale is high; the vacancy embedding is close to the query embedding in vector space.`
 }
 
 function isValidEmbeddingForQuery(emb: unknown, queryDim: number): emb is number[] {

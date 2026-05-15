@@ -49,7 +49,7 @@ export function isWeakSemanticScore(score: number): boolean {
   return Number.isFinite(score) && score > 0 && score < SEMANTIC_SCORE_BAND_RELATED
 }
 
-/** Label for weak-recovery UI — low-confidence wording only. */
+/** Label for weak-recovery UI — weak overlap wording only. */
 export function weakSemanticTierLabel(score: number): string {
   if (isWeakSemanticScore(score)) return 'Loose semantic overlap'
   return 'Weak semantic relation'

@@ -34,7 +34,10 @@ const EXPLANATION_PREVIEW_LEN = 72
 const CARD_INTERACTION =
   "transition-[border-color,box-shadow] duration-200 hover:border-border hover:shadow-sm focus-within:ring-2 focus-within:ring-ring/30 focus-within:ring-offset-1 focus-within:ring-offset-background"
 
-function scoreToPercent(score: number): number {
+const SCORE_SCALE_HINT = "Mapped cosine similarity (0–1), not a probability."
+
+/** Bar fill 0–100 from mapped cosine score — visual only, not shown as a percent. */
+function scoreToBarFill(score: number): number {
   if (!Number.isFinite(score)) return 0
   return Math.max(0, Math.min(100, Math.round(score * 100)))
 }
@@ -65,11 +68,14 @@ function tierBadgeClassName(band: SemanticScoreBand | null): string {
 }
 
 function SemanticScoreReadout({ score, compact }: { score: number; compact?: boolean }) {
-  const pct = scoreToPercent(score)
   const formatted = formatSemanticScore(score)
   if (compact) {
     return (
-      <span className="tabular-nums text-[10px] text-muted-foreground" aria-label={`Semantic similarity ${formatted}`}>
+      <span
+        className="tabular-nums text-[10px] text-muted-foreground"
+        title={SCORE_SCALE_HINT}
+        aria-label={`Mapped cosine similarity ${formatted}`}
+      >
         {formatted}
       </span>
     )
@@ -77,10 +83,11 @@ function SemanticScoreReadout({ score, compact }: { score: number; compact?: boo
   return (
     <div
       className="flex flex-col items-end gap-0 shrink-0 text-right"
-      aria-label={`Semantic similarity ${formatted}, ${pct} percent scale`}
+      title={SCORE_SCALE_HINT}
+      aria-label={`Mapped cosine similarity ${formatted}`}
     >
       <span className="tabular-nums text-base font-semibold leading-none text-foreground">{formatted}</span>
-      <span className="tabular-nums text-[10px] text-muted-foreground leading-tight">{pct}% scale</span>
+      <span className="text-[10px] text-muted-foreground leading-tight">mapped cosine</span>
     </div>
   )
 }
@@ -120,20 +127,20 @@ function formatSemanticScore(score: number): string {
   return score.toFixed(2)
 }
 
-function SemanticConfidenceSummary({ stats }: { stats: PanelStats }) {
+function SemanticRetrievalSummary({ stats }: { stats: PanelStats }) {
   const top = stats.topSemanticScore
   if (top === null || !Number.isFinite(top) || top <= 0) return null
 
   return (
-    <p
-      className="text-xs text-muted-foreground border-b border-border/50 pb-2"
-      aria-label="Semantic retrieval summary"
-    >
-      Top similarity{" "}
-      <span className="tabular-nums font-medium text-foreground">{formatSemanticScore(top)}</span>
-      <span className="mx-1.5 text-border">·</span>
-      <span className="text-foreground/90">{semanticMatchStrengthLabel(top)}</span>
-    </p>
+    <div className="space-y-1 border-b border-border/50 pb-2" aria-label="Semantic retrieval summary">
+      <p className="text-xs text-muted-foreground">
+        Top retrieval score{" "}
+        <span className="tabular-nums font-medium text-foreground">{formatSemanticScore(top)}</span>
+        <span className="mx-1.5 text-border">·</span>
+        <span className="text-foreground/90">{semanticMatchStrengthLabel(top)}</span>
+      </p>
+      <p className="text-[10px] text-muted-foreground/80 leading-snug">{SCORE_SCALE_HINT}</p>
+    </div>
   )
 }
 
@@ -350,7 +357,7 @@ async function readErrorMessage(res: Response): Promise<string> {
 }
 
 function SemanticResultCard({ r }: { r: SemanticSearchApiResultItem }) {
-  const pct = scoreToPercent(r.semanticScore)
+  const barFill = scoreToBarFill(r.semanticScore)
   const band = semanticScoreBand(r.semanticScore)
 
   return (
@@ -374,7 +381,11 @@ function SemanticResultCard({ r }: { r: SemanticSearchApiResultItem }) {
           <Badge variant="outline" className={tierBadgeClassName(band)} title={semanticMatchStrengthLabel(r.semanticScore)}>
             {tierShortLabel(r.semanticScore)}
           </Badge>
-          <Progress value={pct} className="h-1 flex-1 min-w-[4rem] max-w-[8rem] bg-muted/80" aria-hidden />
+          <Progress
+            value={barFill}
+            className="hidden sm:block h-0.5 flex-1 min-w-[3rem] max-w-[6rem] bg-muted/50 opacity-60"
+            aria-hidden
+          />
         </div>
 
         <p className="text-[10px] text-muted-foreground truncate">
@@ -543,6 +554,11 @@ export function SemanticJobSearchPanel() {
       : null
 
   const showSemanticResults = panel.kind === "results" && panel.results.length > 0
+  const showRetrievalSummary =
+    panel.kind === "results" &&
+    panel.stats.topSemanticScore !== null &&
+    Number.isFinite(panel.stats.topSemanticScore) &&
+    panel.stats.topSemanticScore > 0
   const showLoading = panel.kind === "loading"
   const showEmptySemantic =
     panel.kind === "results" && panel.results.length === 0 && !weakPayload && !fallbackPayload
@@ -607,7 +623,9 @@ export function SemanticJobSearchPanel() {
         </div>
 
         {panel.kind === "idle" && input.trim() === "" ? (
-          <p className="text-[10px] text-muted-foreground">Embedding-based retrieval on public listings · updates as you type</p>
+          <p className="text-[10px] text-muted-foreground leading-snug">
+            Embedding-based retrieval on public listings · updates as you type · {SCORE_SCALE_HINT}
+          </p>
         ) : null}
 
         {subtitle ? <p className="text-xs text-muted-foreground">{subtitle}</p> : null}
@@ -655,9 +673,13 @@ export function SemanticJobSearchPanel() {
         />
       ) : null}
 
+      {showRetrievalSummary && panel.kind === "results" && !showSemanticResults ? (
+        <SemanticRetrievalSummary stats={panel.stats} />
+      ) : null}
+
       {showSemanticResults && panel.kind === "results" ? (
         <div className="space-y-2.5">
-          <SemanticConfidenceSummary stats={panel.stats} />
+          <SemanticRetrievalSummary stats={panel.stats} />
           <ul className="grid gap-2 sm:grid-cols-2 list-none m-0 p-0">
             {panel.results.map((r) => (
               <li key={r.vacancyId}>

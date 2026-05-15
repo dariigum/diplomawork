@@ -231,7 +231,7 @@ describe('semantic-job-search', () => {
       for (const r of weakResults) {
         expect(r.semanticScore).toBeGreaterThan(0)
         expect(r.semanticScore).toBeLessThan(SEMANTIC_SCORE_BAND_RELATED)
-        expect(r.explanation.toLowerCase()).toContain('low confidence')
+        expect(r.explanation.toLowerCase()).toContain('weak overlap')
       }
       expect(weakResults.length).toBeLessThanOrEqual(WEAK_SEMANTIC_RECOVERY_LIMIT)
     })
@@ -276,7 +276,7 @@ describe('semantic-job-search', () => {
           weakCandidateCount: 2,
           topSemanticScore: 0.2,
         }),
-      ).toEqual({ enabled: true, reason: 'Only low-confidence semantic relations were found' })
+      ).toEqual({ enabled: true, reason: 'Only loose semantic overlap was found' })
     })
 
     it('disables when primary related matches exist', () => {

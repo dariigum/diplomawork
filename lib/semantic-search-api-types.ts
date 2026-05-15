@@ -28,7 +28,7 @@ export type SemanticSearchApiFallback = {
 
 export type SemanticSearchApiWeakSemanticItem = SemanticJobSearchRankedItem
 
-/** Low-confidence semantic recovery (loose band) — never merged into `results`. */
+/** Weak semantic recovery (loose band) — never merged into `results`. */
 export type SemanticSearchApiWeakSemantic = {
   enabled: boolean
   reason: WeakSemanticRecoveryReason | ''

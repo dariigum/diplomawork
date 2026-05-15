@@ -28,7 +28,7 @@ export {
 export const WEAK_SEMANTIC_RECOVERY_LIMIT = 6
 
 export type WeakSemanticRecoveryReason =
-  | 'Only low-confidence semantic relations were found'
+  | 'Only loose semantic overlap was found'
   | 'Semantic overlap is weak for this query'
 
 /**
@@ -154,12 +154,12 @@ export type WeakSemanticActivation = {
 }
 
 /**
- * Honest copy for weak-recovery rows (embedding cosine, explicitly low confidence).
+ * Honest copy for weak-recovery rows (embedding cosine, explicitly weak overlap).
  */
 export function buildWeakSemanticSearchExplanation(params: { semanticScore: number }): string {
   const s = params.semanticScore
-  const scoreNote = Number.isFinite(s) ? ` (${s.toFixed(2)} on the 0–1 cosine scale)` : ''
-  return `Approximate semantic relation from embedding cosine similarity${scoreNote} — low confidence, not a strong or related semantic match.`
+  const scoreNote = Number.isFinite(s) ? ` (${s.toFixed(2)} mapped cosine 0–1)` : ''
+  return `Approximate semantic relation from embedding cosine similarity${scoreNote} — weak overlap, not a strong or related semantic match.`
 }
 
 /**
@@ -181,7 +181,7 @@ export function resolveWeakSemanticActivation(params: {
   }
 
   if (params.primaryCount === 0) {
-    return { enabled: true, reason: 'Only low-confidence semantic relations were found' }
+    return { enabled: true, reason: 'Only loose semantic overlap was found' }
   }
 
   return { enabled: true, reason: 'Semantic overlap is weak for this query' }

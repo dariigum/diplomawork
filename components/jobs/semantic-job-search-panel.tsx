@@ -34,7 +34,7 @@ const CARD_INTERACTION =
 const SCORE_SCALE_HINT = "Mapped cosine similarity (0–1), not a probability."
 
 /** Mobile-first secondary copy (~12px); slightly denser from `sm`. */
-const TEXT_SECONDARY = "text-xs sm:text-[11px] leading-relaxed text-muted-foreground"
+const TEXT_SECONDARY = "text-xs sm:text-[11px] leading-snug text-muted-foreground"
 const TEXT_SECONDARY_MUTED = "text-xs sm:text-[11px] leading-snug text-muted-foreground/90"
 
 /** ~44px tap area on narrow screens; compact on desktop. */
@@ -202,36 +202,37 @@ function CardRankingExplanation({ explanation }: { explanation: string }) {
 
 function SemanticConceptsCollapsible({
   chips,
-  conceptExplanation,
 }: {
   chips: { key: string; label: string; titleAttr: string }[]
-  conceptExplanation: string
 }) {
   if (chips.length === 0) return null
 
   return (
     <Collapsible defaultOpen={false} className="rounded-md border border-border/50 bg-muted/15">
       <CollapsibleTrigger className={`${COLLAPSIBLE_TRIGGER} hover:bg-muted/25`}>
-        <span className="font-medium text-foreground">Concepts from matches ({chips.length})</span>
+        <span className="font-medium text-foreground text-xs sm:text-[11px]">
+          Concepts from matches ({chips.length})
+        </span>
         <ChevronDown className="h-4 w-4 shrink-0 text-muted-foreground transition-transform sm:h-3.5 sm:w-3.5" />
       </CollapsibleTrigger>
-      <CollapsibleContent className="px-3 pb-3 sm:px-2.5 sm:pb-2.5 space-y-2.5 sm:space-y-2">
-        <div className="flex flex-wrap gap-1.5" role="list" aria-label="Semantic concepts from matched vacancies">
+      <CollapsibleContent className="px-2.5 pb-2 sm:px-2 sm:pb-1.5">
+        <div
+          className="flex flex-wrap gap-1 sm:gap-1.5 pt-0.5 min-w-0"
+          role="list"
+          aria-label="Semantic concepts from matched vacancies"
+        >
           {chips.map((chip) => (
             <Badge
               key={chip.key}
               variant="outline"
               role="listitem"
               title={chip.titleAttr}
-              className="max-w-full sm:max-w-[10rem] text-xs sm:text-[11px] font-normal px-2 py-0.5 sm:px-1.5 sm:py-0 border-border/60 break-words whitespace-normal h-auto min-h-[1.35rem]"
+              className="max-w-full sm:max-w-[10rem] text-xs sm:text-[11px] font-normal px-1.5 py-0.5 sm:px-1.5 sm:py-0 border-border/60 break-words whitespace-normal h-auto min-h-[1.25rem] sm:min-h-0"
             >
               {chip.label}
             </Badge>
           ))}
         </div>
-        {conceptExplanation ? (
-          <p className={TEXT_SECONDARY_MUTED}>{conceptExplanation}</p>
-        ) : null}
       </CollapsibleContent>
     </Collapsible>
   )
@@ -245,7 +246,7 @@ function SemanticEmptyState({
   onShowFallback?: () => void
 }) {
   return (
-    <div className="rounded-md border border-dashed border-border/60 bg-muted/10 px-3 py-2.5 sm:px-2.5 sm:py-2 space-y-2">
+    <div className="rounded-md border border-dashed border-border/60 bg-muted/10 px-2.5 py-2 sm:px-2 sm:py-1.5 space-y-1.5">
       <p className={`${TEXT_SECONDARY_MUTED} leading-snug`}>
         No strong semantic overlap found.
         {hasFallback ? " Try broader wording or browse text matches below." : " Try broader wording."}
@@ -337,8 +338,8 @@ function KeywordFallbackSection({
       id={FALLBACK_SECTION_ID}
       className={
         primary
-          ? "rounded-md border border-dashed border-border/55 bg-muted/8 px-2.5 py-2 sm:px-2 sm:py-1.5 space-y-1.5 sm:space-y-1"
-          : "rounded-md border border-dashed border-border/45 bg-muted/5 px-2.5 py-2 sm:px-2 sm:py-1.5 space-y-1.5 sm:space-y-1"
+          ? "rounded-md border border-dashed border-border/55 bg-muted/8 px-2.5 py-1.5 sm:px-2 sm:py-1 space-y-1 sm:space-y-0.5"
+          : "rounded-md border border-dashed border-border/45 bg-muted/5 px-2.5 py-1.5 sm:px-2 sm:py-1 space-y-1 sm:space-y-0.5"
       }
       aria-label="Keyword and text fallback matches"
     >
@@ -376,7 +377,7 @@ function WeakSemanticRecoverySection({
         </span>
         <ChevronDown className="h-4 w-4 shrink-0 text-muted-foreground transition-transform sm:h-3.5 sm:w-3.5" />
       </CollapsibleTrigger>
-      <CollapsibleContent className="px-2.5 pb-2.5 sm:px-2 sm:pb-2">
+      <CollapsibleContent className="px-2.5 pb-2 sm:px-2 sm:pb-1.5">
         <ul className="grid gap-1.5 sm:gap-1 sm:grid-cols-2 list-none m-0 p-0">
           {results.map((r) => (
             <li key={r.vacancyId}>
@@ -409,7 +410,7 @@ function SemanticResultCard({ r }: { r: SemanticSearchApiResultItem }) {
     <article
       className={`h-full flex flex-col rounded-lg border border-border/70 bg-card/95 shadow-none ${CARD_INTERACTION}`}
     >
-      <div className="p-2.5 sm:p-2 space-y-1.5 sm:space-y-1 flex-1 min-w-0">
+      <div className="p-2.5 sm:p-1.5 space-y-1.5 sm:space-y-1 flex-1 min-w-0">
         <div className="flex items-start justify-between gap-2 min-w-0">
           <h3 className="text-sm font-semibold leading-snug text-foreground min-w-0 flex-1">
             <Link
@@ -618,12 +619,12 @@ export function SemanticJobSearchPanel() {
 
   return (
     <section
-      className="rounded-lg border border-border/70 bg-card/30 p-3.5 sm:p-3.5 space-y-3 sm:space-y-2.5 min-w-0 overflow-x-hidden"
+      className="rounded-lg border border-border/70 bg-card/30 p-3 sm:p-2.5 space-y-2 sm:space-y-1.5 min-w-0 overflow-x-hidden"
       aria-label="Semantic job search"
       title={SCORE_SCALE_HINT}
     >
       <span className="sr-only">{SCORE_SCALE_HINT}</span>
-      <div className="space-y-2 sm:space-y-1.5">
+      <div className="space-y-1.5 sm:space-y-1">
         <div className="space-y-0.5">
           <h2 className="text-sm font-semibold text-foreground tracking-tight">Search by meaning</h2>
           <p className={TEXT_SECONDARY_MUTED}>Independent from catalog · Not recommendations</p>
@@ -658,9 +659,9 @@ export function SemanticJobSearchPanel() {
       </div>
 
       {showLoading ? (
-        <div className="grid gap-2.5 sm:gap-2 sm:grid-cols-2">
+        <div className="grid gap-2 sm:gap-1.5 sm:grid-cols-2">
           {[0, 1].map((i) => (
-            <div key={i} className="rounded-lg border border-border/60 bg-card/50 p-2.5 sm:p-2 space-y-1.5 sm:space-y-1">
+            <div key={i} className="rounded-lg border border-border/60 bg-card/50 p-2.5 sm:p-1.5 space-y-1.5 sm:space-y-1">
               <div className="flex justify-between gap-2">
                 <Skeleton className="h-4 w-2/3" />
                 <Skeleton className="h-4 w-10" />
@@ -699,8 +700,8 @@ export function SemanticJobSearchPanel() {
       ) : null}
 
       {showSemanticResults && panel.kind === "results" ? (
-        <div className="space-y-3 sm:space-y-2.5">
-          <ul className="grid gap-2.5 sm:gap-2 sm:grid-cols-2 list-none m-0 p-0">
+        <div className="space-y-2 sm:space-y-1.5">
+          <ul className="grid gap-2 sm:gap-1.5 sm:grid-cols-2 list-none m-0 p-0">
             {panel.results.map((r) => (
               <li key={r.vacancyId}>
                 <SemanticResultCard r={r} />
@@ -708,7 +709,7 @@ export function SemanticJobSearchPanel() {
             ))}
           </ul>
           {conceptChips.length > 0 ? (
-            <SemanticConceptsCollapsible chips={conceptChips} conceptExplanation={panel.conceptExplanation} />
+            <SemanticConceptsCollapsible chips={conceptChips} />
           ) : null}
         </div>
       ) : null}

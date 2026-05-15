@@ -73,6 +73,19 @@ export function formatPostedDate(value: unknown): string {
   })
 }
 
+/** ISO date for serialization/API; null when invalid. Never throws. */
+export function toIsoDateString(value: unknown): string | null {
+  if (value == null) return null
+
+  const date =
+    value instanceof Date
+      ? value
+      : new Date(typeof value === 'string' || typeof value === 'number' ? value : Number.NaN)
+
+  if (!Number.isFinite(date.getTime())) return null
+  return date.toISOString()
+}
+
 /** http(s) only; returns null for empty, relative, or javascript: URLs. */
 export function parseSafeExternalUrl(value: unknown): SafeExternalLink | null {
   const raw = nonEmptyString(value)

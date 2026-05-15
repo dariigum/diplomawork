@@ -5,6 +5,7 @@ import {
   formatPostedDate,
   formatVacancyLocation,
   parseSafeExternalUrl,
+  toIsoDateString,
   VACANCY_POSTED_FALLBACK,
 } from '@/lib/vacancy-detail-display'
 
@@ -14,6 +15,9 @@ describe('vacancy-detail-display', () => {
     expect(formatVacancyLocation({ city: 'Berlin', country: 'DE' })).toBe('Berlin, DE')
     expect(formatPostedDate('not-a-date')).toBe(VACANCY_POSTED_FALLBACK)
     expect(formatPostedDate('2024-06-15T12:00:00.000Z')).not.toBe(VACANCY_POSTED_FALLBACK)
+    expect(toIsoDateString(null)).toBeNull()
+    expect(toIsoDateString('not-a-date')).toBeNull()
+    expect(toIsoDateString('2024-06-15T12:00:00.000Z')).toBe('2024-06-15T12:00:00.000Z')
   })
 
   it('accepts only safe external URLs', () => {

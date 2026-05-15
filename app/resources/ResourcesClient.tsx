@@ -14,8 +14,55 @@ interface Article {
   language: string
   readTime: string
   imageUrl: string
-  sourceUrl?: string
-  createdAt: string
+  sourceUrl: string | null
+  createdAt: string | null
+}
+
+function ArticleCard({ article }: { article: Article }) {
+  const card = (
+    <Card className="overflow-hidden group-hover:border-primary/50 group-hover:shadow-lg transition-all flex flex-col h-full bg-card">
+      <div className="h-40 bg-muted relative">
+        <div className="absolute inset-0 bg-gradient-to-br from-primary/20 to-secondary/20" />
+      </div>
+      <CardContent className="p-5 flex-1 flex flex-col">
+        <Badge variant="secondary" className="mb-3 w-fit group-hover:bg-secondary/80 transition-colors">
+          {article.category}
+        </Badge>
+        <h3 className="font-bold text-lg text-foreground line-clamp-2 mb-2 group-hover:text-primary transition-colors">
+          {article.title}
+        </h3>
+        <p className="text-sm text-muted-foreground line-clamp-3 mb-4 flex-1">{article.summary}</p>
+        <div className="flex items-center justify-between text-xs text-muted-foreground font-medium mt-auto pt-4 border-t border-border">
+          <div className="flex items-center gap-1.5">
+            <Clock className="h-3.5 w-3.5" />
+            <span>{article.readTime}</span>
+          </div>
+          {article.sourceUrl ? (
+            <div className="flex items-center gap-1 text-primary font-semibold">
+              Read <ArrowRight className="h-3 w-3" />
+            </div>
+          ) : (
+            <span className="text-muted-foreground/80">No external link</span>
+          )}
+        </div>
+      </CardContent>
+    </Card>
+  )
+
+  if (article.sourceUrl) {
+    return (
+      <a
+        href={article.sourceUrl}
+        target="_blank"
+        rel="noopener noreferrer"
+        className="block group h-full cursor-pointer"
+      >
+        {card}
+      </a>
+    )
+  }
+
+  return <div className="block h-full">{card}</div>
 }
 
 export default function ResourcesClient({ initialArticles }: { initialArticles: Article[] }) {
@@ -109,32 +156,7 @@ export default function ResourcesClient({ initialArticles }: { initialArticles: 
         ) : (
           <div className="grid md:grid-cols-2 lg:grid-cols-3 gap-6">
             {filteredArticles.map((article) => (
-              <a href={article.sourceUrl || "#"} target="_blank" rel="noopener noreferrer" key={article.id} className="block group h-full">
-                <Card className="overflow-hidden group-hover:border-primary/50 group-hover:shadow-lg transition-all flex flex-col h-full cursor-pointer bg-card">
-                  <div className="h-40 bg-muted relative">
-                    {/* Decorative placeholder */}
-                    <div className="absolute inset-0 bg-gradient-to-br from-primary/20 to-secondary/20" />
-                  </div>
-                  <CardContent className="p-5 flex-1 flex flex-col">
-                    <Badge variant="secondary" className="mb-3 w-fit group-hover:bg-secondary/80 transition-colors">{article.category}</Badge>
-                    <h3 className="font-bold text-lg text-foreground line-clamp-2 mb-2 group-hover:text-primary transition-colors">
-                      {article.title}
-                    </h3>
-                    <p className="text-sm text-muted-foreground line-clamp-3 mb-4 flex-1">
-                      {article.summary}
-                    </p>
-                    <div className="flex items-center justify-between text-xs text-muted-foreground font-medium mt-auto pt-4 border-t border-border">
-                      <div className="flex items-center gap-1.5">
-                        <Clock className="h-3.5 w-3.5" />
-                        <span>{article.readTime}</span>
-                      </div>
-                      <div className="flex items-center gap-1 text-primary font-semibold">
-                        Read <ArrowRight className="h-3 w-3" />
-                      </div>
-                    </div>
-                  </CardContent>
-                </Card>
-              </a>
+              <ArticleCard key={article.id} article={article} />
             ))}
           </div>
         )}

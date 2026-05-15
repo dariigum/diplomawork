@@ -6,6 +6,7 @@ import { Header } from "@/components/jobs/header"
 import dbConnect from "@/lib/db/mongoose"
 import { formatEmployerName } from "@/lib/format-employer-name"
 import { formatVacancySalary } from "@/lib/format-vacancy-salary"
+import { parseSafeExternalUrl } from "@/lib/vacancy-detail-display"
 import { User, Vacancy, SavedVacancy } from "@/lib/db/schema"
 import { getSession } from "@/lib/auth"
 
@@ -23,6 +24,8 @@ export default async function CompanyProfilePage({ params }: { params: Promise<{
   if (session && session.user.role === 'EMPLOYEE') {
     savedJobsCount = await SavedVacancy.countDocuments({ userId: session.user.id });
   }
+
+  const companyWebsite = company ? parseSafeExternalUrl(company.website) : null
 
   if (!company || company.role !== 'EMPLOYER') {
     return (
@@ -71,8 +74,8 @@ export default async function CompanyProfilePage({ params }: { params: Promise<{
              </div>
              <div className="flex items-center gap-2">
                <Globe className="h-4 w-4 text-primary" />
-               {company.website ? (
-                 <a href={company.website} target="_blank" rel="noopener noreferrer" className="hover:underline transition-colors">
+               {companyWebsite ? (
+                 <a href={companyWebsite.href} target="_blank" rel="noopener noreferrer" className="hover:underline transition-colors">
                    Visit Website
                  </a>
                ) : (

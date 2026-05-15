@@ -2,6 +2,7 @@ import Link from "next/link";
 import { Sparkles, BrainCircuit } from "lucide-react";
 import { getSession } from "@/lib/auth";
 import { formatVacancySalary } from "@/lib/format-vacancy-salary";
+import { parseSafeExternalUrl } from "@/lib/vacancy-detail-display";
 import dbConnect from "@/lib/db/mongoose";
 import { Response, User, Resume, SavedVacancy } from "@/lib/db/schema";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
@@ -117,6 +118,7 @@ export default async function EmployeeDashboard() {
               <ul className="space-y-4 mt-4">
                 {userResumes.map((r) => {
                   const isAiActive = !!(r as { activeForAi?: boolean }).activeForAi;
+                  const cvFileLink = parseSafeExternalUrl(r.cvFile);
                   return (
                   <li key={r.id} className="border border-border/60 p-4 rounded-xl flex flex-col sm:flex-row sm:justify-between sm:items-center gap-3 transition-colors duration-200 hover:border-primary/20 hover:bg-muted/20">
                     <div className="flex-1 min-w-0">
@@ -135,11 +137,11 @@ export default async function EmployeeDashboard() {
                       ) : (
                         <p className="text-xs text-muted-foreground mt-1.5">Currently used for AI recommendations and embeddings.</p>
                       )}
-                      {r.cvFile && (
+                      {cvFileLink ? (
                         <p className="mt-2 text-xs">
-                          <a href={r.cvFile} target="_blank" rel="noopener noreferrer" className="text-primary hover:underline">View CV (PDF)</a>
+                          <a href={cvFileLink.href} target="_blank" rel="noopener noreferrer" className="text-primary hover:underline">View CV (PDF)</a>
                         </p>
-                      )}
+                      ) : null}
                     </div>
                     <div className="flex flex-wrap items-center gap-2 shrink-0">
                       {!isAiActive ? (

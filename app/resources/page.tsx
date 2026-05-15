@@ -3,6 +3,7 @@ import { Footer } from "@/components/jobs/footer"
 import dbConnect from "@/lib/db/mongoose"
 import { Article, SavedVacancy } from "@/lib/db/schema"
 import { getSession } from "@/lib/auth"
+import { parseSafeExternalUrl, toIsoDateString } from "@/lib/vacancy-detail-display"
 import ResourcesClient from "./ResourcesClient"
 
 export const dynamic = "force-dynamic"
@@ -11,18 +12,21 @@ export default async function ResourcesPage() {
   await dbConnect()
   
   const rawArticles = await Article.find({}).sort({ createdAt: -1 }).lean()
-  const articles = rawArticles.map((a: any) => ({
-    id: a._id.toString(),
-    title: a.title,
-    summary: a.summary,
-    content: a.content,
-    category: a.category,
-    language: a.language,
-    readTime: a.readTime,
-    imageUrl: a.imageUrl || "/placeholder.svg",
-    sourceUrl: a.sourceUrl || "#",
-    createdAt: a.createdAt.toISOString()
-  }))
+  const articles = rawArticles.map((a: Record<string, unknown>) => {
+    const external = parseSafeExternalUrl(a.sourceUrl)
+    return {
+      id: String((a as { _id?: unknown })._id),
+      title: typeof a.title === "string" ? a.title : "Untitled article",
+      summary: typeof a.summary === "string" ? a.summary : "",
+      content: typeof a.content === "string" ? a.content : "",
+      category: typeof a.category === "string" ? a.category : "General",
+      language: typeof a.language === "string" ? a.language : "ru",
+      readTime: typeof a.readTime === "string" ? a.readTime : "",
+      imageUrl: typeof a.imageUrl === "string" && a.imageUrl.trim() ? a.imageUrl : "/placeholder.svg",
+      sourceUrl: external?.href ?? null,
+      createdAt: toIsoDateString(a.createdAt),
+    }
+  })
 
   const session = await getSession()
   let savedJobsCount = 0

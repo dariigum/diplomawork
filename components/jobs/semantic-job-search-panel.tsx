@@ -53,23 +53,6 @@ function tierShortLabel(score: number): string {
   return "Semantic overlap"
 }
 
-function tierBadgeClassName(band: SemanticScoreBand | null): string {
-  const base =
-    "shrink-0 text-[10px] sm:text-[9px] font-medium tracking-wide uppercase px-1.5 py-0.5 sm:py-0 min-h-[1.35rem] sm:min-h-[1.125rem] border"
-  switch (band) {
-    case "strong":
-      return `${base} border-primary/40 bg-primary/12 text-primary`
-    case "solid":
-      return `${base} border-teal-500/35 bg-teal-500/10 text-teal-800 dark:text-teal-300`
-    case "related":
-      return `${base} border-border/90 bg-muted/50 text-muted-foreground`
-    case "loose":
-      return `${base} border-border/70 bg-muted/30 text-muted-foreground/90`
-    default:
-      return `${base} border-border bg-muted text-muted-foreground`
-  }
-}
-
 function SemanticScoreReadout({ score }: { score: number }) {
   const formatted = formatSemanticScore(score)
   return (
@@ -115,6 +98,25 @@ function tierTextClassName(band: SemanticScoreBand | null): string {
     default:
       return "text-muted-foreground"
   }
+}
+
+/** Display-only shortening for API recovery reasons — does not change activation logic. */
+function compactRecoveryReason(reason: string): string {
+  const r = reason.trim()
+  const known: Record<string, string> = {
+    "Sparse embedding overlap": "Sparse overlap",
+    "No strong semantic matches": "No strong semantic overlap",
+    "Low semantic overlap": "Low semantic overlap",
+    "Only loose semantic overlap was found": "Weak overlap",
+    "Semantic overlap is weak for this query": "Weak overlap",
+  }
+  if (known[r]) return known[r]
+  if (r.length <= 44) return r
+  return `${r.slice(0, 41).trimEnd()}…`
+}
+
+function weakSemanticTriggerLabel(count: number, reason: string): string {
+  return `Loose semantic matches (${count}) · ${compactRecoveryReason(reason)}`
 }
 
 function formatConceptDisplay(raw: string, maxLen: number): string {
@@ -236,29 +238,28 @@ function SemanticConceptsCollapsible({
 }
 
 function SemanticEmptyState({
-  query,
-  stats,
   hasFallback,
   onShowFallback,
 }: {
-  query: string
-  stats: PanelStats
   hasFallback: boolean
   onShowFallback?: () => void
 }) {
   return (
-    <div className="rounded-md border border-dashed border-border/70 bg-muted/15 px-3.5 py-3.5 sm:px-3 sm:py-3 space-y-3 sm:space-y-2.5 text-sm">
-      <p className="text-foreground font-medium text-sm">No strong semantic matches.</p>
-      <p className="text-xs text-muted-foreground">
-        &ldquo;{query}&rdquo; · {stats.compatibleEmbeddings}/{stats.checkedEmbeddings} compatible embeddings
-      </p>
-      <p className="text-xs text-muted-foreground leading-snug">
-        Try broader role wording{hasFallback ? ", or review text-based matches below." : "."}
+    <div className="rounded-md border border-dashed border-border/60 bg-muted/10 px-3 py-2.5 sm:px-2.5 sm:py-2 space-y-2">
+      <p className={`${TEXT_SECONDARY_MUTED} leading-snug`}>
+        No strong semantic overlap found.
+        {hasFallback ? " Try broader wording or browse text matches below." : " Try broader wording."}
       </p>
       {hasFallback && onShowFallback ? (
-        <Button type="button" variant="outline" size="sm" className="min-h-11 h-10 sm:min-h-8 sm:h-8 text-xs gap-1.5" onClick={onShowFallback}>
+        <Button
+          type="button"
+          variant="outline"
+          size="sm"
+          className="min-h-10 h-9 sm:min-h-8 sm:h-8 text-xs gap-1.5"
+          onClick={onShowFallback}
+        >
           <FileText className="h-3.5 w-3.5" />
-          Text-based matches
+          Text matches
         </Button>
       ) : null}
     </div>
@@ -266,46 +267,54 @@ function SemanticEmptyState({
 }
 
 function WeakSemanticMatchCard({ item }: { item: SemanticSearchApiWeakSemanticItem }) {
-  const band = semanticScoreBand(item.semanticScore)
   return (
     <article
-      className={`rounded-md border border-dashed border-border/55 bg-muted/20 px-3 py-2.5 sm:px-2.5 sm:py-2 space-y-2 sm:space-y-1.5 ${CARD_INTERACTION}`}
+      className={`rounded-md border border-dashed border-border/50 bg-muted/15 px-2.5 py-2 sm:px-2 sm:py-1.5 space-y-1 ${CARD_INTERACTION}`}
     >
-      <div className="flex items-start justify-between gap-2">
+      <div className="flex items-start justify-between gap-2 min-w-0">
         <Link
           href={`/jobs/${item.vacancyId}`}
-          className="text-sm sm:text-xs font-medium text-foreground/90 hover:underline underline-offset-2 min-w-0 leading-snug"
+          className="text-xs font-medium text-foreground/90 hover:underline underline-offset-2 min-w-0 leading-snug line-clamp-2"
         >
           {item.title}
         </Link>
         <SemanticScoreReadout score={item.semanticScore} />
       </div>
-      <Badge variant="outline" className={tierBadgeClassName(band)} title={weakSemanticTierLabel(item.semanticScore)}>
-        {weakSemanticTierLabel(item.semanticScore)}
-      </Badge>
-      <p className={`${TEXT_SECONDARY} break-words`}>
-        {item.company} · {item.location}
+      <p className={`${TEXT_SECONDARY} line-clamp-1 break-words`} title={weakSemanticTierLabel(item.semanticScore)}>
+        {item.company} · {item.location} · {weakSemanticTierLabel(item.semanticScore)}
       </p>
     </article>
   )
 }
 
 function TextFallbackMatchCard({ item }: { item: SemanticSearchApiFallbackItem }) {
+  const explanation = item.explanation.trim()
+
   return (
     <article
-      className={`rounded-md border border-border/45 border-l-2 border-l-muted-foreground/25 bg-background/80 px-3 py-2.5 sm:px-2.5 sm:py-2 space-y-1.5 sm:space-y-1 ${CARD_INTERACTION}`}
+      className={`rounded-md border border-dashed border-border/40 bg-muted/10 px-2.5 py-2 sm:px-2 sm:py-1.5 space-y-1 ${CARD_INTERACTION}`}
     >
       <Link
         href={`/jobs/${item.vacancyId}`}
-        className="text-sm sm:text-xs font-medium hover:underline underline-offset-2 line-clamp-2 leading-snug"
+        className="text-xs font-medium text-foreground/90 hover:underline underline-offset-2 line-clamp-2 leading-snug"
       >
         {item.title}
       </Link>
-      <p className={`${TEXT_SECONDARY} break-words`}>
+      <p className={`${TEXT_SECONDARY} line-clamp-1 break-words`}>
         {item.company} · {item.location}
+        <span className="text-muted-foreground/75 tabular-nums"> · text overlap {item.textScore}</span>
       </p>
-      <p className={`${TEXT_SECONDARY_MUTED} line-clamp-3 sm:line-clamp-2`}>{item.explanation}</p>
-      <p className="text-xs sm:text-[11px] tabular-nums text-muted-foreground/80">Text overlap · {item.textScore}</p>
+      {explanation ? (
+        <Collapsible defaultOpen={false}>
+          <CollapsibleTrigger className={CARD_EXPLANATION_TRIGGER}>
+            <span>Why matched</span>
+            <ChevronDown className="h-4 w-4 shrink-0 opacity-70 sm:h-3.5 sm:w-3.5" />
+          </CollapsibleTrigger>
+          <CollapsibleContent>
+            <p className={`mt-1 pb-0.5 ${TEXT_SECONDARY_MUTED}`}>{explanation}</p>
+          </CollapsibleContent>
+        </Collapsible>
+      ) : null}
     </article>
   )
 }
@@ -321,24 +330,25 @@ function KeywordFallbackSection({
 }) {
   if (results.length === 0) return null
 
+  const reasonLine = compactRecoveryReason(reason)
+
   return (
     <section
       id={FALLBACK_SECTION_ID}
       className={
         primary
-          ? "rounded-md border border-border/60 bg-muted/10 px-3 py-3 sm:px-2.5 sm:py-2.5 space-y-2.5 sm:space-y-2"
-          : "rounded-md border border-dashed border-border/50 bg-muted/5 px-3 py-3 sm:px-2.5 sm:py-2.5 space-y-2.5 sm:space-y-2"
+          ? "rounded-md border border-dashed border-border/55 bg-muted/8 px-2.5 py-2 sm:px-2 sm:py-1.5 space-y-1.5 sm:space-y-1"
+          : "rounded-md border border-dashed border-border/45 bg-muted/5 px-2.5 py-2 sm:px-2 sm:py-1.5 space-y-1.5 sm:space-y-1"
       }
       aria-label="Keyword and text fallback matches"
     >
-      <div className="flex flex-wrap items-center gap-1.5">
-        <h3 className="text-xs font-medium text-foreground">Text matches</h3>
-        <Badge variant="outline" className="text-[10px] sm:text-[9px] font-normal px-1.5 py-0.5 sm:px-1 sm:py-0 min-h-[1.35rem] sm:min-h-4 text-muted-foreground">
-          Not embeddings
-        </Badge>
+      <div className="space-y-0.5">
+        <p className="text-xs font-medium text-foreground leading-snug">
+          Text matches <span className="font-normal text-muted-foreground">· Not embeddings</span>
+        </p>
+        {reasonLine ? <p className={TEXT_SECONDARY_MUTED}>{reasonLine}</p> : null}
       </div>
-      <p className={TEXT_SECONDARY_MUTED}>{reason}</p>
-      <ul className="grid gap-2 sm:gap-1.5 sm:grid-cols-2 list-none m-0 p-0">
+      <ul className="grid gap-1.5 sm:gap-1 sm:grid-cols-2 list-none m-0 p-0">
         {results.map((r) => (
           <li key={r.vacancyId}>
             <TextFallbackMatchCard item={r} />
@@ -359,16 +369,15 @@ function WeakSemanticRecoverySection({
   if (results.length === 0) return null
 
   return (
-    <Collapsible id={WEAK_SEMANTIC_SECTION_ID} defaultOpen={false} className="rounded-md border border-border/50 bg-muted/10">
-      <CollapsibleTrigger className={`${COLLAPSIBLE_TRIGGER} hover:bg-muted/20`}>
-        <span className="font-medium text-foreground">
-          Loose semantic <span className="font-normal text-muted-foreground">({results.length})</span>
+    <Collapsible id={WEAK_SEMANTIC_SECTION_ID} defaultOpen={false} className="rounded-md border border-dashed border-border/50 bg-muted/8">
+      <CollapsibleTrigger className={`${COLLAPSIBLE_TRIGGER} hover:bg-muted/15`}>
+        <span className="font-medium text-foreground text-xs leading-snug min-w-0 pr-2">
+          {weakSemanticTriggerLabel(results.length, reason)}
         </span>
         <ChevronDown className="h-4 w-4 shrink-0 text-muted-foreground transition-transform sm:h-3.5 sm:w-3.5" />
       </CollapsibleTrigger>
-      <CollapsibleContent className="px-3 pb-3 sm:px-2.5 sm:pb-2.5 space-y-2 sm:space-y-1.5">
-        <p className={TEXT_SECONDARY}>{reason}</p>
-        <ul className="grid gap-2 sm:gap-1.5 sm:grid-cols-2 list-none m-0 p-0">
+      <CollapsibleContent className="px-2.5 pb-2.5 sm:px-2 sm:pb-2">
+        <ul className="grid gap-1.5 sm:gap-1 sm:grid-cols-2 list-none m-0 p-0">
           {results.map((r) => (
             <li key={r.vacancyId}>
               <WeakSemanticMatchCard item={r} />
@@ -666,8 +675,6 @@ export function SemanticJobSearchPanel() {
 
       {showEmptySemantic && panel.kind === "results" ? (
         <SemanticEmptyState
-          query={panel.query}
-          stats={panel.stats}
           hasFallback={Boolean(fallbackPayload)}
           onShowFallback={fallbackPayload ? scrollToFallback : undefined}
         />

@@ -12,6 +12,7 @@ import { getSession } from "@/lib/auth"
 import { recordVacancyBehaviourEvent } from "@/lib/vacancy-behaviour-events"
 import { formatEmployerName } from "@/lib/format-employer-name"
 import { formatVacancySalary } from "@/lib/format-vacancy-salary"
+import { normalizeStringArray } from "@/lib/normalize-string-array"
 import { normalizeVacancySkills } from "@/lib/normalize-vacancy-skills"
 
 export const dynamic = "force-dynamic"
@@ -53,6 +54,8 @@ export default async function JobDetailsPage({ params }: { params: Promise<{ id:
 
   const company = jobRecord.employerId as any;
   const companyName = formatEmployerName(company);
+  const responsibilities = normalizeStringArray(jobRecord.responsibilities);
+  const requirements = normalizeStringArray(jobRecord.requirements);
   const companyProfileId =
     company && typeof company === 'object' && company._id != null
       ? String(company._id)
@@ -137,8 +140,8 @@ export default async function JobDetailsPage({ params }: { params: Promise<{ id:
                 <div>
                   <h3 className="font-semibold text-foreground mb-3">Responsibilities</h3>
                   <ul className="list-disc list-inside space-y-2 text-muted-foreground">
-                    {jobRecord.responsibilities?.map((resp: string, idx: number) => (
-                      <li key={idx}>{resp}</li>
+                    {responsibilities.map((resp) => (
+                      <li key={resp}>{resp}</li>
                     ))}
                   </ul>
                 </div>
@@ -148,8 +151,8 @@ export default async function JobDetailsPage({ params }: { params: Promise<{ id:
                 <div>
                   <h3 className="font-semibold text-foreground mb-3">Requirements</h3>
                   <ul className="list-disc list-inside space-y-2 text-muted-foreground">
-                    {jobRecord.requirements?.map((req: string, idx: number) => (
-                      <li key={idx}>{req}</li>
+                    {requirements.map((req) => (
+                      <li key={req}>{req}</li>
                     ))}
                   </ul>
                 </div>

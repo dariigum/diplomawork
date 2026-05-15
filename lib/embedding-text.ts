@@ -1,7 +1,7 @@
+import { normalizeStringArray } from '@/lib/normalize-string-array'
+
 function normalizeTextPart(value: unknown): string {
-  if (value == null) return ''
-  if (Array.isArray(value)) return value.map(v => String(v).trim()).filter(Boolean).join(', ')
-  return String(value).trim()
+  return normalizeStringArray(value).join(', ')
 }
 
 function joinParts(parts: Array<string | undefined | null>): string {

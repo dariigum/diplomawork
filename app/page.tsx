@@ -10,6 +10,8 @@ import { getHomeData, toggleSaveVacancyAction } from "@/app/actions/vacancy"
 import { emitSavedVacanciesUpdated } from "@/lib/saved-vacancies-events"
 import { toast } from "sonner"
 
+import { useI18n } from "@/lib/i18n/provider"
+
 const initialFilters: FilterState = {
   search: "",
   locations: [],
@@ -20,6 +22,7 @@ const initialFilters: FilterState = {
 }
 
 export default function VacanciesPage() {
+  const { t } = useI18n()
   const [filters, setFilters] = useState<FilterState>(initialFilters)
   const [jobs, setJobs] = useState<any[]>([])
   const [savedJobs, setSavedJobs] = useState<string[]>([])
@@ -104,7 +107,7 @@ export default function VacanciesPage() {
           ? [...prev, jobId]
           : prev.filter((id) => id !== jobId)
       )
-      toast.error("Only employees can save vacancies.")
+      toast.error(t.home.onlyEmployeesCanSave)
       return
     }
 
@@ -119,10 +122,10 @@ export default function VacanciesPage() {
         {/* Hero Section */}
         <section className="mb-8 text-center lg:text-left">
           <h1 className="text-3xl lg:text-4xl font-bold text-foreground text-balance">
-            Find Your Dream Job
+            {t.home.findYourDreamJob}
           </h1>
           <p className="mt-2 text-muted-foreground text-lg max-w-2xl mx-auto lg:mx-0">
-            Discover thousands of job opportunities with all the information you need.
+            {t.home.discoverThousands}
           </p>
         </section>
 
@@ -144,7 +147,7 @@ export default function VacanciesPage() {
           {/* Job Listings */}
           {jobs.length === 0 ? (
             <p className="min-w-0 flex-1 text-center text-muted-foreground py-12">
-              No vacancies posted yet.
+              {t.home.noVacanciesPosted}
             </p>
           ) : (
             <JobList

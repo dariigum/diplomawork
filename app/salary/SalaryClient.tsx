@@ -9,6 +9,7 @@ import { Progress } from "@/components/ui/progress"
 import { Header } from "@/components/jobs/header"
 import { getAvgSalaryForSkills } from "@/app/actions/salary"
 import { Button } from "@/components/ui/button"
+import { useI18n } from "@/lib/i18n/provider"
 
 const salaryData = [
   { title: "Senior Frontend Developer", avgSalary: 145000, minSalary: 120000, maxSalary: 180000, jobs: 1234, trend: "+8%" },
@@ -16,6 +17,7 @@ const salaryData = [
 ]
 
 export default function SalaryClient({ userSkills, isAuthenticated }: { userSkills: string[], isAuthenticated: boolean }) {
+  const { t } = useI18n()
   const [searchQuery, setSearchQuery] = useState("")
   const [selectedSkills, setSelectedSkills] = useState<string[]>([])
   const [customStats, setCustomStats] = useState<{ minSalary: number, maxSalary: number, avgSalary: number, jobs: number } | null>(null)
@@ -46,19 +48,19 @@ export default function SalaryClient({ userSkills, isAuthenticated }: { userSkil
 
       <main className="container mx-auto px-4 py-8">
         <div className="mb-8">
-          <h1 className="text-3xl font-bold text-foreground">Salary Explorer</h1>
+          <h1 className="text-3xl font-bold text-foreground">{t.salary.salaryExplorer}</h1>
           <p className="text-muted-foreground mt-2">
-            Research salaries and compensation trends for your career
+            {t.salary.researchSalaries}
           </p>
         </div>
 
         {userSkills.length > 0 && (
           <Card className="mb-8">
             <CardHeader>
-              <CardTitle>Your Skills Analysis</CardTitle>
+              <CardTitle>{t.salary.yourSkillsAnalysis}</CardTitle>
             </CardHeader>
             <CardContent>
-              <p className="mb-4 text-sm text-muted-foreground">Select your skills to see average match salaries from real employer vacancies.</p>
+              <p className="mb-4 text-sm text-muted-foreground">{t.salary.selectSkills}</p>
               <div className="flex flex-wrap gap-2 mb-6">
                 {userSkills.map(skill => (
                   <Button 
@@ -74,17 +76,17 @@ export default function SalaryClient({ userSkills, isAuthenticated }: { userSkil
 
               {selectedSkills.length > 0 && customStats && (
                 <div className="bg-primary/5 p-6 rounded-lg border border-primary/20">
-                  <h3 className="text-xl font-bold mb-2">Estimated Salary for Selected Skills</h3>
+                  <h3 className="text-xl font-bold mb-2">{t.salary.estimatedSalary}</h3>
                   <div className="flex items-center gap-4 text-lg">
                     <span className="text-muted-foreground">${customStats.minSalary}</span>
                     <span className="font-bold text-primary text-2xl">${customStats.avgSalary}</span>
                     <span className="text-muted-foreground">${customStats.maxSalary}</span>
                   </div>
-                  <p className="text-sm mt-2 text-muted-foreground">Based on {customStats.jobs} matching vacancies.</p>
+                  <p className="text-sm mt-2 text-muted-foreground">{t.salary.basedOnVacancies.replace('.', ` ${customStats.jobs} matching vacancies.`)}</p>
                 </div>
               )}
               {selectedSkills.length > 0 && !customStats && (
-                <p className="text-sm text-muted-foreground italic">No matching vacancies found for these skills yet.</p>
+                <p className="text-sm text-muted-foreground italic">{t.salary.noMatchingVacancies}</p>
               )}
             </CardContent>
           </Card>
@@ -96,7 +98,7 @@ export default function SalaryClient({ userSkills, isAuthenticated }: { userSkil
             <div className="relative mb-6">
               <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-5 w-5 text-muted-foreground" />
               <Input
-                placeholder="Search job titles..."
+                placeholder={t.salary.searchJobTitles}
                 value={searchQuery}
                 onChange={(e) => setSearchQuery(e.target.value)}
                 className="pl-10 h-12"
@@ -110,7 +112,7 @@ export default function SalaryClient({ userSkills, isAuthenticated }: { userSkil
                     <div className="flex justify-between mb-4">
                       <div>
                         <h3 className="font-semibold text-lg">{item.title}</h3>
-                        <p className="text-sm text-muted-foreground">{item.jobs} open positions</p>
+                        <p className="text-sm text-muted-foreground">{item.jobs} {t.salary.openPositions}</p>
                       </div>
                       <Badge variant="secondary" className="text-accent bg-accent/10">
                         {item.trend}

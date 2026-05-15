@@ -1,7 +1,7 @@
 "use client"
 
 import Link from "next/link"
-import { Briefcase, Heart, Bell, Menu, LogOut, User as UserIcon } from "lucide-react"
+import { Briefcase, Heart, Bell, Menu, LogOut, User as UserIcon, Globe } from "lucide-react"
 import { Button } from "@/components/ui/button"
 import { Badge } from "@/components/ui/badge"
 import {
@@ -14,15 +14,25 @@ import { useState, useEffect } from "react"
 import { getAuthSession, logoutAction } from "@/app/actions/auth"
 import { getSavedVacanciesAction } from "@/app/actions/vacancy"
 import { SAVED_VACANCIES_UPDATED_EVENT } from "@/lib/saved-vacancies-events"
+import { ThemeToggle } from "@/components/theme-toggle"
+
+import { useChatSocket } from "@/hooks/use-chat-socket"
+import { useI18n } from "@/lib/i18n/provider"
+import { Locale } from "@/lib/i18n/dictionaries"
 
 interface HeaderProps {
   savedJobsCount: number
 }
 
 export function Header({ savedJobsCount }: HeaderProps) {
+  const { t, locale, setLocale } = useI18n();
   const [userRole, setUserRole] = useState<string | null>(null)
+  const [userId, setUserId] = useState<string | null>(null)
   const [savedJobsData, setSavedJobsData] = useState<any[]>([])
   const [savedCount, setSavedCount] = useState(savedJobsCount)
+  const [notifications, setNotifications] = useState<any[]>([])
+  const { socket, connected } = useChatSocket()
+  
   const isEmployee = userRole === 'EMPLOYEE'
 
   useEffect(() => {
@@ -37,16 +47,33 @@ export function Header({ savedJobsCount }: HeaderProps) {
     setSavedCount(jobs.length)
   }
 
+  const fetchUnreadChats = async () => {
+    try {
+      const res = await fetch('/api/chats', { cache: 'no-store' })
+      if (res.ok) {
+        const data = await res.json()
+        if (Array.isArray(data.chats)) {
+          const unread = data.chats.filter((c: any) => c.unreadCount > 0)
+          setNotifications(unread)
+        }
+      }
+    } catch {}
+  }
+
   useEffect(() => {
     getAuthSession().then(session => {
       if (!session?.user) {
         setUserRole(null)
+        setUserId(null)
         setSavedJobsData([])
         setSavedCount(0)
+        setNotifications([])
         return
       }
 
       setUserRole(session.user.role)
+      setUserId(session.user.id)
+      fetchUnreadChats()
 
       if (session.user.role === 'EMPLOYEE') {
         refreshSavedVacancies().catch(() => {
@@ -59,6 +86,19 @@ export function Header({ savedJobsCount }: HeaderProps) {
       }
     })
   }, [])
+
+  useEffect(() => {
+    if (!socket || !connected) return
+    const handleUpdate = () => {
+      fetchUnreadChats()
+    }
+    socket.on('chat:new_message', handleUpdate)
+    socket.on('chat:read', handleUpdate)
+    return () => {
+      socket.off('chat:new_message', handleUpdate)
+      socket.off('chat:read', handleUpdate)
+    }
+  }, [socket, connected])
 
   const handleSavedPopoverChange = (open: boolean) => {
     if (open) {
@@ -94,22 +134,22 @@ export function Header({ savedJobsCount }: HeaderProps) {
           <nav className="hidden md:flex items-center gap-1">
             <Link href="/">
               <Button variant="ghost" className="text-muted-foreground hover:text-foreground">
-                Find Jobs
+                {t.header.findJobs}
               </Button>
             </Link>
             <Link href="/companies">
               <Button variant="ghost" className="text-muted-foreground hover:text-foreground">
-                Companies
+                {t.header.companies}
               </Button>
             </Link>
             <Link href="/salary">
               <Button variant="ghost" className="text-muted-foreground hover:text-foreground">
-                Salaries
+                {t.header.salaries}
               </Button>
             </Link>
             <Link href="/resources">
               <Button variant="ghost" className="text-muted-foreground hover:text-foreground">
-                Resources
+                {t.header.resources}
               </Button>
             </Link>
           </nav>
@@ -128,13 +168,13 @@ export function Header({ savedJobsCount }: HeaderProps) {
                           {savedCount}
                         </Badge>
                       )}
-                      <span className="sr-only">Saved jobs</span>
+                      <span className="sr-only">{t.header.savedJobs}</span>
                     </Button>
                   </DropdownMenuTrigger>
                   <DropdownMenuContent align="end" className="w-80 p-2">
-                    <div className="font-semibold px-2 py-1.5 mb-2 border-b text-foreground">Saved Vacancies</div>
+                    <div className="font-semibold px-2 py-1.5 mb-2 border-b text-foreground">{t.header.savedVacancies}</div>
                     {savedJobsData.length === 0 ? (
-                      <div className="p-4 text-center text-sm text-muted-foreground">No saved jobs yet.</div>
+                      <div className="p-4 text-center text-sm text-muted-foreground">{t.header.noSavedJobs}</div>
                     ) : (
                       <div className="max-h-64 overflow-y-auto space-y-1">
                         {savedJobsData.map(job => (
@@ -149,21 +189,77 @@ export function Header({ savedJobsCount }: HeaderProps) {
                     )}
                   </DropdownMenuContent>
                 </DropdownMenu>
-
-                {/* Notifications */}
-                <DropdownMenu>
-                  <DropdownMenuTrigger asChild>
-                    <Button variant="ghost" size="icon" className="hidden sm:flex relative">
-                      <Bell className="h-5 w-5 text-muted-foreground" />
-                      <span className="sr-only">Notifications</span>
-                    </Button>
-                  </DropdownMenuTrigger>
-                  <DropdownMenuContent align="end" className="w-64 p-4 text-center">
-                    <p className="text-sm text-muted-foreground">No new notifications.</p>
-                  </DropdownMenuContent>
-                </DropdownMenu>
               </>
             )}
+
+            {/* Notifications */}
+            {userRole && (
+              <DropdownMenu>
+                <DropdownMenuTrigger asChild>
+                  <Button variant="ghost" size="icon" className="hidden sm:flex relative">
+                    <Bell className="h-5 w-5 text-muted-foreground" />
+                    {notifications.length > 0 && (
+                      <Badge className="absolute -top-1 -right-1 h-5 w-5 p-0 flex items-center justify-center text-xs bg-destructive text-destructive-foreground">
+                        {notifications.length}
+                      </Badge>
+                    )}
+                    <span className="sr-only">{t.header.notifications}</span>
+                  </Button>
+                </DropdownMenuTrigger>
+                <DropdownMenuContent align="end" className="w-80 p-2">
+                  <div className="font-semibold px-2 py-1.5 mb-2 border-b text-foreground">{t.header.notifications}</div>
+                  {notifications.length === 0 ? (
+                    <div className="p-4 text-center text-sm text-muted-foreground">{t.header.noNewNotifications}</div>
+                  ) : (
+                    <div className="max-h-64 overflow-y-auto space-y-1">
+                      {notifications.map((n) => (
+                        <DropdownMenuItem key={n.id} asChild>
+                          <Link 
+                            href={userRole === 'EMPLOYER' ? '/dashboard/employer' : '/dashboard/employee'} 
+                            className="flex flex-col items-start cursor-pointer px-3 py-2 border-b last:border-0 hover:bg-muted/50 rounded-md"
+                          >
+                            <div className="flex items-center justify-between w-full">
+                              <span className="font-medium text-sm line-clamp-1">
+                                {t.header.newMessageFrom} {n.otherUser?.name || 'User'}
+                              </span>
+                              <Badge variant="secondary" className="text-[10px] ml-2">
+                                {n.unreadCount}
+                              </Badge>
+                            </div>
+                            <span className="text-xs text-muted-foreground line-clamp-1 mt-1">
+                              {n.lastMessagePreview || t.header.newAttachment}
+                            </span>
+                          </Link>
+                        </DropdownMenuItem>
+                      ))}
+                    </div>
+                  )}
+                </DropdownMenuContent>
+              </DropdownMenu>
+            )}
+
+            {/* Language Switcher */}
+            <DropdownMenu>
+              <DropdownMenuTrigger asChild>
+                <Button variant="ghost" size="icon" className="relative">
+                  <Globe className="h-5 w-5 text-muted-foreground" />
+                  <span className="sr-only">Change Language</span>
+                </Button>
+              </DropdownMenuTrigger>
+              <DropdownMenuContent align="end">
+                <DropdownMenuItem onClick={() => setLocale('en')} className={locale === 'en' ? 'font-bold' : ''}>
+                  English
+                </DropdownMenuItem>
+                <DropdownMenuItem onClick={() => setLocale('ru')} className={locale === 'ru' ? 'font-bold' : ''}>
+                  Русский
+                </DropdownMenuItem>
+                <DropdownMenuItem onClick={() => setLocale('kk')} className={locale === 'kk' ? 'font-bold' : ''}>
+                  Қазақша
+                </DropdownMenuItem>
+              </DropdownMenuContent>
+            </DropdownMenu>
+
+            <ThemeToggle />
 
             {/* Auth Buttons */}
             <div className="hidden sm:flex items-center gap-2 ml-2">
@@ -172,13 +268,13 @@ export function Header({ savedJobsCount }: HeaderProps) {
                   <Link href={userRole === 'EMPLOYER' ? '/dashboard/employer' : '/dashboard/employee'}>
                     <Button variant="ghost" className="text-muted-foreground flex items-center gap-2">
                       <UserIcon className="h-4 w-4" />
-                      Profile
+                      {t.header.profile}
                     </Button>
                   </Link>
                   <form action={logoutAction}>
                     <Button variant="outline" className="text-muted-foreground hover:text-destructive flex items-center gap-2">
                       <LogOut className="h-4 w-4" />
-                      Logout
+                      {t.header.logout}
                     </Button>
                   </form>
                 </>
@@ -186,12 +282,12 @@ export function Header({ savedJobsCount }: HeaderProps) {
                 <>
                   <Link href="/login">
                     <Button variant="ghost" className="text-muted-foreground">
-                      Log In
+                      {t.header.login}
                     </Button>
                   </Link>
                   <Link href="/signup">
                     <Button className="bg-primary text-primary-foreground hover:bg-primary/90">
-                      Sign Up
+                      {t.header.signup}
                     </Button>
                   </Link>
                 </>
@@ -208,45 +304,45 @@ export function Header({ savedJobsCount }: HeaderProps) {
               </DropdownMenuTrigger>
               <DropdownMenuContent align="end" className="w-48">
                 <DropdownMenuItem asChild>
-                  <Link href="/" className="w-full">Find Jobs</Link>
+                  <Link href="/" className="w-full">{t.header.findJobs}</Link>
                 </DropdownMenuItem>
                 <DropdownMenuItem asChild>
-                  <Link href="/companies" className="w-full">Companies</Link>
+                  <Link href="/companies" className="w-full">{t.header.companies}</Link>
                 </DropdownMenuItem>
                 <DropdownMenuItem asChild>
-                  <Link href="/salary" className="w-full">Salaries</Link>
+                  <Link href="/salary" className="w-full">{t.header.salaries}</Link>
                 </DropdownMenuItem>
-                
+
                 {userRole ? (
                   <>
                     {isEmployee && (
-                    <DropdownMenuItem asChild>
-                      <Link href="/saved" className="w-full flex items-center justify-between">
-                        Saved Jobs
-                        {savedCount > 0 && (
-                          <Badge variant="secondary">{savedCount}</Badge>
-                        )}
-                      </Link>
-                    </DropdownMenuItem>
+                      <DropdownMenuItem asChild>
+                        <Link href="/saved" className="w-full flex items-center justify-between">
+                          {t.header.savedJobs}
+                          {savedCount > 0 && (
+                            <Badge variant="secondary">{savedCount}</Badge>
+                          )}
+                        </Link>
+                      </DropdownMenuItem>
                     )}
                     <DropdownMenuItem asChild>
                       <Link href={userRole === 'EMPLOYER' ? '/dashboard/employer' : '/dashboard/employee'} className="w-full">
-                        Profile
+                        {t.header.profile}
                       </Link>
                     </DropdownMenuItem>
                     <DropdownMenuItem asChild>
                       <form action={logoutAction} className="w-full">
-                        <button type="submit" className="w-full text-left text-destructive">Logout</button>
+                        <button type="submit" className="w-full text-left text-destructive">{t.header.logout}</button>
                       </form>
                     </DropdownMenuItem>
                   </>
                 ) : (
                   <>
                     <DropdownMenuItem asChild className="text-primary">
-                      <Link href="/login" className="w-full">Log In</Link>
+                      <Link href="/login" className="w-full">{t.header.login}</Link>
                     </DropdownMenuItem>
                     <DropdownMenuItem asChild className="text-primary font-medium">
-                      <Link href="/signup" className="w-full">Sign Up</Link>
+                      <Link href="/signup" className="w-full">{t.header.signup}</Link>
                     </DropdownMenuItem>
                   </>
                 )}

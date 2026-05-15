@@ -11,8 +11,10 @@ import { Checkbox } from "@/components/ui/checkbox"
 import { Separator } from "@/components/ui/separator"
 import { loginAction } from "@/app/actions/auth"
 import { toast } from "sonner"
+import { useI18n } from "@/lib/i18n/provider"
 
 export default function LoginPage() {
+  const { t } = useI18n()
   const router = useRouter()
   const [showPassword, setShowPassword] = useState(false)
   const [isPending, startTransition] = useTransition()
@@ -54,26 +56,25 @@ export default function LoginPage() {
 
         <Card>
           <CardHeader className="text-center">
-            <CardTitle className="text-2xl">Welcome back</CardTitle>
-            <CardDescription>Sign in to your account to continue</CardDescription>
+            <CardTitle className="text-2xl">{t.auth.welcomeBack}</CardTitle>
+            <CardDescription>{t.auth.signInToContinue}</CardDescription>
           </CardHeader>
           <CardContent>
             <form onSubmit={handleSubmit} className="space-y-4">
               {/* Email */}
               <div className="space-y-2">
                 <label htmlFor="email" className="text-sm font-medium text-foreground">
-                  Email
+                  {t.auth.email}
                 </label>
                 <div className="relative">
                   <Mail className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
                   <Input
                     id="email"
-                    type="email"
-                    placeholder="Enter your email"
+                    type="text"
+                    placeholder={t.auth.enterEmail}
                     value={email}
                     onChange={(e) => setEmail(e.target.value)}
                     className="pl-10"
-                    required
                   />
                 </div>
               </div>
@@ -81,14 +82,14 @@ export default function LoginPage() {
               {/* Password */}
               <div className="space-y-2">
                 <label htmlFor="password" className="text-sm font-medium text-foreground">
-                  Password
+                  {t.auth.password}
                 </label>
                 <div className="relative">
                   <Lock className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
                   <Input
                     id="password"
                     type={showPassword ? "text" : "password"}
-                    placeholder="Enter your password"
+                    placeholder={t.auth.enterPassword}
                     value={password}
                     onChange={(e) => setPassword(e.target.value)}
                     className="pl-10 pr-10"
@@ -109,17 +110,17 @@ export default function LoginPage() {
                 <div className="flex items-center gap-2">
                   <Checkbox id="remember" />
                   <label htmlFor="remember" className="text-sm text-muted-foreground">
-                    Remember me
+                    {t.auth.rememberMe}
                   </label>
                 </div>
                 <Link href="/forgot-password" className="text-sm text-primary hover:underline">
-                  Forgot password?
+                  {t.auth.forgotPassword}
                 </Link>
               </div>
 
               {/* Submit */}
-              <Button type="submit" className="w-full h-11">
-                Sign In
+              <Button type="submit" className="w-full h-11" disabled={isPending}>
+                {isPending ? t.common.loading : t.auth.signIn}
               </Button>
 
               <Separator className="my-6" />
@@ -146,7 +147,7 @@ export default function LoginPage() {
                       fill="#EA4335"
                     />
                   </svg>
-                  Continue with Google
+                  {t.auth.continueWithGoogle}
                   </a>
                 </Button>
                 <Button
@@ -158,16 +159,16 @@ export default function LoginPage() {
                   <svg className="h-5 w-5 mr-2" fill="currentColor" viewBox="0 0 24 24">
                     <path d="M12 0c-6.626 0-12 5.373-12 12 0 5.302 3.438 9.8 8.207 11.387.599.111.793-.261.793-.577v-2.234c-3.338.726-4.033-1.416-4.033-1.416-.546-1.387-1.333-1.756-1.333-1.756-1.089-.745.083-.729.083-.729 1.205.084 1.839 1.237 1.839 1.237 1.07 1.834 2.807 1.304 3.492.997.107-.775.418-1.305.762-1.604-2.665-.305-5.467-1.334-5.467-5.931 0-1.311.469-2.381 1.236-3.221-.124-.303-.535-1.524.117-3.176 0 0 1.008-.322 3.301 1.23.957-.266 1.983-.399 3.003-.404 1.02.005 2.047.138 3.006.404 2.291-1.552 3.297-1.23 3.297-1.23.653 1.653.242 2.874.118 3.176.77.84 1.235 1.911 1.235 3.221 0 4.609-2.807 5.624-5.479 5.921.43.372.823 1.102.823 2.222v3.293c0 .319.192.694.801.576 4.765-1.589 8.199-6.086 8.199-11.386 0-6.627-5.373-12-12-12z" />
                   </svg>
-                  GitHub Coming Soon
+                  {t.auth.githubComingSoon}
                 </Button>
               </div>
             </form>
 
             {/* Sign Up Link */}
             <p className="text-center text-sm text-muted-foreground mt-6">
-              Don&apos;t have an account?{" "}
+              {t.auth.noAccount}{" "}
               <Link href="/signup" className="text-primary font-medium hover:underline">
-                Sign up
+                {t.auth.signUp}
               </Link>
             </p>
           </CardContent>

@@ -1,7 +1,11 @@
+"use client"
+
 import Link from "next/link"
 import { Briefcase } from "lucide-react"
+import { useI18n } from "@/lib/i18n/provider"
 
 export function Footer() {
+  const { t } = useI18n()
   return (
     <footer className="border-t border-border bg-card mt-12">
       <div className="container mx-auto px-4 py-8">
@@ -17,19 +21,19 @@ export function Footer() {
           {/* Links */}
           <nav className="flex items-center gap-6 text-sm">
             <Link href="/privacy" className="text-muted-foreground hover:text-foreground transition-colors">
-              Privacy
+              {t.footer.privacyPolicy}
             </Link>
             <Link href="/terms" className="text-muted-foreground hover:text-foreground transition-colors">
-              Terms
+              {t.footer.termsOfService}
             </Link>
             <Link href="/contact" className="text-muted-foreground hover:text-foreground transition-colors">
-              Contact
+              {t.footer.helpCenter}
             </Link>
           </nav>
 
           {/* Copyright */}
           <p className="text-sm text-muted-foreground">
-            &copy; {new Date().getFullYear()} JobFlow. All rights reserved.
+            &copy; {new Date().getFullYear()} JobFlow. {t.footer.allRightsReserved}
           </p>
         </div>
       </div>

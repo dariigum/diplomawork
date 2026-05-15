@@ -8,6 +8,7 @@ import { Textarea } from "@/components/ui/textarea"
 import { createVacancyAction } from "@/app/actions/employer"
 import { getCountryCityOptionsAction } from "@/app/actions/location"
 import { toast } from "sonner"
+import { useI18n } from "@/lib/i18n/provider"
 
 interface CountryRecord {
   country: string
@@ -15,6 +16,7 @@ interface CountryRecord {
 }
 
 export function NewVacancyForm() {
+  const { t } = useI18n()
   const [locations, setLocations] = useState<CountryRecord[]>([])
   const [country, setCountry] = useState("Kazakhstan")
   const [city, setCity] = useState("")
@@ -30,10 +32,10 @@ export function NewVacancyForm() {
         const initialCountry = hasKazakhstan ? "Kazakhstan" : data[0]?.country || ""
         setCountry(initialCountry)
       } catch (error) {
-        toast.error("Could not load country and city list.")
+        toast.error(t.forms.couldNotLoadLocations)
       }
     })
-  }, [])
+  }, [t.forms.couldNotLoadLocations])
 
   const cityOptions = useMemo(() => {
     const selectedCountry = locations.find((entry) => entry.country === country)
@@ -53,52 +55,52 @@ export function NewVacancyForm() {
 
   return (
     <div className="max-w-3xl mx-auto space-y-8">
-      <h1 className="text-3xl font-bold">Post New Vacancy</h1>
+      <h1 className="text-3xl font-bold">{t.forms.postNewVacancy}</h1>
 
       <Card>
         <CardHeader>
-          <CardTitle>Vacancy Details</CardTitle>
+          <CardTitle>{t.forms.vacancyDetails}</CardTitle>
         </CardHeader>
         <CardContent>
           <form action={createVacancyAction} className="space-y-5">
             <div className="space-y-2">
-              <label htmlFor="title" className="text-sm font-medium">Job Title</label>
-              <Input id="title" name="title" placeholder="e.g. Senior Frontend Developer" required />
+              <label htmlFor="title" className="text-sm font-medium">{t.forms.jobTitle}</label>
+              <Input id="title" name="title" placeholder={t.forms.jobTitlePlaceholder} required />
             </div>
 
             <div className="space-y-2">
-              <label htmlFor="description" className="text-sm font-medium">Job Description</label>
+              <label htmlFor="description" className="text-sm font-medium">{t.forms.jobDescription}</label>
               <Textarea
                 id="description"
                 name="description"
                 rows={8}
-                placeholder={"You can write with paragraphs, bullet points and numbering.\n\nExample:\n1. Build new features\n2. Review PRs\n- React\n- TypeScript"}
+                placeholder={t.forms.jobDescPlaceholder}
                 required
               />
             </div>
 
             <div className="space-y-2">
-              <label htmlFor="skillsRequired" className="text-sm font-medium">Required Skills</label>
-              <Input id="skillsRequired" name="skillsRequired" placeholder="e.g. React, TypeScript, Next.js" />
+              <label htmlFor="skillsRequired" className="text-sm font-medium">{t.forms.requiredSkills}</label>
+              <Input id="skillsRequired" name="skillsRequired" placeholder={t.forms.skillsPlaceholder} />
             </div>
 
             <div className="grid gap-4 md:grid-cols-2">
               <div className="space-y-2">
-                <label htmlFor="employmentType" className="text-sm font-medium">Employment Type</label>
+                <label htmlFor="employmentType" className="text-sm font-medium">{t.forms.employmentType}</label>
                 <select
                   id="employmentType"
                   name="employmentType"
                   className="border-input bg-background w-full rounded-md border px-3 py-2 text-sm"
                   defaultValue="Full-time"
                 >
-                  <option value="Full-time">Full-time</option>
-                  <option value="Part-time">Part-time</option>
-                  <option value="Internship">Internship</option>
+                  <option value="Full-time">{t.forms.fullTime}</option>
+                  <option value="Part-time">{t.forms.partTime}</option>
+                  <option value="Internship">{t.forms.internship}</option>
                 </select>
               </div>
 
               <div className="space-y-2">
-                <label htmlFor="workMode" className="text-sm font-medium">Work Format</label>
+                <label htmlFor="workMode" className="text-sm font-medium">{t.forms.workFormat}</label>
                 <select
                   id="workMode"
                   name="workMode"
@@ -106,15 +108,15 @@ export function NewVacancyForm() {
                   value={workMode}
                   onChange={(e) => setWorkMode(e.target.value)}
                 >
-                  <option value="REMOTE">Remote</option>
-                  <option value="ONSITE">In selected city</option>
+                  <option value="REMOTE">{t.forms.remote}</option>
+                  <option value="ONSITE">{t.forms.onsite}</option>
                 </select>
               </div>
             </div>
 
             <div className="grid gap-4 md:grid-cols-2">
               <div className="space-y-2">
-                <label htmlFor="country" className="text-sm font-medium">Country</label>
+                <label htmlFor="country" className="text-sm font-medium">{t.forms.country}</label>
                 <select
                   id="country"
                   name="country"
@@ -132,7 +134,7 @@ export function NewVacancyForm() {
               </div>
 
               <div className="space-y-2">
-                <label htmlFor="city" className="text-sm font-medium">City</label>
+                <label htmlFor="city" className="text-sm font-medium">{t.forms.city}</label>
                 <select
                   id="city"
                   name="city"
@@ -143,7 +145,7 @@ export function NewVacancyForm() {
                   required={workMode === "ONSITE"}
                 >
                   {workMode === "REMOTE" ? (
-                    <option value="">Remote vacancy</option>
+                    <option value="">{t.forms.remoteVacancy}</option>
                   ) : (
                     cityOptions.map((option) => (
                       <option key={option} value={option}>
@@ -157,16 +159,16 @@ export function NewVacancyForm() {
 
             <div className="grid grid-cols-2 gap-4">
               <div className="space-y-2">
-                <label htmlFor="salaryMin" className="text-sm font-medium">Minimum Salary ($)</label>
+                <label htmlFor="salaryMin" className="text-sm font-medium">{t.forms.minSalary}</label>
                 <Input id="salaryMin" name="salaryMin" type="number" placeholder="50000" required />
               </div>
               <div className="space-y-2">
-                <label htmlFor="salaryMax" className="text-sm font-medium">Maximum Salary ($)</label>
+                <label htmlFor="salaryMax" className="text-sm font-medium">{t.forms.maxSalary}</label>
                 <Input id="salaryMax" name="salaryMax" type="number" placeholder="100000" required />
               </div>
             </div>
 
-            <Button type="submit" className="w-full">Publish Vacancy</Button>
+            <Button type="submit" className="w-full">{t.forms.publishVacancy}</Button>
           </form>
         </CardContent>
       </Card>

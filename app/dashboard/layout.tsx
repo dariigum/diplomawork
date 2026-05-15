@@ -15,9 +15,9 @@ export default async function DashboardLayout({ children }: { children: React.Re
   }
 
   return (
-    <div className="min-h-screen bg-background flex flex-col">
+    <div className="flex h-dvh max-h-dvh flex-col overflow-hidden bg-background">
       <Header savedJobsCount={savedJobsCount} />
-      <main className="flex-1 p-4 md:p-8 max-w-7xl mx-auto w-full">
+      <main className="mx-auto flex min-h-0 w-full max-w-7xl flex-1 flex-col overflow-hidden p-4 md:p-8">
         {children}
       </main>
     </div>

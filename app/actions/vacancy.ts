@@ -42,7 +42,7 @@ export async function toggleSaveVacancyAction(vacancyId: string) {
       source: 'toggle_save_vacancy',
     });
   }
-  
+
   revalidatePath('/dashboard/employee');
   revalidatePath(`/jobs/${vacancyId}`);
   return { success: true, saved };
@@ -54,7 +54,7 @@ export async function getHomeData() {
   const rawVacancies = await Vacancy.find({}).populate('employerId', 'name').lean();
   const session = await getSession();
   const viewerRole = session?.user?.role || null;
-  
+
   let savedJobs: string[] = [];
   if (session && session.user.role === 'EMPLOYEE') {
     const saves = await SavedVacancy.find({ userId: session.user.id }).lean();
@@ -67,7 +67,7 @@ export async function getHomeData() {
     company: formatEmployerName(v.employerId),
     companyLogo: employerDisplayInitials(v.employerId),
     location: v.workMode === 'REMOTE' ? 'Remote' : [v.city, v.country].filter(Boolean).join(', ') || v.address || "Remote",
-    salary: formatVacancySalary(v.salaryMin, v.salaryMax),
+    salary: v.salaryMin != null && v.salaryMax != null ? `$${v.salaryMin.toLocaleString()} - $${v.salaryMax.toLocaleString()}` : "Not specified",
     employmentType: v.employmentType || "Full-time",
     experience: v.experience || "Any experience",
     skills: normalizeVacancySkills(v.skillsRequired),
@@ -91,7 +91,7 @@ export async function getSavedVacanciesAction() {
   await dbConnect();
   const session = await getSession();
   if (!session || session.user.role !== 'EMPLOYEE') return [];
-  
+
   const saves = await SavedVacancy.find({ userId: session.user.id })
     .populate({
       path: 'vacancyId',
@@ -101,8 +101,8 @@ export async function getSavedVacanciesAction() {
 
   return saves.map((s: any) => ({
     id: s.vacancyId._id.toString(),
-    title: formatVacancyTitle(s.vacancyId.title),
-    company: formatEmployerName(s.vacancyId.employerId),
-    salary: formatVacancySalary(s.vacancyId.salaryMin, s.vacancyId.salaryMax),
+    title: s.vacancyId.title,
+    company: s.vacancyId.employerId?.name || "Unknown Company",
+    salary: s.vacancyId.salaryMin != null && s.vacancyId.salaryMax != null ? `$${s.vacancyId.salaryMin.toLocaleString()} - $${s.vacancyId.salaryMax.toLocaleString()}` : "Not specified"
   }));
 }

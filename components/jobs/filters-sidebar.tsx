@@ -13,6 +13,7 @@ import {
   AccordionTrigger,
 } from "@/components/ui/accordion"
 import { Badge } from "@/components/ui/badge"
+import { useI18n } from "@/lib/i18n/provider"
 
 interface FiltersSidebarProps {
   onFiltersChange: (filters: FilterState) => void
@@ -90,6 +91,7 @@ export function FiltersSidebar({
   employmentTypeOptions = [],
   experienceLevelOptions = [],
 }: FiltersSidebarProps) {
+  const { t } = useI18n()
   const activeFiltersCount =
     filters.locations.length +
     filters.employmentTypes.length +
@@ -122,7 +124,7 @@ export function FiltersSidebar({
   return (
     <aside className="sticky top-6 h-fit w-full min-w-0 max-w-full rounded-xl border border-border bg-card p-5 lg:w-80">
       <div className="mb-5 flex min-w-0 items-center justify-between gap-2">
-        <h2 className="min-w-0 truncate font-semibold text-lg text-foreground">Catalog filters</h2>
+        <h2 className="min-w-0 truncate font-semibold text-lg text-foreground">{t.filters.filters}</h2>
         {activeFiltersCount > 0 && (
           <Button
             variant="ghost"
@@ -131,7 +133,7 @@ export function FiltersSidebar({
             className="h-8 shrink-0 px-2 text-muted-foreground hover:text-foreground"
           >
             <X className="mr-1 h-4 w-4" aria-hidden />
-            Clear all
+            {t.filters.clearAll}
           </Button>
         )}
       </div>
@@ -140,7 +142,7 @@ export function FiltersSidebar({
       <div className="relative mb-5 min-w-0">
         <Search className="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" />
         <Input
-          placeholder="Search jobs..."
+          placeholder={t.filters.searchJobs}
           value={filters.search}
           onChange={(e) => onFiltersChange({ ...filters, search: e.target.value })}
           className="border-0 bg-muted/50 pl-9 focus-visible:ring-1 focus-visible:ring-primary"
@@ -166,7 +168,7 @@ export function FiltersSidebar({
           ))}
           {filters.remoteOnly && (
             <ActiveFilterBadge
-              label="Remote"
+              label={t.filters.remote}
               onRemove={() => onFiltersChange({ ...filters, remoteOnly: false })}
             />
           )}
@@ -183,13 +185,13 @@ export function FiltersSidebar({
           <AccordionTrigger className="py-3 hover:no-underline">
             <div className="flex min-w-0 items-center gap-2">
               <MapPin className="h-4 w-4 shrink-0 text-primary" aria-hidden />
-              <span className="font-medium">Location</span>
+              <span className="font-medium">{t.filters.location}</span>
             </div>
           </AccordionTrigger>
           <AccordionContent className="pt-2 pb-4">
             <div className="min-w-0 space-y-3">
               {locationOptions.length === 0 ? (
-                <p className="text-sm text-muted-foreground">No locations available.</p>
+                <p className="text-sm text-muted-foreground">{t.filters.noLocations}</p>
               ) : (
                 locationOptions.map((location) => (
                   <FilterOptionRow
@@ -210,13 +212,13 @@ export function FiltersSidebar({
           <AccordionTrigger className="py-3 hover:no-underline">
             <div className="flex min-w-0 items-center gap-2">
               <Briefcase className="h-4 w-4 shrink-0 text-primary" aria-hidden />
-              <span className="font-medium">Employment Type</span>
+              <span className="font-medium">{t.filters.employmentType}</span>
             </div>
           </AccordionTrigger>
           <AccordionContent className="pt-2 pb-4">
             <div className="min-w-0 space-y-3">
               {employmentTypeOptions.length === 0 ? (
-                <p className="text-sm text-muted-foreground">No types available.</p>
+                <p className="text-sm text-muted-foreground">{t.filters.noTypes}</p>
               ) : (
                 employmentTypeOptions.map((type) => (
                   <FilterOptionRow
@@ -237,13 +239,13 @@ export function FiltersSidebar({
           <AccordionTrigger className="py-3 hover:no-underline">
             <div className="flex min-w-0 items-center gap-2">
               <Clock className="h-4 w-4 shrink-0 text-primary" aria-hidden />
-              <span className="font-medium">Experience</span>
+              <span className="font-medium">{t.filters.experience}</span>
             </div>
           </AccordionTrigger>
           <AccordionContent className="pt-2 pb-4">
             <div className="min-w-0 space-y-3">
               {experienceLevelOptions.length === 0 ? (
-                <p className="text-sm text-muted-foreground">No levels available.</p>
+                <p className="text-sm text-muted-foreground">{t.filters.noLevels}</p>
               ) : (
                 experienceLevelOptions.map((level) => (
                   <FilterOptionRow
@@ -264,7 +266,7 @@ export function FiltersSidebar({
           <AccordionTrigger className="py-3 hover:no-underline">
             <div className="flex min-w-0 items-center gap-2">
               <DollarSign className="h-4 w-4 shrink-0 text-primary" aria-hidden />
-              <span className="font-medium">Salary Range</span>
+              <span className="font-medium">{t.filters.salaryRange}</span>
             </div>
           </AccordionTrigger>
           <AccordionContent className="pt-2 pb-4">
@@ -300,7 +302,7 @@ export function FiltersSidebar({
             }
           />
           <Label htmlFor="remote-only" className="min-w-0 flex-1 cursor-pointer font-medium">
-            Remote jobs only
+            {t.filters.remoteJobsOnly}
           </Label>
         </div>
       </div>

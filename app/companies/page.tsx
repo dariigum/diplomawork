@@ -7,12 +7,19 @@ import { formatEmployerName } from "@/lib/format-employer-name"
 import dbConnect from "@/lib/db/mongoose"
 import { User, Vacancy, SavedVacancy } from "@/lib/db/schema"
 import { getSession } from "@/lib/auth"
+import { cookies } from "next/headers"
+import { getDictionary } from "@/lib/i18n/dictionaries"
 
 /** Avoid build-time DB prerender when Atlas is unreachable (runtime fetch only). */
 export const dynamic = "force-dynamic"
 
 export default async function CompaniesPage() {
   await dbConnect();
+  
+  const cookieStore = await cookies();
+  const locale = cookieStore.get("NEXT_LOCALE")?.value || "en"
+  const dictionary = getDictionary(locale as any)
+  const t = dictionary.companies
   
   const employers = await User.find({ role: 'EMPLOYER' }).lean() as any[];
   
@@ -33,8 +40,8 @@ export default async function CompaniesPage() {
       <Header savedJobsCount={savedJobsCount} />
       <main className="container mx-auto px-4 py-8">
         <div className="mb-8">
-          <h1 className="text-3xl font-bold text-foreground">Explore Companies</h1>
-          <p className="text-muted-foreground mt-2">Discover great places to work and find your dream employer</p>
+          <h1 className="text-3xl font-bold text-foreground">{t.exploreCompanies}</h1>
+          <p className="text-muted-foreground mt-2">{t.discoverGreatPlaces}</p>
         </div>
 
         <div className="grid md:grid-cols-2 lg:grid-cols-3 gap-6">
@@ -53,13 +60,13 @@ export default async function CompaniesPage() {
                   </div>
 
                   <p className="text-sm text-muted-foreground mt-4 line-clamp-3">
-                    {company.description || "No description provided."}
+                    {company.description || t.noDescription}
                   </p>
 
                   <div className="flex flex-wrap gap-4 mt-4 text-sm text-muted-foreground">
                     <div className="flex items-center gap-1.5">
                       <MapPin className="h-4 w-4" />
-                      <span>{company.location || 'Multiple Locations'}</span>
+                      <span>{company.location || t.multipleLocations}</span>
                     </div>
                     <div className="flex items-center gap-1.5">
                       <Users className="h-4 w-4" />
@@ -74,7 +81,7 @@ export default async function CompaniesPage() {
                     </div>
                     <div className="flex items-center gap-1.5 text-primary">
                       <Briefcase className="h-4 w-4" />
-                      <span className="font-medium">{company.openJobs} open jobs</span>
+                      <span className="font-medium">{company.openJobs} {t.openJobs}</span>
                     </div>
                   </div>
                 </CardContent>

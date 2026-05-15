@@ -13,6 +13,7 @@ import {
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
 import { Label } from "@/components/ui/label"
+import { Textarea } from "@/components/ui/textarea"
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs"
 import { getAuthSession } from "@/app/actions/auth"
 import { getEmployeeResumesAction, submitVacancyResponseAction } from "@/app/actions/employee"
@@ -231,6 +232,10 @@ export function ApplyModal({ job, isOpen, onClose }: ApplyModalProps) {
                         <Label htmlFor="github">GitHub</Label>
                         <Input id="github" name="github" placeholder="https://github.com/username" />
                       </div>
+                      <div className="space-y-2 md:col-span-2">
+                        <Label htmlFor="coverLetterCustom">Cover Letter</Label>
+                        <Textarea id="coverLetterCustom" name="coverLetter" placeholder="Write a short cover letter explaining why you are a good fit for this role." rows={4} />
+                      </div>
                     </div>
                   </TabsContent>
 
@@ -276,6 +281,13 @@ export function ApplyModal({ job, isOpen, onClose }: ApplyModalProps) {
                         <Button asChild variant="outline" className="mt-4">
                           <Link href="/dashboard/employee/resume/new">Create Resume</Link>
                         </Button>
+                      </div>
+                    )}
+                    
+                    {hasResumes && (
+                      <div className="space-y-2 mt-4">
+                        <Label htmlFor="coverLetterExisting">Cover Letter</Label>
+                        <Textarea id="coverLetterExisting" name="coverLetter" placeholder="Write a short cover letter explaining why you are a good fit for this role." rows={4} />
                       </div>
                     )}
                   </TabsContent>

@@ -8,6 +8,7 @@ import { Card, CardContent } from "@/components/ui/card"
 import { SALARY_NOT_SPECIFIED_LABEL } from "@/lib/format-vacancy-salary"
 import { cn } from "@/lib/utils"
 import type { Job } from "@/lib/job-data"
+import { useI18n } from "@/lib/i18n/provider"
 
 const SKILL_BADGE_CLASS =
   "max-w-full min-w-0 shrink overflow-hidden text-xs font-normal bg-muted text-muted-foreground hover:bg-muted"
@@ -21,6 +22,8 @@ interface JobCardProps {
 }
 
 export function JobCard({ job, onApply, onSave, isSaved, canApply }: JobCardProps) {
+  const { t } = useI18n()
+
   return (
     <Card
       className={cn(
@@ -31,11 +34,11 @@ export function JobCard({ job, onApply, onSave, isSaved, canApply }: JobCardProp
       {job.isFeatured && (
         <div className="absolute top-0 right-0">
           <div className="bg-primary text-primary-foreground text-xs font-medium px-3 py-1 rounded-bl-lg">
-            Featured
+            {t.common.featured}
           </div>
         </div>
       )}
-      
+
       <CardContent className="p-5">
         <div className="flex min-w-0 gap-4">
           {/* Company Logo */}
@@ -59,7 +62,7 @@ export function JobCard({ job, onApply, onSave, isSaved, canApply }: JobCardProp
                   {job.company}
                 </p>
               </div>
-              
+
               {/* Save Button */}
               <Button
                 variant="ghost"
@@ -74,7 +77,7 @@ export function JobCard({ job, onApply, onSave, isSaved, canApply }: JobCardProp
                 }}
               >
                 <Heart className={cn("h-5 w-5", isSaved && "fill-current")} />
-                <span className="sr-only">{isSaved ? "Remove from saved" : "Save job"}</span>
+                <span className="sr-only">{isSaved ? t.common.saved : t.common.save}</span>
               </Button>
             </div>
 
@@ -101,7 +104,7 @@ export function JobCard({ job, onApply, onSave, isSaved, canApply }: JobCardProp
               {job.isRemote && (
                 <span className="inline-flex items-center gap-1 rounded-md border border-border/60 bg-muted/60 px-2 py-0.5 text-xs font-medium text-muted-foreground">
                   <Wifi className="h-3.5 w-3.5 shrink-0 opacity-80" aria-hidden />
-                  Remote
+                  {t.filters.remote}
                 </span>
               )}
             </div>
@@ -160,7 +163,7 @@ export function JobCard({ job, onApply, onSave, isSaved, canApply }: JobCardProp
                     className="h-9 w-full min-w-0 max-w-full gap-1.5 whitespace-normal text-muted-foreground hover:text-foreground md:w-auto"
                   >
                     <ExternalLink className="h-4 w-4 shrink-0" />
-                    Details
+                    {t.common.details}
                   </Button>
                 </Link>
                 {canApply && (
@@ -172,7 +175,7 @@ export function JobCard({ job, onApply, onSave, isSaved, canApply }: JobCardProp
                       onApply(job)
                     }}
                   >
-                    Apply Now
+                    {t.common.applyNow}
                   </Button>
                 )}
               </div>

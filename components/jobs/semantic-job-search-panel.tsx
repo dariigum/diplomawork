@@ -2,7 +2,7 @@
 
 import { useCallback, useEffect, useMemo, useRef, useState } from "react"
 import Link from "next/link"
-import { ChevronDown, FileText, Loader2, MapPin, RefreshCw, Search, Briefcase } from "lucide-react"
+import { ChevronDown, FileText, Loader2, RefreshCw, Search } from "lucide-react"
 import { Badge } from "@/components/ui/badge"
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
@@ -14,6 +14,11 @@ import {
   weakSemanticTierLabel,
   type SemanticScoreBand,
 } from "@/lib/semantic-score-bands"
+import { dedupeSemanticResults } from "@/lib/dedupe-semantic-results"
+import {
+  buildHumanSemanticMatchExplanation,
+  SEMANTIC_MATCH_SYSTEM_HINT,
+} from "@/lib/semantic-human-explanation"
 import {
   isSemanticSearchApiSuccessBody,
   type SemanticSearchApiErrorBody,
@@ -26,28 +31,29 @@ import {
 
 const DEBOUNCE_MS = 380
 const FETCH_LIMIT = 24
+const CONCEPTS_PREVIEW_COUNT = 8
 const FALLBACK_SECTION_ID = "semantic-keyword-fallback-section"
 const WEAK_SEMANTIC_SECTION_ID = "semantic-weak-recovery-section"
-const EXPLANATION_PREVIEW_LEN = 72
-
+const SCORE_SCALE_HINT_ID = "semantic-score-scale-hint"
 const CARD_INTERACTION =
   "transition-[border-color,box-shadow] duration-200 hover:border-border hover:shadow-sm focus-within:ring-2 focus-within:ring-ring/30 focus-within:ring-offset-1 focus-within:ring-offset-background"
+
+/** Neutral loading placeholders — overrides default accent (green) skeleton. */
+const SEMANTIC_LOADING_SKELETON = "bg-muted/80"
+const SEMANTIC_LOADING_SKELETON_SUBTLE = "bg-foreground/10"
 
 const SCORE_SCALE_HINT = "Mapped cosine similarity (0–1), not a probability."
 
 /** Mobile-first secondary copy (~12px); slightly denser from `sm`. */
-const TEXT_SECONDARY = "text-xs sm:text-[11px] leading-relaxed text-muted-foreground"
+const TEXT_SECONDARY = "text-xs sm:text-[11px] leading-snug text-muted-foreground"
 const TEXT_SECONDARY_MUTED = "text-xs sm:text-[11px] leading-snug text-muted-foreground/90"
 
 /** ~44px tap area on narrow screens; compact on desktop. */
 const COLLAPSIBLE_TRIGGER =
   "flex w-full items-center justify-between gap-2 rounded-md text-left text-xs min-h-11 py-3 px-3 sm:min-h-9 sm:py-2 sm:px-2.5 touch-manipulation [&[data-state=open]>svg]:rotate-180"
 
-/** Bar fill 0–100 from mapped cosine score — visual only, not shown as a percent. */
-function scoreToBarFill(score: number): number {
-  if (!Number.isFinite(score)) return 0
-  return Math.max(0, Math.min(100, Math.round(score * 100)))
-}
+const CARD_EXPLANATION_TRIGGER =
+  "flex w-full items-center justify-between gap-2 rounded-md text-left text-xs min-h-10 py-2 px-1 sm:min-h-8 sm:py-1.5 touch-manipulation font-medium text-muted-foreground hover:text-foreground underline-offset-2 hover:underline [&[data-state=open]>svg]:rotate-180"
 
 function tierShortLabel(score: number): string {
   const band = semanticScoreBand(score)
@@ -58,93 +64,70 @@ function tierShortLabel(score: number): string {
   return "Semantic overlap"
 }
 
-function tierBadgeClassName(band: SemanticScoreBand | null): string {
-  const base =
-    "shrink-0 text-[10px] sm:text-[9px] font-medium tracking-wide uppercase px-1.5 py-0.5 sm:py-0 min-h-[1.35rem] sm:min-h-[1.125rem] border"
-  switch (band) {
-    case "strong":
-      return `${base} border-primary/40 bg-primary/12 text-primary`
-    case "solid":
-      return `${base} border-teal-500/35 bg-teal-500/10 text-teal-800 dark:text-teal-300`
-    case "related":
-      return `${base} border-border/90 bg-muted/50 text-muted-foreground`
-    case "loose":
-      return `${base} border-border/70 bg-muted/30 text-muted-foreground/90`
-    default:
-      return `${base} border-border bg-muted text-muted-foreground`
-  }
-}
-
-/** Decorative overlap cue — muted retrieval hint, not a loading indicator. */
-function RetrievalOverlapHint({ score }: { score: number }) {
-  const fill = scoreToBarFill(score)
+function SemanticScoreReadout({ score }: { score: number }) {
+  const formatted = formatSemanticScore(score)
   return (
-    <div
-      className="hidden sm:flex flex-1 min-w-[2rem] max-w-[4.5rem] items-center self-center"
-      aria-hidden
-      title="Retrieval overlap hint (mapped cosine scale)"
+    <span
+      className="tabular-nums text-xs sm:text-[11px] text-muted-foreground"
+      title={SCORE_SCALE_HINT}
+      aria-label={`Mapped cosine similarity ${formatted}`}
     >
-      <span className="relative block h-px w-full overflow-hidden rounded-full bg-border/50">
-        <span
-          className="absolute inset-y-0 left-0 rounded-full bg-muted-foreground/30"
-          style={{ width: `${fill}%` }}
-        />
-      </span>
-    </div>
+      {formatted}
+    </span>
   )
 }
 
-function VacancyMetaLines({
-  company,
-  location,
-  employmentType,
-  workMode,
-}: {
+function buildSemanticResultMetaLine(params: {
   company: string
   location: string
   employmentType: string
   workMode: "REMOTE" | "ONSITE"
-}) {
-  const modeLabel = workMode === "REMOTE" ? "Remote" : "On-site"
-  return (
-    <div className="flex flex-col gap-1.5 sm:flex-row sm:flex-wrap sm:gap-x-2 sm:gap-y-1 sm:items-center min-w-0">
-      <span className={`inline-flex items-start gap-1.5 min-w-0 max-w-full ${TEXT_SECONDARY}`}>
-        <Briefcase className="h-3 w-3 shrink-0 mt-0.5 opacity-70" aria-hidden />
-        <span className="break-words">{company}</span>
-      </span>
-      <span className={`inline-flex items-start gap-1.5 min-w-0 max-w-full ${TEXT_SECONDARY}`}>
-        <MapPin className="h-3 w-3 shrink-0 mt-0.5 opacity-70" aria-hidden />
-        <span className="break-words">{location}</span>
-      </span>
-      <span className={`${TEXT_SECONDARY} break-words`}>{employmentType}</span>
-      <span className={`${TEXT_SECONDARY} break-words`}>{modeLabel}</span>
-    </div>
-  )
+}): string {
+  const modeLabel = params.workMode === "REMOTE" ? "Remote" : "On-site"
+  const parts: string[] = []
+  const company = params.company.trim()
+  const location = params.location.trim()
+  const employment = params.employmentType.trim()
+
+  if (company) parts.push(company)
+  if (location && location.toLowerCase() !== company.toLowerCase()) parts.push(location)
+  if (employment && employment.toLowerCase() !== modeLabel.toLowerCase()) parts.push(employment)
+  if (!parts.includes(modeLabel)) parts.push(modeLabel)
+
+  return parts.join(" · ")
 }
 
-function SemanticScoreReadout({ score, compact }: { score: number; compact?: boolean }) {
-  const formatted = formatSemanticScore(score)
-  if (compact) {
-    return (
-      <span
-        className="tabular-nums text-xs sm:text-[11px] text-muted-foreground"
-        title={SCORE_SCALE_HINT}
-        aria-label={`Mapped cosine similarity ${formatted}`}
-      >
-        {formatted}
-      </span>
-    )
+function tierTextClassName(band: SemanticScoreBand | null): string {
+  switch (band) {
+    case "strong":
+      return "text-primary"
+    case "solid":
+      return "text-teal-800 dark:text-teal-300"
+    case "related":
+    case "loose":
+      return "text-muted-foreground"
+    default:
+      return "text-muted-foreground"
   }
-  return (
-    <div
-      className="flex flex-col items-end gap-0.5 shrink-0 text-right"
-      title={SCORE_SCALE_HINT}
-      aria-label={`Mapped cosine similarity ${formatted}`}
-    >
-      <span className="tabular-nums text-base font-semibold leading-none text-foreground">{formatted}</span>
-      <span className="text-xs sm:text-[11px] text-muted-foreground leading-tight">mapped cosine</span>
-    </div>
-  )
+}
+
+/** Display-only shortening for API recovery reasons — does not change activation logic. */
+function compactRecoveryReason(reason: string): string {
+  const r = reason.trim()
+  const known: Record<string, string> = {
+    "Sparse embedding overlap": "Sparse overlap",
+    "No strong semantic matches": "No strong semantic overlap",
+    "Low semantic overlap": "Low semantic overlap",
+    "Only loose semantic overlap was found": "Weak overlap",
+    "Semantic overlap is weak for this query": "Weak overlap",
+  }
+  if (known[r]) return known[r]
+  if (r.length <= 44) return r
+  return `${r.slice(0, 41).trimEnd()}…`
+}
+
+function weakSemanticTriggerLabel(count: number, reason: string): string {
+  return `Loose semantic matches (${count}) · ${compactRecoveryReason(reason)}`
 }
 
 function formatConceptDisplay(raw: string, maxLen: number): string {
@@ -182,45 +165,51 @@ function formatSemanticScore(score: number): string {
   return score.toFixed(2)
 }
 
-function SemanticRetrievalSummary({ stats }: { stats: PanelStats }) {
-  const top = stats.topSemanticScore
-  if (top === null || !Number.isFinite(top) || top <= 0) return null
-
+function PanelRetrievalStatus({ line }: { line: string }) {
   return (
-    <div className="space-y-1 border-b border-border/50 pb-2" aria-label="Semantic retrieval summary">
-      <p className="text-xs text-muted-foreground">
-        Top retrieval score{" "}
-        <span className="tabular-nums font-medium text-foreground">{formatSemanticScore(top)}</span>
-        <span className="mx-1.5 text-border">·</span>
-        <span className="text-foreground/90">{semanticOverlapTierLabel(top)}</span>
-      </p>
-      <p className={`${TEXT_SECONDARY_MUTED}`}>{SCORE_SCALE_HINT}</p>
-    </div>
+    <p className="text-xs sm:text-[11px] leading-snug text-muted-foreground/90" aria-live="polite">
+      {line}
+    </p>
   )
 }
 
-function CardRankingExplanation({ explanation }: { explanation: string }) {
-  const trimmed = explanation.trim()
-  if (!trimmed) return null
+function buildRetrievalStatusLine(params: {
+  resultsCount: number
+  topSemanticScore: number | null
+  hasWeak: boolean
+  hasFallback: boolean
+}): string | null {
+  const { resultsCount, topSemanticScore, hasWeak, hasFallback } = params
 
-  const needsExpand = trimmed.length > EXPLANATION_PREVIEW_LEN
-  const preview = needsExpand ? `${trimmed.slice(0, EXPLANATION_PREVIEW_LEN).trimEnd()}…` : trimmed
-
-  if (!needsExpand) {
-    return <p className={TEXT_SECONDARY_MUTED}>{trimmed}</p>
+  if (resultsCount > 0) {
+    const matchLabel = resultsCount === 1 ? "1 match" : `${resultsCount} matches`
+    if (topSemanticScore !== null && Number.isFinite(topSemanticScore) && topSemanticScore > 0) {
+      return `${matchLabel} · top ${formatSemanticScore(topSemanticScore)} · ${semanticOverlapTierLabel(topSemanticScore)}`
+    }
+    return matchLabel
   }
 
+  if (hasWeak) return "Loose semantic overlap · recovery below"
+  if (hasFallback) return "No strong matches · text recovery below"
+  return null
+}
+
+function CardRankingExplanation({ humanExplanation }: { humanExplanation: string }) {
+  const trimmed = humanExplanation.trim()
+  if (!trimmed) return null
+
   return (
-    <Collapsible>
-      <p className={`${TEXT_SECONDARY_MUTED} line-clamp-2`}>{preview}</p>
+    <Collapsible defaultOpen={false}>
       <CollapsibleTrigger
-        className={`${COLLAPSIBLE_TRIGGER} mt-1 -mx-1 w-[calc(100%+0.5rem)] font-medium text-muted-foreground hover:bg-muted/30 hover:text-foreground underline-offset-2 hover:underline sm:min-h-10 sm:py-2`}
+        className={CARD_EXPLANATION_TRIGGER}
+        title={SEMANTIC_MATCH_SYSTEM_HINT}
       >
-        <span>Why this matched</span>
+        <span>Why matched</span>
         <ChevronDown className="h-4 w-4 shrink-0 opacity-70 sm:h-3.5 sm:w-3.5" />
       </CollapsibleTrigger>
       <CollapsibleContent>
-        <p className={`mt-2 ${TEXT_SECONDARY_MUTED}`}>{trimmed}</p>
+        <p className={`mt-1.5 pb-0.5 ${TEXT_SECONDARY_MUTED}`}>{trimmed}</p>
+        <span className="sr-only">{SEMANTIC_MATCH_SYSTEM_HINT}</span>
       </CollapsibleContent>
     </Collapsible>
   )
@@ -228,35 +217,79 @@ function CardRankingExplanation({ explanation }: { explanation: string }) {
 
 function SemanticConceptsCollapsible({
   chips,
-  conceptExplanation,
 }: {
   chips: { key: string; label: string; titleAttr: string }[]
-  conceptExplanation: string
 }) {
+  const [showAllConcepts, setShowAllConcepts] = useState(false)
+  const chipSignature = chips.map((c) => c.key).join("\0")
+
+  useEffect(() => {
+    setShowAllConcepts(false)
+  }, [chipSignature])
+
   if (chips.length === 0) return null
+
+  const hasMore = chips.length > CONCEPTS_PREVIEW_COUNT
+  const hiddenCount = hasMore ? chips.length - CONCEPTS_PREVIEW_COUNT : 0
+  const visibleChips =
+    showAllConcepts || !hasMore ? chips : chips.slice(0, CONCEPTS_PREVIEW_COUNT)
+  const conceptsListId = "semantic-concepts-chip-list"
 
   return (
     <Collapsible defaultOpen={false} className="rounded-md border border-border/50 bg-muted/15">
       <CollapsibleTrigger className={`${COLLAPSIBLE_TRIGGER} hover:bg-muted/25`}>
-        <span className="font-medium text-foreground">Concepts from matches ({chips.length})</span>
+        <span className="font-medium text-foreground text-xs sm:text-[11px]">
+          Concepts from matches ({chips.length})
+        </span>
         <ChevronDown className="h-4 w-4 shrink-0 text-muted-foreground transition-transform sm:h-3.5 sm:w-3.5" />
       </CollapsibleTrigger>
-      <CollapsibleContent className="px-3 pb-3 sm:px-2.5 sm:pb-2.5 space-y-2.5 sm:space-y-2">
-        <div className="flex flex-wrap gap-1.5" role="list" aria-label="Semantic concepts from matched vacancies">
-          {chips.map((chip) => (
+      <CollapsibleContent className="px-2.5 pb-2 sm:px-2 sm:pb-1.5 space-y-1.5 sm:space-y-1">
+        <div
+          id={conceptsListId}
+          className="flex flex-wrap gap-1 sm:gap-1.5 pt-0.5 min-w-0"
+          role="list"
+          aria-label="Semantic concepts from matched vacancies"
+        >
+          {visibleChips.map((chip) => (
             <Badge
               key={chip.key}
               variant="outline"
               role="listitem"
               title={chip.titleAttr}
-              className="max-w-full sm:max-w-[10rem] text-xs sm:text-[11px] font-normal px-2 py-0.5 sm:px-1.5 sm:py-0 border-border/60 break-words whitespace-normal h-auto min-h-[1.35rem]"
+              className="max-w-full sm:max-w-[10rem] text-xs sm:text-[11px] font-normal px-1.5 py-0.5 sm:px-1.5 sm:py-0 border-border/60 break-words whitespace-normal h-auto min-h-[1.25rem] sm:min-h-0"
             >
               {chip.label}
             </Badge>
           ))}
         </div>
-        {conceptExplanation ? (
-          <p className={TEXT_SECONDARY_MUTED}>{conceptExplanation}</p>
+        {hasMore ? (
+          <div className="flex flex-wrap items-center gap-2 pt-0.5">
+            {!showAllConcepts ? (
+              <Button
+                type="button"
+                variant="ghost"
+                size="sm"
+                className="h-8 px-2 text-xs text-muted-foreground hover:text-foreground"
+                aria-expanded={false}
+                aria-controls={conceptsListId}
+                onClick={() => setShowAllConcepts(true)}
+              >
+                Show more ({hiddenCount})
+              </Button>
+            ) : (
+              <Button
+                type="button"
+                variant="ghost"
+                size="sm"
+                className="h-8 px-2 text-xs text-muted-foreground hover:text-foreground"
+                aria-expanded={true}
+                aria-controls={conceptsListId}
+                onClick={() => setShowAllConcepts(false)}
+              >
+                Show less
+              </Button>
+            )}
+          </div>
         ) : null}
       </CollapsibleContent>
     </Collapsible>
@@ -264,29 +297,28 @@ function SemanticConceptsCollapsible({
 }
 
 function SemanticEmptyState({
-  query,
-  stats,
   hasFallback,
   onShowFallback,
 }: {
-  query: string
-  stats: PanelStats
   hasFallback: boolean
   onShowFallback?: () => void
 }) {
   return (
-    <div className="rounded-md border border-dashed border-border/70 bg-muted/15 px-3.5 py-3.5 sm:px-3 sm:py-3 space-y-3 sm:space-y-2.5 text-sm">
-      <p className="text-foreground font-medium text-sm">No strong semantic matches.</p>
-      <p className="text-xs text-muted-foreground">
-        &ldquo;{query}&rdquo; · {stats.compatibleEmbeddings}/{stats.checkedEmbeddings} compatible embeddings
-      </p>
-      <p className="text-xs text-muted-foreground leading-snug">
-        Try broader role wording{hasFallback ? ", or review text-based matches below." : "."}
+    <div className="rounded-md border border-dashed border-border/60 bg-muted/10 px-2.5 py-2 sm:px-2 sm:py-1.5 space-y-1.5">
+      <p className={`${TEXT_SECONDARY_MUTED} leading-snug`}>
+        No strong semantic overlap found.
+        {hasFallback ? " Try broader wording or browse text matches below." : " Try broader wording."}
       </p>
       {hasFallback && onShowFallback ? (
-        <Button type="button" variant="outline" size="sm" className="min-h-11 h-10 sm:min-h-8 sm:h-8 text-xs gap-1.5" onClick={onShowFallback}>
+        <Button
+          type="button"
+          variant="outline"
+          size="sm"
+          className="min-h-10 h-9 sm:min-h-8 sm:h-8 text-xs gap-1.5"
+          onClick={onShowFallback}
+        >
           <FileText className="h-3.5 w-3.5" />
-          Text-based matches
+          Text matches
         </Button>
       ) : null}
     </div>
@@ -294,46 +326,54 @@ function SemanticEmptyState({
 }
 
 function WeakSemanticMatchCard({ item }: { item: SemanticSearchApiWeakSemanticItem }) {
-  const band = semanticScoreBand(item.semanticScore)
   return (
     <article
-      className={`rounded-md border border-dashed border-border/55 bg-muted/20 px-3 py-2.5 sm:px-2.5 sm:py-2 space-y-2 sm:space-y-1.5 ${CARD_INTERACTION}`}
+      className={`rounded-md border border-dashed border-border/50 bg-muted/15 px-2.5 py-2 sm:px-2 sm:py-1.5 space-y-1 ${CARD_INTERACTION}`}
     >
-      <div className="flex items-start justify-between gap-2">
+      <div className="flex items-start justify-between gap-2 min-w-0">
         <Link
           href={`/jobs/${item.vacancyId}`}
-          className="text-sm sm:text-xs font-medium text-foreground/90 hover:underline underline-offset-2 min-w-0 leading-snug"
+          className="text-xs font-medium text-foreground/90 hover:underline underline-offset-2 min-w-0 leading-snug line-clamp-2"
         >
           {item.title}
         </Link>
-        <SemanticScoreReadout score={item.semanticScore} compact />
+        <SemanticScoreReadout score={item.semanticScore} />
       </div>
-      <Badge variant="outline" className={tierBadgeClassName(band)} title={weakSemanticTierLabel(item.semanticScore)}>
-        {weakSemanticTierLabel(item.semanticScore)}
-      </Badge>
-      <p className={`${TEXT_SECONDARY} break-words`}>
-        {item.company} · {item.location}
+      <p className={`${TEXT_SECONDARY} line-clamp-1 break-words`} title={weakSemanticTierLabel(item.semanticScore)}>
+        {item.company} · {item.location} · {weakSemanticTierLabel(item.semanticScore)}
       </p>
     </article>
   )
 }
 
 function TextFallbackMatchCard({ item }: { item: SemanticSearchApiFallbackItem }) {
+  const explanation = item.explanation.trim()
+
   return (
     <article
-      className={`rounded-md border border-border/45 border-l-2 border-l-muted-foreground/25 bg-background/80 px-3 py-2.5 sm:px-2.5 sm:py-2 space-y-1.5 sm:space-y-1 ${CARD_INTERACTION}`}
+      className={`rounded-md border border-dashed border-border/40 bg-muted/10 px-2.5 py-2 sm:px-2 sm:py-1.5 space-y-1 ${CARD_INTERACTION}`}
     >
       <Link
         href={`/jobs/${item.vacancyId}`}
-        className="text-sm sm:text-xs font-medium hover:underline underline-offset-2 line-clamp-2 leading-snug"
+        className="text-xs font-medium text-foreground/90 hover:underline underline-offset-2 line-clamp-2 leading-snug"
       >
         {item.title}
       </Link>
-      <p className={`${TEXT_SECONDARY} break-words`}>
+      <p className={`${TEXT_SECONDARY} line-clamp-1 break-words`}>
         {item.company} · {item.location}
+        <span className="text-muted-foreground/75 tabular-nums"> · text overlap {item.textScore}</span>
       </p>
-      <p className={`${TEXT_SECONDARY_MUTED} line-clamp-3 sm:line-clamp-2`}>{item.explanation}</p>
-      <p className="text-xs sm:text-[11px] tabular-nums text-muted-foreground/80">Text overlap · {item.textScore}</p>
+      {explanation ? (
+        <Collapsible defaultOpen={false}>
+          <CollapsibleTrigger className={CARD_EXPLANATION_TRIGGER}>
+            <span>Why matched</span>
+            <ChevronDown className="h-4 w-4 shrink-0 opacity-70 sm:h-3.5 sm:w-3.5" />
+          </CollapsibleTrigger>
+          <CollapsibleContent>
+            <p className={`mt-1 pb-0.5 ${TEXT_SECONDARY_MUTED}`}>{explanation}</p>
+          </CollapsibleContent>
+        </Collapsible>
+      ) : null}
     </article>
   )
 }
@@ -349,24 +389,25 @@ function KeywordFallbackSection({
 }) {
   if (results.length === 0) return null
 
+  const reasonLine = compactRecoveryReason(reason)
+
   return (
     <section
       id={FALLBACK_SECTION_ID}
       className={
         primary
-          ? "rounded-md border border-border/60 bg-muted/10 px-3 py-3 sm:px-2.5 sm:py-2.5 space-y-2.5 sm:space-y-2"
-          : "rounded-md border border-dashed border-border/50 bg-muted/5 px-3 py-3 sm:px-2.5 sm:py-2.5 space-y-2.5 sm:space-y-2"
+          ? "rounded-md border border-dashed border-border/55 bg-muted/8 px-2.5 py-1.5 sm:px-2 sm:py-1 space-y-1 sm:space-y-0.5"
+          : "rounded-md border border-dashed border-border/45 bg-muted/5 px-2.5 py-1.5 sm:px-2 sm:py-1 space-y-1 sm:space-y-0.5"
       }
       aria-label="Keyword and text fallback matches"
     >
-      <div className="flex flex-wrap items-center gap-1.5">
-        <h3 className="text-xs font-medium text-foreground">Text matches</h3>
-        <Badge variant="outline" className="text-[10px] sm:text-[9px] font-normal px-1.5 py-0.5 sm:px-1 sm:py-0 min-h-[1.35rem] sm:min-h-4 text-muted-foreground">
-          Not embeddings
-        </Badge>
+      <div className="space-y-0.5">
+        <p className="text-xs font-medium text-foreground leading-snug">
+          Text matches <span className="font-normal text-muted-foreground">· Not embeddings</span>
+        </p>
+        {reasonLine ? <p className={TEXT_SECONDARY_MUTED}>{reasonLine}</p> : null}
       </div>
-      <p className={TEXT_SECONDARY_MUTED}>{reason}</p>
-      <ul className="grid gap-2 sm:gap-1.5 sm:grid-cols-2 list-none m-0 p-0">
+      <ul className="grid gap-1.5 sm:gap-1 sm:grid-cols-2 list-none m-0 p-0">
         {results.map((r) => (
           <li key={r.vacancyId}>
             <TextFallbackMatchCard item={r} />
@@ -387,16 +428,15 @@ function WeakSemanticRecoverySection({
   if (results.length === 0) return null
 
   return (
-    <Collapsible id={WEAK_SEMANTIC_SECTION_ID} defaultOpen={false} className="rounded-md border border-border/50 bg-muted/10">
-      <CollapsibleTrigger className={`${COLLAPSIBLE_TRIGGER} hover:bg-muted/20`}>
-        <span className="font-medium text-foreground">
-          Loose semantic <span className="font-normal text-muted-foreground">({results.length})</span>
+    <Collapsible id={WEAK_SEMANTIC_SECTION_ID} defaultOpen={false} className="rounded-md border border-dashed border-border/50 bg-muted/8">
+      <CollapsibleTrigger className={`${COLLAPSIBLE_TRIGGER} hover:bg-muted/15`}>
+        <span className="font-medium text-foreground text-xs leading-snug min-w-0 pr-2">
+          {weakSemanticTriggerLabel(results.length, reason)}
         </span>
         <ChevronDown className="h-4 w-4 shrink-0 text-muted-foreground transition-transform sm:h-3.5 sm:w-3.5" />
       </CollapsibleTrigger>
-      <CollapsibleContent className="px-3 pb-3 sm:px-2.5 sm:pb-2.5 space-y-2 sm:space-y-1.5">
-        <p className={TEXT_SECONDARY}>{reason}</p>
-        <ul className="grid gap-2 sm:gap-1.5 sm:grid-cols-2 list-none m-0 p-0">
+      <CollapsibleContent className="px-2.5 pb-2 sm:px-2 sm:pb-1.5">
+        <ul className="grid gap-1.5 sm:gap-1 sm:grid-cols-2 list-none m-0 p-0">
           {results.map((r) => (
             <li key={r.vacancyId}>
               <WeakSemanticMatchCard item={r} />
@@ -414,15 +454,33 @@ async function readErrorMessage(res: Response): Promise<string> {
   return `Something went wrong (${res.status}).`
 }
 
-function SemanticResultCard({ r }: { r: SemanticSearchApiResultItem }) {
+function SemanticResultCard({
+  r,
+  query,
+}: {
+  r: SemanticSearchApiResultItem
+  query: string
+}) {
   const band = semanticScoreBand(r.semanticScore)
+  const scoreFormatted = formatSemanticScore(r.semanticScore)
+  const metaLine = buildSemanticResultMetaLine({
+    company: r.company,
+    location: r.location,
+    employmentType: r.employmentType,
+    workMode: r.workMode,
+  })
+  const humanExplanation = buildHumanSemanticMatchExplanation({
+    query,
+    title: r.title,
+    semanticScore: r.semanticScore,
+  })
 
   return (
     <article
       className={`h-full flex flex-col rounded-lg border border-border/70 bg-card/95 shadow-none ${CARD_INTERACTION}`}
     >
-      <div className="p-3 pb-2.5 sm:p-2.5 sm:pb-2 space-y-2.5 sm:space-y-2 flex-1 min-w-0">
-        <div className="flex items-start justify-between gap-3">
+      <div className="p-2.5 sm:p-1.5 space-y-1.5 sm:space-y-1 flex-1 min-w-0">
+        <div className="flex items-start justify-between gap-2 min-w-0">
           <h3 className="text-sm font-semibold leading-snug text-foreground min-w-0 flex-1">
             <Link
               href={`/jobs/${r.vacancyId}`}
@@ -431,26 +489,27 @@ function SemanticResultCard({ r }: { r: SemanticSearchApiResultItem }) {
               {r.title}
             </Link>
           </h3>
-          <SemanticScoreReadout score={r.semanticScore} />
+          <span
+            className="tabular-nums text-sm font-semibold leading-none text-foreground shrink-0"
+            title={SCORE_SCALE_HINT}
+            aria-label={`Mapped cosine similarity ${scoreFormatted}`}
+          >
+            {scoreFormatted}
+          </span>
         </div>
 
-        <div className="flex flex-wrap items-center gap-2">
-          <Badge variant="outline" className={tierBadgeClassName(band)} title={semanticOverlapTierLabel(r.semanticScore)}>
-            {tierShortLabel(r.semanticScore)}
-          </Badge>
-          <RetrievalOverlapHint score={r.semanticScore} />
-        </div>
+        <p
+          className={`text-xs sm:text-[11px] leading-snug ${tierTextClassName(band)}`}
+          title={semanticOverlapTierLabel(r.semanticScore)}
+        >
+          {tierShortLabel(r.semanticScore)}
+        </p>
 
-        <VacancyMetaLines
-          company={r.company}
-          location={r.location}
-          employmentType={r.employmentType}
-          workMode={r.workMode}
-        />
+        {metaLine ? (
+          <p className={`${TEXT_SECONDARY} line-clamp-2 break-words`}>{metaLine}</p>
+        ) : null}
 
-        <div className="pt-1 sm:pt-0.5 border-t border-border/30">
-          <CardRankingExplanation explanation={r.explanation} />
-        </div>
+        <CardRankingExplanation humanExplanation={humanExplanation} />
       </div>
     </article>
   )
@@ -536,14 +595,23 @@ export function SemanticJobSearchPanel() {
 
       const body = json
 
+      const displayResults = dedupeSemanticResults(body.results)
+      const displayWeakSemantic =
+        body.weakSemantic?.results?.length
+          ? {
+              ...body.weakSemantic,
+              results: dedupeSemanticResults(body.weakSemantic.results),
+            }
+          : body.weakSemantic
+
       setPanel({
         kind: "results",
         query: trimmed,
-        results: body.results,
+        results: displayResults,
         concepts: body.concepts ?? [],
         conceptExplanation: body.conceptExplanation ?? "",
         stats: body.stats,
-        weakSemantic: body.weakSemantic,
+        weakSemantic: displayWeakSemantic,
         fallback: body.fallback,
       })
     } catch (e: unknown) {
@@ -598,26 +666,23 @@ export function SemanticJobSearchPanel() {
       : null
 
   const showSemanticResults = panel.kind === "results" && panel.results.length > 0
-  const showRetrievalSummary =
-    panel.kind === "results" &&
-    panel.stats.topSemanticScore !== null &&
-    Number.isFinite(panel.stats.topSemanticScore) &&
-    panel.stats.topSemanticScore > 0
   const showLoading = panel.kind === "loading"
   const showEmptySemantic =
     panel.kind === "results" && panel.results.length === 0 && !weakPayload && !fallbackPayload
   const showUnavailable = panel.kind === "unavailable"
   const showError = panel.kind === "error"
 
-  const subtitle = useMemo(() => {
+  const retrievalStatusLine = useMemo(() => {
+    if (panel.kind === "loading") return "Searching…"
     if (panel.kind !== "results") return null
-    if (panel.results.length > 0) {
-      return `${panel.results.length} match${panel.results.length === 1 ? "" : "es"} · embedding retrieval`
-    }
-    if (weakPayload) return "No strong matches · loose semantic recovery below"
-    if (fallbackPayload) return "No embedding matches · text recovery below"
-    return "No matches above threshold"
-  }, [panel, weakPayload, fallbackPayload])
+    if (showEmptySemantic) return null
+    return buildRetrievalStatusLine({
+      resultsCount: panel.results.length,
+      topSemanticScore: panel.stats.topSemanticScore,
+      hasWeak: Boolean(weakPayload),
+      hasFallback: Boolean(fallbackPayload),
+    })
+  }, [panel, weakPayload, fallbackPayload, showEmptySemantic])
 
   const conceptChips = useMemo(() => {
     if (panel.kind !== "results" || panel.results.length === 0) {
@@ -632,15 +697,18 @@ export function SemanticJobSearchPanel() {
 
   return (
     <section
-      className="rounded-lg border border-border/70 bg-card/30 p-3.5 sm:p-3.5 space-y-3 sm:space-y-2.5 min-w-0 overflow-x-hidden"
+      className="rounded-lg border border-border/70 bg-card/30 p-3 sm:p-2.5 space-y-2 sm:space-y-1.5 min-w-0 overflow-x-hidden"
       aria-label="Semantic job search"
+      aria-describedby={SCORE_SCALE_HINT_ID}
     >
-      <div className="space-y-2.5 sm:space-y-2">
-        <div className="flex flex-wrap items-baseline justify-between gap-x-3 gap-y-1">
+      <p id={SCORE_SCALE_HINT_ID} className="sr-only">
+        {SCORE_SCALE_HINT}
+      </p>
+      <div className="space-y-1.5 sm:space-y-1">
+        <div className="space-y-0.5">
           <h2 className="text-sm font-semibold text-foreground tracking-tight">Search by meaning</h2>
-          <span className="text-xs sm:text-[11px] text-muted-foreground">Separate from recommendations</span>
+          <p className={TEXT_SECONDARY_MUTED}>Independent from catalog · Not recommendations</p>
         </div>
-        <p className={`${TEXT_SECONDARY_MUTED}`}>Independent from catalog filters below.</p>
 
         <div className="flex gap-2">
           <div className="relative flex-1 min-w-0">
@@ -667,25 +735,20 @@ export function SemanticJobSearchPanel() {
           </Button>
         </div>
 
-        {panel.kind === "idle" && input.trim() === "" ? (
-          <p className={`${TEXT_SECONDARY_MUTED}`}>
-            Embedding-based retrieval on public listings · updates as you type · {SCORE_SCALE_HINT}
-          </p>
-        ) : null}
-
-        {subtitle ? <p className="text-xs text-muted-foreground">{subtitle}</p> : null}
+        {retrievalStatusLine ? <PanelRetrievalStatus line={retrievalStatusLine} /> : null}
       </div>
 
       {showLoading ? (
-        <div className="grid gap-2.5 sm:gap-2 sm:grid-cols-2">
+        <div className="grid gap-2 sm:gap-1.5 sm:grid-cols-2">
           {[0, 1].map((i) => (
-            <div key={i} className="rounded-lg border border-border/60 bg-card/50 p-3 sm:p-2.5 space-y-2.5 sm:space-y-2">
+            <div key={i} className="rounded-lg border border-border/60 bg-card/50 p-2.5 sm:p-1.5 space-y-1.5 sm:space-y-1">
               <div className="flex justify-between gap-2">
-                <Skeleton className="h-4 w-2/3" />
-                <Skeleton className="h-6 w-10" />
+                <Skeleton className={`h-4 w-2/3 ${SEMANTIC_LOADING_SKELETON}`} />
+                <Skeleton className={`h-4 w-10 ${SEMANTIC_LOADING_SKELETON}`} />
               </div>
-              <Skeleton className="h-4 w-24" />
-              <Skeleton className="hidden sm:block h-px w-16 max-w-[4.5rem] opacity-50" />
+              <Skeleton className={`h-3 w-20 ${SEMANTIC_LOADING_SKELETON_SUBTLE}`} />
+              <Skeleton className={`h-3 w-full max-w-[12rem] ${SEMANTIC_LOADING_SKELETON_SUBTLE}`} />
+              <Skeleton className={`h-3 w-24 ${SEMANTIC_LOADING_SKELETON_SUBTLE}`} />
             </div>
           ))}
         </div>
@@ -693,8 +756,6 @@ export function SemanticJobSearchPanel() {
 
       {showEmptySemantic && panel.kind === "results" ? (
         <SemanticEmptyState
-          query={panel.query}
-          stats={panel.stats}
           hasFallback={Boolean(fallbackPayload)}
           onShowFallback={fallbackPayload ? scrollToFallback : undefined}
         />
@@ -718,22 +779,17 @@ export function SemanticJobSearchPanel() {
         />
       ) : null}
 
-      {showRetrievalSummary && panel.kind === "results" && !showSemanticResults ? (
-        <SemanticRetrievalSummary stats={panel.stats} />
-      ) : null}
-
       {showSemanticResults && panel.kind === "results" ? (
-        <div className="space-y-3 sm:space-y-2.5">
-          <SemanticRetrievalSummary stats={panel.stats} />
-          <ul className="grid gap-2.5 sm:gap-2 sm:grid-cols-2 list-none m-0 p-0">
+        <div className="space-y-2 sm:space-y-1.5">
+          <ul className="grid gap-2 sm:gap-1.5 sm:grid-cols-2 list-none m-0 p-0">
             {panel.results.map((r) => (
               <li key={r.vacancyId}>
-                <SemanticResultCard r={r} />
+                <SemanticResultCard r={r} query={panel.query} />
               </li>
             ))}
           </ul>
           {conceptChips.length > 0 ? (
-            <SemanticConceptsCollapsible chips={conceptChips} conceptExplanation={panel.conceptExplanation} />
+            <SemanticConceptsCollapsible chips={conceptChips} />
           ) : null}
         </div>
       ) : null}

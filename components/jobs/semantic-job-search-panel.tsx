@@ -14,6 +14,11 @@ import {
   weakSemanticTierLabel,
   type SemanticScoreBand,
 } from "@/lib/semantic-score-bands"
+import { dedupeSemanticResults } from "@/lib/dedupe-semantic-results"
+import {
+  buildHumanSemanticMatchExplanation,
+  SEMANTIC_MATCH_SYSTEM_HINT,
+} from "@/lib/semantic-human-explanation"
 import {
   isSemanticSearchApiSuccessBody,
   type SemanticSearchApiErrorBody,
@@ -26,10 +31,16 @@ import {
 
 const DEBOUNCE_MS = 380
 const FETCH_LIMIT = 24
+const CONCEPTS_PREVIEW_COUNT = 8
 const FALLBACK_SECTION_ID = "semantic-keyword-fallback-section"
 const WEAK_SEMANTIC_SECTION_ID = "semantic-weak-recovery-section"
+const SCORE_SCALE_HINT_ID = "semantic-score-scale-hint"
 const CARD_INTERACTION =
   "transition-[border-color,box-shadow] duration-200 hover:border-border hover:shadow-sm focus-within:ring-2 focus-within:ring-ring/30 focus-within:ring-offset-1 focus-within:ring-offset-background"
+
+/** Neutral loading placeholders — overrides default accent (green) skeleton. */
+const SEMANTIC_LOADING_SKELETON = "bg-muted/80"
+const SEMANTIC_LOADING_SKELETON_SUBTLE = "bg-foreground/10"
 
 const SCORE_SCALE_HINT = "Mapped cosine similarity (0–1), not a probability."
 
@@ -183,18 +194,22 @@ function buildRetrievalStatusLine(params: {
   return null
 }
 
-function CardRankingExplanation({ explanation }: { explanation: string }) {
-  const trimmed = explanation.trim()
+function CardRankingExplanation({ humanExplanation }: { humanExplanation: string }) {
+  const trimmed = humanExplanation.trim()
   if (!trimmed) return null
 
   return (
     <Collapsible defaultOpen={false}>
-      <CollapsibleTrigger className={CARD_EXPLANATION_TRIGGER}>
+      <CollapsibleTrigger
+        className={CARD_EXPLANATION_TRIGGER}
+        title={SEMANTIC_MATCH_SYSTEM_HINT}
+      >
         <span>Why matched</span>
         <ChevronDown className="h-4 w-4 shrink-0 opacity-70 sm:h-3.5 sm:w-3.5" />
       </CollapsibleTrigger>
       <CollapsibleContent>
         <p className={`mt-1.5 pb-0.5 ${TEXT_SECONDARY_MUTED}`}>{trimmed}</p>
+        <span className="sr-only">{SEMANTIC_MATCH_SYSTEM_HINT}</span>
       </CollapsibleContent>
     </Collapsible>
   )
@@ -205,7 +220,20 @@ function SemanticConceptsCollapsible({
 }: {
   chips: { key: string; label: string; titleAttr: string }[]
 }) {
+  const [showAllConcepts, setShowAllConcepts] = useState(false)
+  const chipSignature = chips.map((c) => c.key).join("\0")
+
+  useEffect(() => {
+    setShowAllConcepts(false)
+  }, [chipSignature])
+
   if (chips.length === 0) return null
+
+  const hasMore = chips.length > CONCEPTS_PREVIEW_COUNT
+  const hiddenCount = hasMore ? chips.length - CONCEPTS_PREVIEW_COUNT : 0
+  const visibleChips =
+    showAllConcepts || !hasMore ? chips : chips.slice(0, CONCEPTS_PREVIEW_COUNT)
+  const conceptsListId = "semantic-concepts-chip-list"
 
   return (
     <Collapsible defaultOpen={false} className="rounded-md border border-border/50 bg-muted/15">
@@ -215,13 +243,14 @@ function SemanticConceptsCollapsible({
         </span>
         <ChevronDown className="h-4 w-4 shrink-0 text-muted-foreground transition-transform sm:h-3.5 sm:w-3.5" />
       </CollapsibleTrigger>
-      <CollapsibleContent className="px-2.5 pb-2 sm:px-2 sm:pb-1.5">
+      <CollapsibleContent className="px-2.5 pb-2 sm:px-2 sm:pb-1.5 space-y-1.5 sm:space-y-1">
         <div
+          id={conceptsListId}
           className="flex flex-wrap gap-1 sm:gap-1.5 pt-0.5 min-w-0"
           role="list"
           aria-label="Semantic concepts from matched vacancies"
         >
-          {chips.map((chip) => (
+          {visibleChips.map((chip) => (
             <Badge
               key={chip.key}
               variant="outline"
@@ -233,6 +262,35 @@ function SemanticConceptsCollapsible({
             </Badge>
           ))}
         </div>
+        {hasMore ? (
+          <div className="flex flex-wrap items-center gap-2 pt-0.5">
+            {!showAllConcepts ? (
+              <Button
+                type="button"
+                variant="ghost"
+                size="sm"
+                className="h-8 px-2 text-xs text-muted-foreground hover:text-foreground"
+                aria-expanded={false}
+                aria-controls={conceptsListId}
+                onClick={() => setShowAllConcepts(true)}
+              >
+                Show more ({hiddenCount})
+              </Button>
+            ) : (
+              <Button
+                type="button"
+                variant="ghost"
+                size="sm"
+                className="h-8 px-2 text-xs text-muted-foreground hover:text-foreground"
+                aria-expanded={true}
+                aria-controls={conceptsListId}
+                onClick={() => setShowAllConcepts(false)}
+              >
+                Show less
+              </Button>
+            )}
+          </div>
+        ) : null}
       </CollapsibleContent>
     </Collapsible>
   )
@@ -396,7 +454,13 @@ async function readErrorMessage(res: Response): Promise<string> {
   return `Something went wrong (${res.status}).`
 }
 
-function SemanticResultCard({ r }: { r: SemanticSearchApiResultItem }) {
+function SemanticResultCard({
+  r,
+  query,
+}: {
+  r: SemanticSearchApiResultItem
+  query: string
+}) {
   const band = semanticScoreBand(r.semanticScore)
   const scoreFormatted = formatSemanticScore(r.semanticScore)
   const metaLine = buildSemanticResultMetaLine({
@@ -404,6 +468,11 @@ function SemanticResultCard({ r }: { r: SemanticSearchApiResultItem }) {
     location: r.location,
     employmentType: r.employmentType,
     workMode: r.workMode,
+  })
+  const humanExplanation = buildHumanSemanticMatchExplanation({
+    query,
+    title: r.title,
+    semanticScore: r.semanticScore,
   })
 
   return (
@@ -440,7 +509,7 @@ function SemanticResultCard({ r }: { r: SemanticSearchApiResultItem }) {
           <p className={`${TEXT_SECONDARY} line-clamp-2 break-words`}>{metaLine}</p>
         ) : null}
 
-        <CardRankingExplanation explanation={r.explanation} />
+        <CardRankingExplanation humanExplanation={humanExplanation} />
       </div>
     </article>
   )
@@ -526,14 +595,23 @@ export function SemanticJobSearchPanel() {
 
       const body = json
 
+      const displayResults = dedupeSemanticResults(body.results)
+      const displayWeakSemantic =
+        body.weakSemantic?.results?.length
+          ? {
+              ...body.weakSemantic,
+              results: dedupeSemanticResults(body.weakSemantic.results),
+            }
+          : body.weakSemantic
+
       setPanel({
         kind: "results",
         query: trimmed,
-        results: body.results,
+        results: displayResults,
         concepts: body.concepts ?? [],
         conceptExplanation: body.conceptExplanation ?? "",
         stats: body.stats,
-        weakSemantic: body.weakSemantic,
+        weakSemantic: displayWeakSemantic,
         fallback: body.fallback,
       })
     } catch (e: unknown) {
@@ -621,9 +699,11 @@ export function SemanticJobSearchPanel() {
     <section
       className="rounded-lg border border-border/70 bg-card/30 p-3 sm:p-2.5 space-y-2 sm:space-y-1.5 min-w-0 overflow-x-hidden"
       aria-label="Semantic job search"
-      title={SCORE_SCALE_HINT}
+      aria-describedby={SCORE_SCALE_HINT_ID}
     >
-      <span className="sr-only">{SCORE_SCALE_HINT}</span>
+      <p id={SCORE_SCALE_HINT_ID} className="sr-only">
+        {SCORE_SCALE_HINT}
+      </p>
       <div className="space-y-1.5 sm:space-y-1">
         <div className="space-y-0.5">
           <h2 className="text-sm font-semibold text-foreground tracking-tight">Search by meaning</h2>
@@ -663,12 +743,12 @@ export function SemanticJobSearchPanel() {
           {[0, 1].map((i) => (
             <div key={i} className="rounded-lg border border-border/60 bg-card/50 p-2.5 sm:p-1.5 space-y-1.5 sm:space-y-1">
               <div className="flex justify-between gap-2">
-                <Skeleton className="h-4 w-2/3" />
-                <Skeleton className="h-4 w-10" />
+                <Skeleton className={`h-4 w-2/3 ${SEMANTIC_LOADING_SKELETON}`} />
+                <Skeleton className={`h-4 w-10 ${SEMANTIC_LOADING_SKELETON}`} />
               </div>
-              <Skeleton className="h-3 w-20" />
-              <Skeleton className="h-3 w-full max-w-[12rem]" />
-              <Skeleton className="h-3 w-24" />
+              <Skeleton className={`h-3 w-20 ${SEMANTIC_LOADING_SKELETON_SUBTLE}`} />
+              <Skeleton className={`h-3 w-full max-w-[12rem] ${SEMANTIC_LOADING_SKELETON_SUBTLE}`} />
+              <Skeleton className={`h-3 w-24 ${SEMANTIC_LOADING_SKELETON_SUBTLE}`} />
             </div>
           ))}
         </div>
@@ -704,7 +784,7 @@ export function SemanticJobSearchPanel() {
           <ul className="grid gap-2 sm:gap-1.5 sm:grid-cols-2 list-none m-0 p-0">
             {panel.results.map((r) => (
               <li key={r.vacancyId}>
-                <SemanticResultCard r={r} />
+                <SemanticResultCard r={r} query={panel.query} />
               </li>
             ))}
           </ul>

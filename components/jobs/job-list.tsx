@@ -1,7 +1,8 @@
 "use client"
 
-import { useState } from "react"
+import { useEffect, useState } from "react"
 import { ArrowUpDown } from "lucide-react"
+import { Button } from "@/components/ui/button"
 import {
   Select,
   SelectContent,
@@ -12,6 +13,9 @@ import {
 import { JobCard } from "./job-card"
 import { ApplyModal } from "./apply-modal"
 import type { Job } from "@/lib/job-data"
+
+const PAGE_SIZE = 20
+const LOAD_MORE_STEP = 20
 
 interface JobListProps {
   jobs: Job[]
@@ -24,8 +28,13 @@ type SortOption = "newest" | "salary-high" | "salary-low" | "relevance"
 
 export function JobList({ jobs, savedJobs, onSaveJob, canApply }: JobListProps) {
   const [sortBy, setSortBy] = useState<SortOption>("newest")
+  const [visibleCount, setVisibleCount] = useState(PAGE_SIZE)
   const [selectedJob, setSelectedJob] = useState<Job | null>(null)
   const [isApplyModalOpen, setIsApplyModalOpen] = useState(false)
+
+  useEffect(() => {
+    setVisibleCount(PAGE_SIZE)
+  }, [jobs, sortBy])
 
   const handleApply = (job: Job) => {
     setSelectedJob(job)
@@ -49,6 +58,8 @@ export function JobList({ jobs, savedJobs, onSaveJob, canApply }: JobListProps) 
         return 0
     }
   })
+
+  const visibleJobs = sortedJobs.slice(0, visibleCount)
 
   return (
     <div className="min-w-0 w-full flex-1">
@@ -81,8 +92,8 @@ export function JobList({ jobs, savedJobs, onSaveJob, canApply }: JobListProps) 
 
       {/* Job Cards */}
       {sortedJobs.length > 0 ? (
-        <div className="flex flex-col gap-4">
-          {sortedJobs.map((job) => (
+        <div className="flex min-w-0 flex-col gap-4">
+          {visibleJobs.map((job) => (
             <JobCard
               key={job.id}
               job={job}
@@ -92,6 +103,24 @@ export function JobList({ jobs, savedJobs, onSaveJob, canApply }: JobListProps) 
               canApply={canApply}
             />
           ))}
+
+          <p className="text-center text-sm text-muted-foreground">
+            Showing {visibleJobs.length} of {sortedJobs.length} vacancies
+          </p>
+
+          {visibleCount < sortedJobs.length ? (
+            <div className="flex justify-center">
+              <Button
+                type="button"
+                variant="outline"
+                size="sm"
+                className="h-9 w-full min-w-0 sm:w-auto"
+                onClick={() => setVisibleCount((prev) => prev + LOAD_MORE_STEP)}
+              >
+                Show more
+              </Button>
+            </div>
+          ) : null}
         </div>
       ) : (
         <div className="text-center py-16 bg-card rounded-xl border border-border">

@@ -182,21 +182,33 @@ function formatSemanticScore(score: number): string {
   return score.toFixed(2)
 }
 
-function SemanticRetrievalSummary({ stats }: { stats: PanelStats }) {
-  const top = stats.topSemanticScore
-  if (top === null || !Number.isFinite(top) || top <= 0) return null
-
+function PanelRetrievalStatus({ line }: { line: string }) {
   return (
-    <div className="space-y-1 border-b border-border/50 pb-2" aria-label="Semantic retrieval summary">
-      <p className="text-xs text-muted-foreground">
-        Top retrieval score{" "}
-        <span className="tabular-nums font-medium text-foreground">{formatSemanticScore(top)}</span>
-        <span className="mx-1.5 text-border">·</span>
-        <span className="text-foreground/90">{semanticOverlapTierLabel(top)}</span>
-      </p>
-      <p className={`${TEXT_SECONDARY_MUTED}`}>{SCORE_SCALE_HINT}</p>
-    </div>
+    <p className="text-xs sm:text-[11px] leading-snug text-muted-foreground/90" aria-live="polite">
+      {line}
+    </p>
   )
+}
+
+function buildRetrievalStatusLine(params: {
+  resultsCount: number
+  topSemanticScore: number | null
+  hasWeak: boolean
+  hasFallback: boolean
+}): string | null {
+  const { resultsCount, topSemanticScore, hasWeak, hasFallback } = params
+
+  if (resultsCount > 0) {
+    const matchLabel = resultsCount === 1 ? "1 match" : `${resultsCount} matches`
+    if (topSemanticScore !== null && Number.isFinite(topSemanticScore) && topSemanticScore > 0) {
+      return `${matchLabel} · top ${formatSemanticScore(topSemanticScore)} · ${semanticOverlapTierLabel(topSemanticScore)}`
+    }
+    return matchLabel
+  }
+
+  if (hasWeak) return "Loose semantic overlap · recovery below"
+  if (hasFallback) return "No strong matches · text recovery below"
+  return null
 }
 
 function CardRankingExplanation({ explanation }: { explanation: string }) {
@@ -598,26 +610,23 @@ export function SemanticJobSearchPanel() {
       : null
 
   const showSemanticResults = panel.kind === "results" && panel.results.length > 0
-  const showRetrievalSummary =
-    panel.kind === "results" &&
-    panel.stats.topSemanticScore !== null &&
-    Number.isFinite(panel.stats.topSemanticScore) &&
-    panel.stats.topSemanticScore > 0
   const showLoading = panel.kind === "loading"
   const showEmptySemantic =
     panel.kind === "results" && panel.results.length === 0 && !weakPayload && !fallbackPayload
   const showUnavailable = panel.kind === "unavailable"
   const showError = panel.kind === "error"
 
-  const subtitle = useMemo(() => {
+  const retrievalStatusLine = useMemo(() => {
+    if (panel.kind === "loading") return "Searching…"
     if (panel.kind !== "results") return null
-    if (panel.results.length > 0) {
-      return `${panel.results.length} match${panel.results.length === 1 ? "" : "es"} · embedding retrieval`
-    }
-    if (weakPayload) return "No strong matches · loose semantic recovery below"
-    if (fallbackPayload) return "No embedding matches · text recovery below"
-    return "No matches above threshold"
-  }, [panel, weakPayload, fallbackPayload])
+    if (showEmptySemantic) return null
+    return buildRetrievalStatusLine({
+      resultsCount: panel.results.length,
+      topSemanticScore: panel.stats.topSemanticScore,
+      hasWeak: Boolean(weakPayload),
+      hasFallback: Boolean(fallbackPayload),
+    })
+  }, [panel, weakPayload, fallbackPayload, showEmptySemantic])
 
   const conceptChips = useMemo(() => {
     if (panel.kind !== "results" || panel.results.length === 0) {
@@ -634,13 +643,14 @@ export function SemanticJobSearchPanel() {
     <section
       className="rounded-lg border border-border/70 bg-card/30 p-3.5 sm:p-3.5 space-y-3 sm:space-y-2.5 min-w-0 overflow-x-hidden"
       aria-label="Semantic job search"
+      title={SCORE_SCALE_HINT}
     >
-      <div className="space-y-2.5 sm:space-y-2">
-        <div className="flex flex-wrap items-baseline justify-between gap-x-3 gap-y-1">
+      <span className="sr-only">{SCORE_SCALE_HINT}</span>
+      <div className="space-y-2 sm:space-y-1.5">
+        <div className="space-y-0.5">
           <h2 className="text-sm font-semibold text-foreground tracking-tight">Search by meaning</h2>
-          <span className="text-xs sm:text-[11px] text-muted-foreground">Separate from recommendations</span>
+          <p className={TEXT_SECONDARY_MUTED}>Independent from catalog · Not recommendations</p>
         </div>
-        <p className={`${TEXT_SECONDARY_MUTED}`}>Independent from catalog filters below.</p>
 
         <div className="flex gap-2">
           <div className="relative flex-1 min-w-0">
@@ -667,13 +677,7 @@ export function SemanticJobSearchPanel() {
           </Button>
         </div>
 
-        {panel.kind === "idle" && input.trim() === "" ? (
-          <p className={`${TEXT_SECONDARY_MUTED}`}>
-            Embedding-based retrieval on public listings · updates as you type · {SCORE_SCALE_HINT}
-          </p>
-        ) : null}
-
-        {subtitle ? <p className="text-xs text-muted-foreground">{subtitle}</p> : null}
+        {retrievalStatusLine ? <PanelRetrievalStatus line={retrievalStatusLine} /> : null}
       </div>
 
       {showLoading ? (
@@ -718,13 +722,8 @@ export function SemanticJobSearchPanel() {
         />
       ) : null}
 
-      {showRetrievalSummary && panel.kind === "results" && !showSemanticResults ? (
-        <SemanticRetrievalSummary stats={panel.stats} />
-      ) : null}
-
       {showSemanticResults && panel.kind === "results" ? (
         <div className="space-y-3 sm:space-y-2.5">
-          <SemanticRetrievalSummary stats={panel.stats} />
           <ul className="grid gap-2.5 sm:gap-2 sm:grid-cols-2 list-none m-0 p-0">
             {panel.results.map((r) => (
               <li key={r.vacancyId}>

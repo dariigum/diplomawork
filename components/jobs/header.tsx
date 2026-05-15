@@ -123,7 +123,7 @@ export function Header({ savedJobsCount }: HeaderProps) {
       <div className="container mx-auto px-4 lg:px-6">
         <div className="flex h-16 items-center justify-between">
           {/* Logo */}
-          <Link href="/" className="flex items-center gap-2.5">
+          <Link href="/welcome" className="flex items-center gap-2.5">
             <div className="w-9 h-9 rounded-lg bg-primary flex items-center justify-center">
               <Briefcase className="h-5 w-5 text-primary-foreground" />
             </div>
@@ -142,9 +142,9 @@ export function Header({ savedJobsCount }: HeaderProps) {
                 {t.header.companies}
               </Button>
             </Link>
-            <Link href="/salary">
+            <Link href="/tools">
               <Button variant="ghost" className="text-muted-foreground hover:text-foreground">
-                {t.header.salaries}
+                {t.header.tools}
               </Button>
             </Link>
             <Link href="/resources">
@@ -310,7 +310,7 @@ export function Header({ savedJobsCount }: HeaderProps) {
                   <Link href="/companies" className="w-full">{t.header.companies}</Link>
                 </DropdownMenuItem>
                 <DropdownMenuItem asChild>
-                  <Link href="/salary" className="w-full">{t.header.salaries}</Link>
+                  <Link href="/tools" className="w-full">{t.header.tools}</Link>
                 </DropdownMenuItem>
 
                 {userRole ? (

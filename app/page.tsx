@@ -129,19 +129,23 @@ export default function VacanciesPage() {
         <SemanticJobSearchPanel />
 
         {/* Main Content */}
-        <div className="flex flex-col lg:flex-row gap-6">
+        <div className="flex min-w-0 flex-col gap-6 lg:flex-row">
           {/* Sidebar */}
-          <FiltersSidebar
-            filters={filters}
-            onFiltersChange={setFilters}
-            locationOptions={filterOptions.locations}
-            employmentTypeOptions={filterOptions.employmentTypes}
-            experienceLevelOptions={filterOptions.experienceLevels}
-          />
-          
+          <div className="min-w-0 w-full shrink-0">
+            <FiltersSidebar
+              filters={filters}
+              onFiltersChange={setFilters}
+              locationOptions={filterOptions.locations}
+              employmentTypeOptions={filterOptions.employmentTypes}
+              experienceLevelOptions={filterOptions.experienceLevels}
+            />
+          </div>
+
           {/* Job Listings */}
           {jobs.length === 0 ? (
-            <p className="text-muted-foreground w-full text-center py-12">No vacancies posted yet.</p>
+            <p className="min-w-0 flex-1 text-center text-muted-foreground py-12">
+              No vacancies posted yet.
+            </p>
           ) : (
             <JobList
               jobs={filteredJobs}

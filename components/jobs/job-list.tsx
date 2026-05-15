@@ -51,7 +51,7 @@ export function JobList({ jobs, savedJobs, onSaveJob, canApply }: JobListProps) 
   })
 
   return (
-    <div className="flex-1">
+    <div className="min-w-0 w-full flex-1">
       {/* Header */}
       <div className="mb-6 flex min-w-0 flex-col gap-4 sm:flex-row sm:items-center sm:justify-between sm:gap-3">
         <div className="min-w-0">

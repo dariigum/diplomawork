@@ -9,6 +9,9 @@ import { SALARY_NOT_SPECIFIED_LABEL } from "@/lib/format-vacancy-salary"
 import { cn } from "@/lib/utils"
 import type { Job } from "@/lib/job-data"
 
+const SKILL_BADGE_CLASS =
+  "max-w-full min-w-0 shrink overflow-hidden text-xs font-normal bg-muted text-muted-foreground hover:bg-muted"
+
 interface JobCardProps {
   job: Job
   onApply: (job: Job) => void
@@ -34,7 +37,7 @@ export function JobCard({ job, onApply, onSave, isSaved, canApply }: JobCardProp
       )}
       
       <CardContent className="p-5">
-        <div className="flex gap-4">
+        <div className="flex min-w-0 gap-4">
           {/* Company Logo */}
           <div className="flex-shrink-0">
             <div className="w-14 h-14 rounded-xl bg-muted flex items-center justify-center text-lg font-semibold text-muted-foreground">
@@ -110,29 +113,31 @@ export function JobCard({ job, onApply, onSave, isSaved, canApply }: JobCardProp
               ) : null}
               <span
                 className={cn(
-                  "text-sm leading-snug",
+                  "min-w-0 max-w-full truncate text-sm leading-snug",
                   job.salary === SALARY_NOT_SPECIFIED_LABEL
                     ? "font-medium text-muted-foreground"
                     : "font-semibold text-foreground tabular-nums",
                 )}
+                title={job.salary}
               >
                 {job.salary}
               </span>
             </div>
 
             {/* Skills */}
-            <div className="flex flex-wrap gap-2 mt-4">
+            <div className="mt-4 flex min-w-0 flex-wrap gap-2">
               {job.skills.slice(0, 4).map((skill) => (
                 <Badge
                   key={skill}
                   variant="secondary"
-                  className="text-xs font-normal bg-muted text-muted-foreground hover:bg-muted"
+                  className={SKILL_BADGE_CLASS}
+                  title={skill}
                 >
-                  {skill}
+                  <span className="min-w-0 truncate">{skill}</span>
                 </Badge>
               ))}
               {job.skills.length > 4 && (
-                <Badge variant="secondary" className="text-xs font-normal bg-muted text-muted-foreground">
+                <Badge variant="secondary" className={cn(SKILL_BADGE_CLASS, "shrink-0")}>
                   +{job.skills.length - 4}
                 </Badge>
               )}
@@ -144,24 +149,24 @@ export function JobCard({ job, onApply, onSave, isSaved, canApply }: JobCardProp
             </p>
 
             {/* Footer */}
-            <div className="mt-4 flex flex-col gap-3 border-t border-border pt-4 sm:flex-row sm:items-center sm:justify-between">
+            <div className="mt-4 flex min-w-0 flex-col gap-3 border-t border-border pt-4 md:flex-row md:items-center md:justify-between">
               <span className="shrink-0 text-xs text-muted-foreground">{job.postedAt}</span>
 
-              <div className="flex w-full min-w-0 flex-col gap-2 sm:w-auto sm:flex-row sm:items-center sm:justify-end">
-                <Link href={`/jobs/${job.id}`} className="w-full sm:w-auto">
+              <div className="flex w-full min-w-0 flex-col gap-2 md:w-auto md:flex-row md:flex-wrap md:items-center md:justify-end">
+                <Link href={`/jobs/${job.id}`} className="min-w-0 w-full md:w-auto">
                   <Button
                     variant="outline"
                     size="sm"
-                    className="h-9 w-full gap-1.5 text-muted-foreground hover:text-foreground sm:w-auto"
+                    className="h-9 w-full min-w-0 max-w-full gap-1.5 whitespace-normal text-muted-foreground hover:text-foreground md:w-auto"
                   >
-                    <ExternalLink className="h-4 w-4" />
+                    <ExternalLink className="h-4 w-4 shrink-0" />
                     Details
                   </Button>
                 </Link>
                 {canApply && (
                   <Button
                     size="sm"
-                    className="h-9 w-full bg-primary px-5 text-primary-foreground hover:bg-primary/90 sm:w-auto"
+                    className="h-9 w-full min-w-0 max-w-full whitespace-normal bg-primary px-5 text-primary-foreground hover:bg-primary/90 md:w-auto"
                     onClick={(e) => {
                       e.stopPropagation()
                       onApply(job)

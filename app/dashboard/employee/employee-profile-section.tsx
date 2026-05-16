@@ -1,16 +1,23 @@
 'use client';
 
 import Link from 'next/link';
+import { useState } from 'react';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
+import { Input } from '@/components/ui/input';
 import { DeleteEmployeeAccountButton } from '@/components/dashboard/delete-employee-account-button';
-import { deleteResumeAction, setActiveResumeForAiAction } from '@/app/actions/employee';
+import {
+  deleteResumeAction,
+  setActiveResumeForAiAction,
+  updateEmployeeProfileAction,
+} from '@/app/actions/employee';
 import { useI18n } from '@/lib/i18n/provider';
 import { Badge } from '@/components/ui/badge';
 
 export type EmployeeProfileProps = {
   userName: string;
   userEmail: string;
+  userLocation: string;
   resumes: { id: string; title: string; skills: string; cvFile?: string; activeForAi: boolean }[];
   savedVacancies: { id: string; title: string; salaryMin: number; salaryMax: number }[];
   responses: {
@@ -23,14 +30,24 @@ export type EmployeeProfileProps = {
   }[];
 };
 
+function splitDisplayName(fullName: string): { firstName: string; lastName: string } {
+  const parts = fullName.trim().split(/\s+/).filter(Boolean);
+  if (parts.length === 0) return { firstName: '', lastName: '' };
+  if (parts.length === 1) return { firstName: parts[0], lastName: '' };
+  return { firstName: parts[0], lastName: parts.slice(1).join(' ') };
+}
+
 export function EmployeeProfileSection({
   userName,
   userEmail,
+  userLocation,
   resumes,
   savedVacancies,
   responses,
 }: EmployeeProfileProps) {
   const { t } = useI18n();
+  const [isEditingProfile, setIsEditingProfile] = useState(false);
+  const nameParts = splitDisplayName(userName);
 
   return (
     <div className="space-y-8">
@@ -40,17 +57,79 @@ export function EmployeeProfileSection({
             <CardTitle>{t.dashboard.myProfile}</CardTitle>
           </CardHeader>
           <CardContent className="space-y-4">
-            <div>
-              <p className="text-sm text-muted-foreground">{t.dashboard.name}</p>
-              <p className="font-medium">{userName}</p>
-            </div>
-            <div>
-              <p className="text-sm text-muted-foreground">{t.auth.email}</p>
-              <p className="font-medium">{userEmail}</p>
-            </div>
-            <Button variant="outline" type="button" disabled>
-              {t.dashboard.editProfile}
-            </Button>
+            {isEditingProfile ? (
+              <form action={updateEmployeeProfileAction} className="space-y-4">
+                <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
+                  <div className="space-y-2">
+                    <label htmlFor="firstName" className="text-sm font-medium">
+                      {t.auth.firstName}
+                    </label>
+                    <Input
+                      id="firstName"
+                      name="firstName"
+                      defaultValue={nameParts.firstName}
+                      required
+                    />
+                  </div>
+                  <div className="space-y-2">
+                    <label htmlFor="lastName" className="text-sm font-medium">
+                      {t.auth.lastName}
+                    </label>
+                    <Input
+                      id="lastName"
+                      name="lastName"
+                      defaultValue={nameParts.lastName}
+                      required
+                    />
+                  </div>
+                </div>
+                <div className="space-y-2">
+                  <label htmlFor="location" className="text-sm font-medium">
+                    {t.dashboard.profileLocation}
+                  </label>
+                  <Input
+                    id="location"
+                    name="location"
+                    defaultValue={userLocation}
+                    placeholder={t.dashboard.profileLocationPlaceholder}
+                  />
+                </div>
+                <div>
+                  <p className="text-sm text-muted-foreground">{t.auth.email}</p>
+                  <p className="font-medium">{userEmail}</p>
+                </div>
+                <div className="flex flex-wrap gap-2">
+                  <Button type="submit">{t.dashboard.saveProfile}</Button>
+                  <Button
+                    type="button"
+                    variant="outline"
+                    onClick={() => setIsEditingProfile(false)}
+                  >
+                    {t.common.cancel}
+                  </Button>
+                </div>
+              </form>
+            ) : (
+              <>
+                <div>
+                  <p className="text-sm text-muted-foreground">{t.dashboard.name}</p>
+                  <p className="font-medium">{userName}</p>
+                </div>
+                {userLocation ? (
+                  <div>
+                    <p className="text-sm text-muted-foreground">{t.dashboard.profileLocation}</p>
+                    <p className="font-medium">{userLocation}</p>
+                  </div>
+                ) : null}
+                <div>
+                  <p className="text-sm text-muted-foreground">{t.auth.email}</p>
+                  <p className="font-medium">{userEmail}</p>
+                </div>
+                <Button variant="outline" type="button" onClick={() => setIsEditingProfile(true)}>
+                  {t.dashboard.editProfile}
+                </Button>
+              </>
+            )}
             <DeleteEmployeeAccountButton />
           </CardContent>
         </Card>

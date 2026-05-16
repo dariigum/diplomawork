@@ -5,6 +5,7 @@ import { FileText, Video, BookOpen, Users, ArrowRight, Clock } from "lucide-reac
 import { Card, CardContent } from "@/components/ui/card"
 import { Badge } from "@/components/ui/badge"
 import { useI18n } from "@/lib/i18n/provider"
+import { isEnglishDisplayText } from "@/lib/resources/article-text-locale"
 
 interface Article {
   id: string
@@ -20,10 +21,25 @@ interface Article {
 }
 
 function ArticleCard({ article }: { article: Article }) {
+  const { t } = useI18n()
+
   const card = (
     <Card className="overflow-hidden group-hover:border-primary/50 group-hover:shadow-lg transition-all flex flex-col h-full bg-card">
-      <div className="h-40 bg-muted relative">
-        <div className="absolute inset-0 bg-gradient-to-br from-primary/20 to-secondary/20" />
+      <div className="relative h-40 overflow-hidden bg-muted">
+        {/* eslint-disable-next-line @next/next/no-img-element */}
+        <img
+          src={article.imageUrl}
+          alt={article.title}
+          className="h-full w-full object-cover transition-transform duration-300 group-hover:scale-[1.02]"
+          loading="lazy"
+          referrerPolicy="no-referrer"
+          onError={(e) => {
+            const target = e.currentTarget
+            if (target.src.endsWith("/placeholder.svg")) return
+            target.src = "/placeholder.svg"
+          }}
+        />
+        <div className="pointer-events-none absolute inset-0 bg-gradient-to-t from-background/30 to-transparent" />
       </div>
       <CardContent className="p-5 flex-1 flex flex-col">
         <Badge variant="secondary" className="mb-3 w-fit group-hover:bg-secondary/80 transition-colors">
@@ -40,7 +56,7 @@ function ArticleCard({ article }: { article: Article }) {
           </div>
           {article.sourceUrl ? (
             <div className="flex items-center gap-1 text-primary font-semibold">
-              Read <ArrowRight className="h-3 w-3" />
+              {t.resources.read} <ArrowRight className="h-3 w-3" />
             </div>
           ) : (
             <span className="text-muted-foreground/80">No external link</span>
@@ -81,16 +97,16 @@ export default function ResourcesClient({ initialArticles }: { initialArticles: 
   ]
 
   const languages = [
-    { code: 'ru', label: 'Русский' },
-    { code: 'en', label: 'English' },
-    { code: 'es', label: 'Español' }
+    { code: "ru", label: "Русский" },
+    { code: "en", label: "English" },
   ]
 
   const filteredArticles = useMemo(() => {
-    return initialArticles.filter(a => {
+    return initialArticles.filter((a) => {
       const matchLang = a.language === activeLang
-      const matchCat = activeCat === 'All' ? true : a.category === activeCat
-      return matchLang && matchCat
+      const matchCat = activeCat === "All" ? true : a.category === activeCat
+      const matchEnglishTitle = activeLang === "en" ? isEnglishDisplayText(a.title) : true
+      return matchLang && matchCat && matchEnglishTitle
     })
   }, [initialArticles, activeLang, activeCat])
 

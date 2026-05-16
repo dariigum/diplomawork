@@ -4,13 +4,15 @@ import dbConnect from "@/lib/db/mongoose"
 import { Article, SavedVacancy } from "@/lib/db/schema"
 import { getSession } from "@/lib/auth"
 import { parseSafeExternalUrl, toIsoDateString } from "@/lib/vacancy-detail-display"
+import { ensureArticleCatalogSynced } from "@/lib/resources/sync-article-catalog"
 import ResourcesClient from "./ResourcesClient"
 
 export const dynamic = "force-dynamic"
 
 export default async function ResourcesPage() {
   await dbConnect()
-  
+  await ensureArticleCatalogSynced()
+
   const rawArticles = await Article.find({}).sort({ createdAt: -1 }).lean()
   const articles = rawArticles.map((a: Record<string, unknown>) => {
     const external = parseSafeExternalUrl(a.sourceUrl)

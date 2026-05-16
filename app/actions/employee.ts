@@ -202,6 +202,27 @@ export async function deleteEmployeeAccountAction() {
   redirect('/signup');
 }
 
+export async function updateEmployeeProfileAction(formData: FormData) {
+  const session = await getSession();
+  if (!session || session.user.role !== 'EMPLOYEE') throw new Error('Unauthorized');
+
+  const firstName = (formData.get('firstName') as string)?.trim();
+  const lastName = (formData.get('lastName') as string)?.trim();
+  const location = (formData.get('location') as string)?.trim();
+
+  if (!firstName || !lastName) throw new Error('First and last name are required');
+
+  const name = `${firstName} ${lastName}`.trim();
+
+  await dbConnect();
+  await User.findByIdAndUpdate(session.user.id, {
+    name,
+    location: location || '',
+  });
+
+  revalidatePath('/dashboard/employee');
+}
+
 export async function getEmployeeResumesAction() {
   const session = await getSession();
   if (!session || session.user.role !== 'EMPLOYEE') return [];

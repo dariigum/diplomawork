@@ -137,6 +137,7 @@ export default async function EmployeeDashboard() {
             <EmployeeProfileSection
               userName={userData?.name || ""}
               userEmail={userData?.email || ""}
+              userLocation={userData?.location || ""}
               resumes={resumes}
               savedVacancies={savedVacancies}
               responses={responses}

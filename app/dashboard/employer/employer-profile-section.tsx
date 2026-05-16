@@ -108,8 +108,8 @@ export function EmployerProfileSection({
                         ${v.salaryMin} - ${v.salaryMax}
                       </p>
                     </div>
-                    <Button variant="secondary" size="sm" type="button" disabled>
-                      {t.common.edit}
+                    <Button variant="secondary" size="sm" asChild>
+                      <Link href={`/dashboard/employer/vacancy/${v.id}/edit`}>{t.common.edit}</Link>
                     </Button>
                   </div>
                   <div className="mt-2 flex items-center justify-between border-t pt-2">

@@ -6,14 +6,19 @@ import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { DeleteEmployeeAccountButton } from '@/components/dashboard/delete-employee-account-button';
-import { deleteResumeAction, updateEmployeeProfileAction } from '@/app/actions/employee';
+import {
+  deleteResumeAction,
+  setActiveResumeForAiAction,
+  updateEmployeeProfileAction,
+} from '@/app/actions/employee';
 import { useI18n } from '@/lib/i18n/provider';
+import { Badge } from '@/components/ui/badge';
 
 export type EmployeeProfileProps = {
   userName: string;
   userEmail: string;
   userLocation: string;
-  resumes: { id: string; title: string; skills: string; cvFile?: string }[];
+  resumes: { id: string; title: string; skills: string; cvFile?: string; activeForAi: boolean }[];
   savedVacancies: { id: string; title: string; salaryMin: number; salaryMax: number }[];
   responses: {
     id: string;
@@ -144,10 +149,20 @@ export function EmployeeProfileSection({
                 {resumes.map((r) => (
                   <li
                     key={r.id}
-                    className="flex items-center justify-between gap-3 rounded-lg border p-4"
+                    className="flex flex-col gap-3 rounded-lg border p-4 sm:flex-row sm:items-center sm:justify-between"
                   >
                     <div className="min-w-0 flex-1">
-                      <p className="truncate font-medium leading-none">{r.title}</p>
+                      <div className="flex flex-wrap items-center gap-2 gap-y-1">
+                        <p className="truncate font-medium leading-none">{r.title}</p>
+                        {r.activeForAi ? (
+                          <Badge
+                            variant="outline"
+                            className="shrink-0 rounded-full border-blue-500/35 bg-blue-500/[0.08] text-[0.65rem] font-medium text-blue-900 dark:text-blue-100"
+                          >
+                            {t.dashboard.activeResumeBadge}
+                          </Badge>
+                        ) : null}
+                      </div>
                       <p className="mt-2 truncate text-sm text-muted-foreground">{r.skills}</p>
                       {r.cvFile ? (
                         <p className="mt-2 text-xs">
@@ -162,10 +177,22 @@ export function EmployeeProfileSection({
                         </p>
                       ) : null}
                     </div>
-                    <div className="flex shrink-0 items-center gap-2">
+                    <div className="flex shrink-0 flex-wrap items-center gap-2">
                       <Button variant="secondary" size="sm" asChild>
                         <Link href={`/dashboard/employee/resume/${r.id}`}>{t.common.edit}</Link>
                       </Button>
+                      {r.activeForAi ? (
+                        <Button variant="secondary" size="sm" type="button" disabled className="cursor-not-allowed opacity-80">
+                          {t.dashboard.activeResumeCurrentlyActive}
+                        </Button>
+                      ) : (
+                        <form action={setActiveResumeForAiAction}>
+                          <input type="hidden" name="id" value={r.id} />
+                          <Button variant="outline" size="sm" type="submit">
+                            {t.dashboard.activeResumeUseForRecommendations}
+                          </Button>
+                        </form>
+                      )}
                       <form action={deleteResumeAction}>
                         <input type="hidden" name="id" value={r.id} />
                         <Button variant="destructive" size="sm" type="submit">

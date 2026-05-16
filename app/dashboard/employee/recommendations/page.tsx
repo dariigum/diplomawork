@@ -1,6 +1,6 @@
 import Link from 'next/link'
 import { redirect } from 'next/navigation'
-import { Sparkles, BrainCircuit, Zap } from 'lucide-react'
+import { ChevronDown, FileText, Sparkles } from 'lucide-react'
 import { getSession } from '@/lib/auth'
 import dbConnect from '@/lib/db/mongoose'
 import { EmployeeAiRecommendations } from '@/components/recommendations/employee-ai-recommendations'
@@ -31,42 +31,30 @@ export default async function EmployeeRecommendationsPage() {
           <div className="max-w-2xl space-y-4">
             <div className="flex flex-wrap items-center gap-2">
               <Badge className="gap-1.5 rounded-full border-primary/30 bg-primary/15 px-3 py-1 text-primary shadow-sm transition-colors hover:bg-primary/20">
-                <BrainCircuit className="h-3.5 w-3.5" />
-                Semantic AI matching
-              </Badge>
-              <Badge variant="outline" className="rounded-full border-violet-500/40 text-violet-700 dark:text-violet-300 shadow-sm">
-                SBERT embeddings
-              </Badge>
-              <Badge variant="secondary" className="rounded-full gap-1 text-xs shadow-sm">
-                <Zap className="h-3 w-3" />
-                Adaptive-ranked
+                <Sparkles className="h-3.5 w-3.5" />
+                Semantic recommendations
               </Badge>
             </div>
             <h1 className="text-3xl font-bold tracking-tight sm:text-4xl md:text-[2.25rem] leading-tight">
-              AI Career Assistant
+              Recommended roles
             </h1>
             <p className="text-base text-muted-foreground leading-relaxed md:text-lg">
-              Recommendations combine resume embeddings (cosine semantic score) with a small, capped behaviour layer.
-              Final order is semantic-first adaptive ranking — computed server-side, not keyword search alone.
+              Recommendations based on your resume, skills, and activity.
             </p>
-            <p className="text-sm text-muted-foreground/90 flex items-start gap-2 max-w-2xl">
-              <Sparkles className="h-4 w-4 shrink-0 mt-0.5 text-primary" />
-              <span>
-                Explainable AI: vectors from your encoder; semantic term is cosine on the server; behaviour boosts are
-                spelled out on each card. Percentages reflect API values, not browser guesses.
-              </span>
+            <p className="text-sm text-muted-foreground leading-relaxed">
+              Semantic matching helps surface related opportunities beyond keyword overlap.
             </p>
-            <div className="flex flex-wrap gap-2 pt-2">
-              <Badge variant="outline" className="rounded-full text-xs font-normal bg-background/50 shadow-sm">
-                Semantic-first adaptive ranking
-              </Badge>
-              <Badge variant="secondary" className="rounded-full text-xs font-normal shadow-sm">
-                Final % (adaptive)
-              </Badge>
-              <Badge variant="outline" className="rounded-full text-xs font-normal opacity-90 shadow-sm">
-                Top-N via ?limit=
-              </Badge>
-            </div>
+            <details className="group rounded-xl border border-border/60 bg-background/40 px-4 py-3 text-sm text-muted-foreground shadow-sm ring-1 ring-border/40">
+              <summary className="flex cursor-pointer list-none items-center gap-2 font-medium text-foreground outline-none marker:content-none [&::-webkit-details-marker]:hidden">
+                <ChevronDown className="h-4 w-4 shrink-0 transition-transform group-open:rotate-180 text-muted-foreground" />
+                How recommendations work
+              </summary>
+              <p className="mt-3 pl-6 text-muted-foreground leading-relaxed border-l-2 border-primary/25">
+                Ordering is computed on the server from your profile and role text, with a small, bounded influence from
+                recent activity. Match strength on cards reflects the service response — it is not calculated in the
+                browser.
+              </p>
+            </details>
           </div>
           <Button
             variant="outline"
@@ -81,13 +69,13 @@ export default async function EmployeeRecommendationsPage() {
       {activeResumeTitle ? (
         <div className="flex flex-col sm:flex-row sm:items-center gap-3 rounded-xl border border-primary/20 bg-gradient-to-r from-primary/[0.06] via-background to-violet-500/[0.05] px-4 py-3 sm:px-5 shadow-sm ring-1 ring-primary/[0.06]">
           <div className="flex items-center gap-2 text-primary shrink-0">
-            <BrainCircuit className="h-5 w-5" />
-            <span className="text-xs font-semibold uppercase tracking-wide text-muted-foreground">Active AI resume</span>
+            <FileText className="h-5 w-5" />
+            <span className="text-xs font-semibold uppercase tracking-wide text-muted-foreground">Active resume</span>
           </div>
           <p className="text-sm text-foreground/90 leading-relaxed">
-            Recommendations are generated from{' '}
+            Recommendations use{' '}
             <strong className="text-foreground font-semibold">{activeResumeTitle}</strong>
-            <span className="text-muted-foreground"> — the profile marked for semantic matching in your workspace.</span>
+            <span className="text-muted-foreground"> — the resume marked active in your workspace.</span>
           </p>
         </div>
       ) : null}

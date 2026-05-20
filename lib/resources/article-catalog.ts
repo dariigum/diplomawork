@@ -13,6 +13,10 @@ export const ARTICLE_CATALOG: ArticleSource[] = [
   { sourceUrl: "https://habr.com/ru/articles/790272/", category: "Technology", language: "ru", readTime: "6 min" },
   { sourceUrl: "https://habr.com/ru/articles/696252/", category: "Technology", language: "ru", readTime: "8 min" },
   { sourceUrl: "https://habr.com/ru/articles/480838/", category: "Technology", language: "ru", readTime: "6 min" },
+  { sourceUrl: "https://habr.com/ru/articles/667214/", category: "Technology", language: "ru", readTime: "7 min" },
+  { sourceUrl: "https://habr.com/ru/articles/766444/", category: "Technology", language: "ru", readTime: "5 min" },
+  { sourceUrl: "https://habr.com/ru/articles/963298/", category: "Technology", language: "ru", readTime: "9 min" },
+  { sourceUrl: "https://habr.com/ru/articles/888328/", category: "Technology", language: "ru", readTime: "8 min" },
 
   // —— Comparison (RU) ——
   { sourceUrl: "https://habr.com/ru/articles/272735/", category: "Comparison", language: "ru", readTime: "9 min" },
@@ -24,15 +28,22 @@ export const ARTICLE_CATALOG: ArticleSource[] = [
   { sourceUrl: "https://habr.com/ru/articles/530458/", category: "Career", language: "ru", readTime: "8 min" },
   { sourceUrl: "https://habr.com/ru/articles/896690/", category: "Career", language: "ru", readTime: "7 min" },
   { sourceUrl: "https://habr.com/ru/articles/283880/", category: "Career", language: "ru", readTime: "6 min" },
+  { sourceUrl: "https://habr.com/ru/articles/808689/", category: "Career", language: "ru", readTime: "6 min" },
+  { sourceUrl: "https://habr.com/ru/articles/495800/", category: "Career", language: "ru", readTime: "6 min" },
+  { sourceUrl: "https://habr.com/ru/articles/199136/", category: "Career", language: "ru", readTime: "5 min" },
+  { sourceUrl: "https://habr.com/ru/articles/231071/", category: "Career", language: "ru", readTime: "8 min" },
 
   // —— Anti-patterns (RU) ——
   { sourceUrl: "https://habr.com/ru/articles/598093/", category: "Anti-patterns", language: "ru", readTime: "5 min" },
   { sourceUrl: "https://habr.com/ru/articles/731578/", category: "Anti-patterns", language: "ru", readTime: "6 min" },
+  { sourceUrl: "https://habr.com/ru/articles/251089/", category: "Anti-patterns", language: "ru", readTime: "6 min" },
 
   // —— AI (RU) ——
   { sourceUrl: "https://habr.com/ru/articles/910122/", category: "AI", language: "ru", readTime: "9 min" },
   { sourceUrl: "https://habr.com/ru/articles/1030854/", category: "AI", language: "ru", readTime: "8 min" },
   { sourceUrl: "https://habr.com/ru/articles/846732/", category: "AI", language: "ru", readTime: "6 min" },
+  { sourceUrl: "https://habr.com/ru/articles/448892/", category: "AI", language: "ru", readTime: "8 min" },
+  { sourceUrl: "https://habr.com/ru/articles/548010/", category: "AI", language: "ru", readTime: "7 min" },
 
   // —— Technology (EN) — English-only sources (MDN, React, web.dev) ——
   {
@@ -60,6 +71,30 @@ export const ARTICLE_CATALOG: ArticleSource[] = [
     readTime: "7 min",
   },
   {
+    sourceUrl: "https://developer.mozilla.org/en-US/docs/Web/API/Fetch_API/Using_Fetch",
+    category: "Technology",
+    language: "en",
+    readTime: "8 min",
+  },
+  {
+    sourceUrl: "https://developer.mozilla.org/en-US/docs/Web/JavaScript/Guide/Functions",
+    category: "Technology",
+    language: "en",
+    readTime: "8 min",
+  },
+  {
+    sourceUrl: "https://developer.mozilla.org/en-US/docs/Web/JavaScript/Guide/Closures",
+    category: "Technology",
+    language: "en",
+    readTime: "8 min",
+  },
+  {
+    sourceUrl: "https://react.dev/learn/managing-state",
+    category: "Technology",
+    language: "en",
+    readTime: "8 min",
+  },
+  {
     sourceUrl: "https://web.dev/articles/vitals",
     category: "Technology",
     language: "en",
@@ -81,6 +116,12 @@ export const ARTICLE_CATALOG: ArticleSource[] = [
   },
   {
     sourceUrl: "https://developer.mozilla.org/en-US/docs/Web/API/Web_Storage_API",
+    category: "Comparison",
+    language: "en",
+    readTime: "7 min",
+  },
+  {
+    sourceUrl: "https://web.dev/articles/rail",
     category: "Comparison",
     language: "en",
     readTime: "7 min",
@@ -111,6 +152,18 @@ export const ARTICLE_CATALOG: ArticleSource[] = [
     language: "en",
     readTime: "6 min",
   },
+  {
+    sourceUrl: "https://developer.mozilla.org/en-US/docs/Web/Performance/Guides/Lazy_loading",
+    category: "Career",
+    language: "en",
+    readTime: "7 min",
+  },
+  {
+    sourceUrl: "https://developer.mozilla.org/en-US/docs/Web/Accessibility/Guides/Understanding_WCAG",
+    category: "Career",
+    language: "en",
+    readTime: "7 min",
+  },
 
   // —— Anti-patterns (EN) ——
   {
@@ -124,6 +177,24 @@ export const ARTICLE_CATALOG: ArticleSource[] = [
     category: "Anti-patterns",
     language: "en",
     readTime: "5 min",
+  },
+  {
+    sourceUrl: "https://web.dev/articles/optimize-cls",
+    category: "Anti-patterns",
+    language: "en",
+    readTime: "6 min",
+  },
+  {
+    sourceUrl: "https://web.dev/articles/rendering-performance",
+    category: "Anti-patterns",
+    language: "en",
+    readTime: "7 min",
+  },
+  {
+    sourceUrl: "https://react.dev/learn/choosing-the-state-structure",
+    category: "Anti-patterns",
+    language: "en",
+    readTime: "8 min",
   },
 
   // —— AI (EN) ——

@@ -298,6 +298,8 @@ export type BuildUserBehaviourProfileOptions = {
   maxSkills?: number
   maxKeywords?: number
   maxCategories?: number
+  /** Vacancy ids excluded from behaviour profile (e.g. offline eval holdout). */
+  excludeVacancyIds?: string[]
 }
 
 /**
@@ -312,6 +314,7 @@ export async function buildUserBehaviourProfile(
   const maxSkills = options.maxSkills ?? 24
   const maxKeywords = options.maxKeywords ?? 28
   const maxCategories = options.maxCategories ?? 6
+  const excludeVacancyIds = new Set(options.excludeVacancyIds ?? [])
 
   const emptySummary: BehaviourInteractionSummary = { viewed: 0, saved: 0, applied: 0 }
 
@@ -346,6 +349,7 @@ export async function buildUserBehaviourProfile(
 
   for (const ev of events as { vacancyId: mongoose.Types.ObjectId; eventType: VacancyBehaviourEventType }[]) {
     const vid = String(ev.vacancyId)
+    if (excludeVacancyIds.has(vid)) continue
     const w = eventWeight(ev.eventType)
     if (w <= 0) continue
 

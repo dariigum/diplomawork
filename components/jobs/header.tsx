@@ -26,6 +26,7 @@ interface HeaderProps {
 
 export function Header({ savedJobsCount }: HeaderProps) {
   const { t, locale, setLocale } = useI18n();
+  const [mounted, setMounted] = useState(false)
   const [userRole, setUserRole] = useState<string | null>(null)
   const [userId, setUserId] = useState<string | null>(null)
   const [savedJobsData, setSavedJobsData] = useState<any[]>([])
@@ -85,6 +86,7 @@ export function Header({ savedJobsCount }: HeaderProps) {
         setSavedCount(0)
       }
     })
+    setMounted(true)
   }, [])
 
   useEffect(() => {
@@ -239,25 +241,32 @@ export function Header({ savedJobsCount }: HeaderProps) {
             )}
 
             {/* Language Switcher */}
-            <DropdownMenu>
-              <DropdownMenuTrigger asChild>
-                <Button variant="ghost" size="icon" className="relative">
-                  <Globe className="h-5 w-5 text-muted-foreground" />
-                  <span className="sr-only">Change Language</span>
-                </Button>
-              </DropdownMenuTrigger>
-              <DropdownMenuContent align="end">
-                <DropdownMenuItem onClick={() => setLocale('en')} className={locale === 'en' ? 'font-bold' : ''}>
-                  English
-                </DropdownMenuItem>
-                <DropdownMenuItem onClick={() => setLocale('ru')} className={locale === 'ru' ? 'font-bold' : ''}>
-                  Русский
-                </DropdownMenuItem>
-                <DropdownMenuItem onClick={() => setLocale('kk')} className={locale === 'kk' ? 'font-bold' : ''}>
-                  Қазақша
-                </DropdownMenuItem>
-              </DropdownMenuContent>
-            </DropdownMenu>
+            {!mounted ? (
+              <Button variant="ghost" size="icon" className="relative">
+                <Globe className="h-5 w-5 text-muted-foreground" />
+                <span className="sr-only">Change Language</span>
+              </Button>
+            ) : (
+              <DropdownMenu>
+                <DropdownMenuTrigger asChild>
+                  <Button variant="ghost" size="icon" className="relative">
+                    <Globe className="h-5 w-5 text-muted-foreground" />
+                    <span className="sr-only">Change Language</span>
+                  </Button>
+                </DropdownMenuTrigger>
+                <DropdownMenuContent align="end">
+                  <DropdownMenuItem onClick={() => setLocale('en')} className={locale === 'en' ? 'font-bold' : ''}>
+                    English
+                  </DropdownMenuItem>
+                  <DropdownMenuItem onClick={() => setLocale('ru')} className={locale === 'ru' ? 'font-bold' : ''}>
+                    Русский
+                  </DropdownMenuItem>
+                  <DropdownMenuItem onClick={() => setLocale('kk')} className={locale === 'kk' ? 'font-bold' : ''}>
+                    Қазақша
+                  </DropdownMenuItem>
+                </DropdownMenuContent>
+              </DropdownMenu>
+            )}
 
             <ThemeToggle />
 
@@ -295,59 +304,66 @@ export function Header({ savedJobsCount }: HeaderProps) {
             </div>
 
             {/* Mobile Menu */}
-            <DropdownMenu>
-              <DropdownMenuTrigger asChild>
-                <Button variant="ghost" size="icon" className="md:hidden">
-                  <Menu className="h-5 w-5" />
-                  <span className="sr-only">Menu</span>
-                </Button>
-              </DropdownMenuTrigger>
-              <DropdownMenuContent align="end" className="w-48">
-                <DropdownMenuItem asChild>
-                  <Link href="/" className="w-full">{t.header.findJobs}</Link>
-                </DropdownMenuItem>
-                <DropdownMenuItem asChild>
-                  <Link href="/companies" className="w-full">{t.header.companies}</Link>
-                </DropdownMenuItem>
-                <DropdownMenuItem asChild>
-                  <Link href="/tools" className="w-full">{t.header.tools}</Link>
-                </DropdownMenuItem>
+            {!mounted ? (
+              <Button variant="ghost" size="icon" className="md:hidden">
+                <Menu className="h-5 w-5" />
+                <span className="sr-only">Menu</span>
+              </Button>
+            ) : (
+              <DropdownMenu>
+                <DropdownMenuTrigger asChild>
+                  <Button variant="ghost" size="icon" className="md:hidden">
+                    <Menu className="h-5 w-5" />
+                    <span className="sr-only">Menu</span>
+                  </Button>
+                </DropdownMenuTrigger>
+                <DropdownMenuContent align="end" className="w-48">
+                  <DropdownMenuItem asChild>
+                    <Link href="/" className="w-full">{t.header.findJobs}</Link>
+                  </DropdownMenuItem>
+                  <DropdownMenuItem asChild>
+                    <Link href="/companies" className="w-full">{t.header.companies}</Link>
+                  </DropdownMenuItem>
+                  <DropdownMenuItem asChild>
+                    <Link href="/tools" className="w-full">{t.header.tools}</Link>
+                  </DropdownMenuItem>
 
-                {userRole ? (
-                  <>
-                    {isEmployee && (
+                  {userRole ? (
+                    <>
+                      {isEmployee && (
+                        <DropdownMenuItem asChild>
+                          <Link href="/saved" className="w-full flex items-center justify-between">
+                            {t.header.savedJobs}
+                            {savedCount > 0 && (
+                              <Badge variant="secondary">{savedCount}</Badge>
+                            )}
+                          </Link>
+                        </DropdownMenuItem>
+                      )}
                       <DropdownMenuItem asChild>
-                        <Link href="/saved" className="w-full flex items-center justify-between">
-                          {t.header.savedJobs}
-                          {savedCount > 0 && (
-                            <Badge variant="secondary">{savedCount}</Badge>
-                          )}
+                        <Link href={userRole === 'EMPLOYER' ? '/dashboard/employer' : '/dashboard/employee'} className="w-full">
+                          {t.header.profile}
                         </Link>
                       </DropdownMenuItem>
-                    )}
-                    <DropdownMenuItem asChild>
-                      <Link href={userRole === 'EMPLOYER' ? '/dashboard/employer' : '/dashboard/employee'} className="w-full">
-                        {t.header.profile}
-                      </Link>
-                    </DropdownMenuItem>
-                    <DropdownMenuItem asChild>
-                      <form action={logoutAction} className="w-full">
-                        <button type="submit" className="w-full text-left text-destructive">{t.header.logout}</button>
-                      </form>
-                    </DropdownMenuItem>
-                  </>
-                ) : (
-                  <>
-                    <DropdownMenuItem asChild className="text-primary">
-                      <Link href="/login" className="w-full">{t.header.login}</Link>
-                    </DropdownMenuItem>
-                    <DropdownMenuItem asChild className="text-primary font-medium">
-                      <Link href="/signup" className="w-full">{t.header.signup}</Link>
-                    </DropdownMenuItem>
-                  </>
-                )}
-              </DropdownMenuContent>
-            </DropdownMenu>
+                      <DropdownMenuItem asChild>
+                        <form action={logoutAction} className="w-full">
+                          <button type="submit" className="w-full text-left text-destructive">{t.header.logout}</button>
+                        </form>
+                      </DropdownMenuItem>
+                    </>
+                  ) : (
+                    <>
+                      <DropdownMenuItem asChild className="text-primary">
+                        <Link href="/login" className="w-full">{t.header.login}</Link>
+                      </DropdownMenuItem>
+                      <DropdownMenuItem asChild className="text-primary font-medium">
+                        <Link href="/signup" className="w-full">{t.header.signup}</Link>
+                      </DropdownMenuItem>
+                    </>
+                  )}
+                </DropdownMenuContent>
+              </DropdownMenu>
+            )}
           </div>
         </div>
       </div>

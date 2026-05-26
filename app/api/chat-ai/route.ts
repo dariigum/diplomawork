@@ -1,10 +1,17 @@
 import { NextResponse } from 'next/server'
 import { getSession } from '@/lib/auth'
+import { createSlidingWindowRateLimiter } from '@/lib/chat/rate-limit'
 
 type MessageItem = {
   role: 'user' | 'model'
   text: string
 }
+
+// In-memory rate limiter for Gemini AI chatbot: limit to 10 requests per minute per user
+const chatLimiter = createSlidingWindowRateLimiter({
+  windowMs: 60 * 1000,
+  max: 10,
+})
 
 export async function POST(req: Request) {
   try {
@@ -15,6 +22,15 @@ export async function POST(req: Request) {
 
     if (session.user.role !== 'EMPLOYEE') {
       return NextResponse.json({ error: 'Only employees/job seekers can use this feature' }, { status: 403 })
+    }
+
+    // Rate limiting check
+    const userId = session.user.id
+    if (!chatLimiter(userId)) {
+      return NextResponse.json({
+        error: 'Rate limit exceeded',
+        details: 'Too many requests. Please wait a minute before sending more messages.'
+      }, { status: 429 })
     }
 
     const apiKey = process.env.GEMINI_API_KEY
@@ -32,8 +48,11 @@ export async function POST(req: Request) {
       return NextResponse.json({ error: 'No messages provided' }, { status: 400 })
     }
 
+    // Truncate history to avoid large payloads (keep the last 15 messages)
+    const trimmedMessages = messages.slice(-15)
+
     // Convert messages to Gemini payload format
-    const contentsPayload = messages.map((msg) => ({
+    const contentsPayload = trimmedMessages.map((msg) => ({
       role: msg.role === 'user' ? 'user' : 'model',
       parts: [{ text: msg.text }]
     }))

@@ -189,6 +189,7 @@ export const dictionaries = {
     },
     skillImprovement: {
       title: 'Skill Improvement',
+      individualProgram: 'Individual Development Program',
       subtitle: 'Analyze your current skills and get personalized learning recommendations',
       chatbotTitle: 'AI Career Assistant',
       chatbotSubtitle: 'Ask about career growth, skill recommendation and roadmaps',
@@ -585,6 +586,7 @@ export const dictionaries = {
     },
     skillImprovement: {
       title: 'Развитие навыков',
+      individualProgram: 'Индивидуальная программа развития',
       subtitle: 'Проанализируйте свои текущие навыки и получите персональные рекомендации обучения',
       chatbotTitle: 'ИИ Карьерный Помощник',
       chatbotSubtitle: 'Спросите о росте, обучении навыкам и дорожных картах',
@@ -981,6 +983,7 @@ export const dictionaries = {
     },
     skillImprovement: {
       title: 'Дағдылар дамыту',
+      individualProgram: 'Жеке даму бағдарламасы',
       subtitle: 'Ағымды дағдыларыңызды талдап, мектеп ұсыныстарын алыңыз',
       chatbotTitle: 'ЖИ Мансап Көмекшісі',
       chatbotSubtitle: 'Өсу, дағдыларды үйрену және жол карталары туралы сұраңыз',

@@ -317,3 +317,43 @@ MessageSchema.index({ chatId: 1, isRead: 1 });
 MessageSchema.index({ receiverId: 1, isRead: 1 });
 
 export const Message: Model<IMessage> = mongoose.models.Message || mongoose.model<IMessage>('Message', MessageSchema);
+
+export interface ISkillImprovementReport extends Document {
+  resumeId: mongoose.Types.ObjectId | IResume;
+  userId: mongoose.Types.ObjectId | IUser;
+  individualProgram: string;
+  topRecommendations: string;
+  careerDirections: string;
+  learningPath: string;
+  nextSteps: string;
+  translations?: Record<string, {
+    individualProgram: string;
+    topRecommendations: string;
+    careerDirections: string;
+    learningPath: string;
+    nextSteps: string;
+  }>;
+  createdAt: Date;
+  updatedAt: Date;
+}
+
+const SkillImprovementReportSchema = new Schema<ISkillImprovementReport>(
+  {
+    resumeId: { type: Schema.Types.ObjectId, ref: 'Resume', required: true },
+    userId: { type: Schema.Types.ObjectId, ref: 'User', required: true, index: true },
+    individualProgram: { type: String, required: true },
+    topRecommendations: { type: String, required: true },
+    careerDirections: { type: String, required: true },
+    learningPath: { type: String, required: true },
+    nextSteps: { type: String, required: true },
+    translations: { type: Schema.Types.Mixed, default: {} },
+  },
+  { timestamps: true }
+);
+
+SkillImprovementReportSchema.index({ resumeId: 1 }, { unique: true });
+
+export const SkillImprovementReport: Model<ISkillImprovementReport> =
+  mongoose.models.SkillImprovementReport ||
+  mongoose.model<ISkillImprovementReport>('SkillImprovementReport', SkillImprovementReportSchema);
+

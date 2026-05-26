@@ -65,6 +65,22 @@ export interface CareerDirectionOpportunity {
   }>
 }
 
+export interface IndividualProgram {
+  personalizedAdvice: string[]
+  metrics: {
+    marketDemandScore: number
+    skillMatchPercentage: number
+    activeOpportunitiesCount: number
+    growthPotential: number
+  }
+  improvementProposals: Array<{
+    aspect: string
+    currentStatus: string
+    recommendation: string
+    resources: string[]
+  }>
+}
+
 export interface SkillImprovementReport {
   analysisTimestamp: Date
   sourceStats: {
@@ -89,7 +105,9 @@ export interface SkillImprovementReport {
   learningPath: LearningPathItem[]
   careerDirections: CareerDirectionOpportunity[]
   nextSteps: string[]
+  individualProgram?: IndividualProgram
 }
+
 
 type EnrichedVacancy = {
   id: string
@@ -313,6 +331,16 @@ export async function generateSkillImprovementReport(
     learningPath: [],
     careerDirections: [],
     nextSteps: [],
+    individualProgram: {
+      personalizedAdvice: ['Загрузите ваше резюме и сохраните несколько вакансий, чтобы получить индивидуальные советы.'],
+      metrics: {
+        marketDemandScore: 0,
+        skillMatchPercentage: 0,
+        activeOpportunitiesCount: 0,
+        growthPotential: 0,
+      },
+      improvementProposals: [],
+    }
   }
 
   if (!resumeText) {
@@ -527,6 +555,231 @@ export async function generateSkillImprovementReport(
     nextSteps.push('add_more_signals')
   }
 
+  // --- INDIVIDUAL GROWTH PROGRAM GENERATION ---
+  const personalizedAdvice: string[] = []
+  
+  // 1. Level-based advice
+  const level = assessUserLevel(userSkills)
+  if (level === 'junior') {
+    personalizedAdvice.push(
+      'Вы находитесь на начальном этапе карьеры (Junior). Сейчас важнее всего заложить прочный фундамент базовых навыков. Не распыляйтесь на множество фреймворков, сфокусируйтесь на освоении 1-2 ключевых инструментов до автоматизма.'
+    )
+  } else if (level === 'mid') {
+    personalizedAdvice.push(
+      'Вы уверенный специалист уровня Middle. Ваша главная точка роста — углубление в архитектурные паттерны, оптимизацию производительности и автоматизацию процессов (например, Docker/CI/CD). Это поможет вам выделиться среди других кандидатов.'
+    )
+  } else {
+    personalizedAdvice.push(
+      'Вы специалист уровня Senior с богатым набором навыков. Для дальнейшего роста сфокусируйтесь на системном проектировании (System Design), масштабировании инфраструктуры и развитии лидерских качеств. Рассмотрите возможность наставничества.'
+    )
+  }
+
+  // 2. Dynamic top direction/path advice based on actual saved/applied vacancies
+  const pathCounts: Record<string, number> = {}
+  for (const v of vacancies) {
+    if (v.primaryPath) {
+      pathCounts[v.primaryPath] = (pathCounts[v.primaryPath] || 0) + 1
+    }
+  }
+  const topPath = Object.entries(pathCounts).sort((a, b) => b[1] - a[1])[0]?.[0]
+  if (topPath === 'frontend') {
+    personalizedAdvice.push(
+      'Анализ ваших интересов показывает выраженную склонность к Frontend-разработке. Современный фронтенд требует не только верстки, но и работы с состоянием приложения (State Management) и оптимизации рендеринга. Уделите внимание TypeScript и сборщикам (Vite/Webpack).'
+    )
+  } else if (topPath === 'backend') {
+    personalizedAdvice.push(
+      'Судя по сохраненным вакансиям, вас привлекает Backend-разработка. Уделите особое внимание проектированию REST/GraphQL API, оптимизации SQL-запросов и работе с кэшированием (Redis). Это критические навыки для любого серверного разработчика.'
+    )
+  } else if (topPath === 'datascience') {
+    personalizedAdvice.push(
+      'Вы интересуетесь Data Science и AI/ML технологиями. Помимо изучения библиотек (Pandas, PyTorch), обязательно развивайте навыки работы со статистикой, математическим анализом и предобработкой данных. Качественные данные — залог успешной модели.'
+    )
+  } else if (topPath === 'devops') {
+    personalizedAdvice.push(
+      'Ваши интересы лежат в области DevOps и автоматизации инфраструктуры. Освойте методологию Infrastructure as Code (IaC) с помощью Terraform, разберитесь в оркестрации Docker-контейнеров в Kubernetes и методах непрерывной интеграции (CI/CD).'
+    )
+  } else if (topPath === 'qa') {
+    personalizedAdvice.push(
+      'Вы проявляете интерес к тестированию ПО (QA). Автоматизация тестирования (например, с использованием Playwright или Selenium) сейчас крайне востребована на рынке и поможет вам вырасти в доходах в 1.5-2 раза по сравнению с ручным тестированием.'
+    )
+  } else {
+    personalizedAdvice.push(
+      'Ваш профиль сочетает в себе разносторонние интересы (Fullstack/Generalist). Это отличная позиция для стартапов, где ценятся универсальные инженеры. Постарайтесь выбрать один стержневой стек (например, Node.js + React), чтобы углубить знания перед выходом на рынок.'
+    )
+  }
+
+  // 3. Next skill priorities
+  if (topRecommendations.length > 0) {
+    const primarySkill = topRecommendations[0].displayName
+    personalizedAdvice.push(
+      `Изучение навыка "${primarySkill}" является вашей приоритетной задачей №1. Он фигурирует в большинстве интересных вам вакансий и разблокирует доступ к новым предложениям работодателей.`
+    )
+  }
+
+  // 4. Saved vs Applied ratio
+  if (appliedVacancies.length > 0 && savedVacancies.length > 0) {
+    personalizedAdvice.push(
+      'Отличная активность! Вы сбалансированно отбираете вакансии в избранное и отправляете отклики. Это позволяет алгоритмам точнее подбирать рекомендации.'
+    )
+  } else if (appliedVacancies.length === 0 && savedVacancies.length > 0) {
+    personalizedAdvice.push(
+      'Вы сохранили несколько вакансий, но пока не отправили ни одного отклика. Не бойтесь откликаться, даже если ваш стек совпадает не на 100%. Работодатели часто готовы обучать перспективных кандидатов.'
+    )
+  }
+
+  // Calculate Metrics
+  let userSkillsHits = 0
+  for (const vacancy of vacancies) {
+    for (const s of vacancy.requiredSkills) {
+      if (userSkillsSet.has(s)) userSkillsHits++
+    }
+  }
+  const totalRequiredSkillsCount = vacancies.reduce((acc, v) => acc + v.requiredSkills.length, 0)
+  const marketDemandScore = totalRequiredSkillsCount > 0
+    ? Math.round(Math.min(100, Math.max(15, (userSkillsHits / totalRequiredSkillsCount) * 100 + 20)))
+    : 50
+
+  const matchRates = vacancies.map(v => calculateMatchScore(v.requiredSkills, userSkillsSet))
+  const avgMatch = matchRates.length > 0 ? (matchRates.reduce((a, b) => a + b, 0) / matchRates.length) * 100 : 0
+  const skillMatchPercentage = Math.round(avgMatch)
+
+  const activeOpportunitiesCount = vacancies.filter(v => calculateMatchScore(v.requiredSkills, userSkillsSet) >= 0.5).length
+
+  const top3Skills = topRecommendations.slice(0, 3).map(r => r.skill)
+  const upgradedSkills = new Set([...userSkills, ...top3Skills])
+  const currentMatchAvg = vacancies.reduce((sum, v) => sum + calculateMatchScore(v.requiredSkills, userSkillsSet), 0) / (vacancies.length || 1)
+  const potentialMatchAvg = vacancies.reduce((sum, v) => sum + calculateMatchScore(v.requiredSkills, upgradedSkills), 0) / (vacancies.length || 1)
+  const growthPotential = Math.round(Math.max(0, (potentialMatchAvg - currentMatchAvg) * 100))
+
+  // Improvement proposals
+  const improvementProposals = []
+
+  // Aspect 1: Language
+  const hasTs = userSkillsSet.has('typescript')
+  const hasJs = userSkillsSet.has('javascript')
+  const hasPython = userSkillsSet.has('python')
+  
+  if (hasTs) {
+    improvementProposals.push({
+      aspect: 'Программирование и стандарты кода',
+      currentStatus: 'В резюме указан TypeScript — отличный стандарт для современной разработки.',
+      recommendation: 'Изучите продвинутые возможности типов (Generics, Utility Types, Decorators) и архитектурные паттерны SOLID.',
+      resources: ['Продвинутый TypeScript', 'Паттерны проектирования ПО', 'Чистый код (Refactoring)'],
+    })
+  } else if (hasJs) {
+    improvementProposals.push({
+      aspect: 'Программирование и стандарты кода',
+      currentStatus: 'Вы владеете JavaScript, но современные проекты требуют строгой типизации.',
+      recommendation: 'Перейдите на TypeScript. Это сократит количество ошибок на 15% и повысит привлекательность резюме для крупных компаний.',
+      resources: ['Основы TypeScript для JS-разработчиков', 'Асинхронный JavaScript (ES6+)', 'Архитектура веб-приложений'],
+    })
+  } else if (hasPython) {
+    improvementProposals.push({
+      aspect: 'Программирование и стандарты кода',
+      currentStatus: 'Вы владеете Python — отличным языком для бэкенда и анализа данных.',
+      recommendation: 'Углубитесь в асинхронное программирование (asyncio) и типизацию данных с помощью pydantic и type hints.',
+      resources: ['Асинхронный Python', 'Веб-разработка с FastAPI', 'Статическая типизация в Python'],
+    })
+  } else {
+    improvementProposals.push({
+      aspect: 'Программирование и стандарты кода',
+      currentStatus: 'В резюме не обнаружены популярные языки программирования (JS, Python, TS, Java).',
+      recommendation: 'Определите целевое направление и начните изучение базового языка: JavaScript (для веб-интерфейсов) или Python (для бэкенда/данных).',
+      resources: ['Курс "JavaScript с нуля"', 'Основы программирования на Python', 'Алгоритмы и структуры данных'],
+    })
+  }
+
+  // Aspect 2: Databases
+  const hasSql = userSkillsSet.has('sql') || userSkillsSet.has('postgresql') || userSkillsSet.has('mysql')
+  const hasNoSql = userSkillsSet.has('mongodb') || userSkillsSet.has('redis')
+  
+  if (hasSql && hasNoSql) {
+    improvementProposals.push({
+      aspect: 'Работа с базами данных',
+      currentStatus: 'Отличный профиль! Вы владеете как реляционными (SQL), так и NoSQL базами данных.',
+      recommendation: 'Изучите вопросы оптимизации запросов, создания индексов, кэширования данных и масштабирования (репликация/шардирование).',
+      resources: ['Оптимизация PostgreSQL', 'Кэширование с Redis', 'Проектирование высоконагруженных БД'],
+    })
+  } else if (hasSql) {
+    improvementProposals.push({
+      aspect: 'Работа с базами данных',
+      currentStatus: 'У вас есть навыки работы с реляционными БД (SQL).',
+      recommendation: 'Добавьте в стек NoSQL решение (например, MongoDB для документов или Redis для кэширования), так как гибридные хранилища используются в 80% проектов.',
+      resources: ['Основы MongoDB для разработчиков', 'Использование Redis для кэширования', 'Проектирование схем данных'],
+    })
+  } else if (hasNoSql) {
+    improvementProposals.push({
+      aspect: 'Работа с базами данных',
+      currentStatus: 'Вы работаете с NoSQL решениями.',
+      recommendation: 'Изучите стандартный SQL (PostgreSQL/MySQL). Реляционная алгебра и транзакции (ACID) требуются практически на любом собеседовании.',
+      resources: ['Интерактивный тренажер SQL', 'Основы реляционных БД', 'Транзакции и оконные функции'],
+    })
+  } else {
+    improvementProposals.push({
+      aspect: 'Работа с базами данных',
+      currentStatus: 'В резюме отсутствуют навыки работы с базами данных.',
+      recommendation: 'Изучите основы SQL. Умение писать простые SELECT/INSERT/JOIN запросы — обязательный минимум для IT-специалиста.',
+      resources: ['Интерактивный курс SQL', 'Введение в базы данных', 'Связи таблиц и нормализация'],
+    })
+  }
+
+  // Aspect 3: Infrastructure
+  const hasDocker = userSkillsSet.has('docker')
+  const hasK8s = userSkillsSet.has('kubernetes')
+  
+  if (hasK8s) {
+    improvementProposals.push({
+      aspect: 'Инфраструктура и развертывание',
+      currentStatus: 'Вы владеете сложной оркестрацией контейнеров (Kubernetes).',
+      recommendation: 'Изучите инструменты GitOps (ArgoCD), шаблонизаторы Helm и облачные провайдеры (AWS/GCP) для построения отказоустойчивых систем.',
+      resources: ['Продвинутый Kubernetes', 'DevOps практики с ArgoCD', 'Облачная архитектура AWS'],
+    })
+  } else if (hasDocker) {
+    improvementProposals.push({
+      aspect: 'Инфраструктура и развертывание',
+      currentStatus: 'Вы умеете контейнеризировать приложения с помощью Docker.',
+      recommendation: 'Освойте основы Docker Compose для локальной разработки и познакомьтесь с Kubernetes для понимания промышленного деплоя.',
+      resources: ['Оркестрация с Docker Compose', 'Kubernetes для разработчиков', 'Настройка CI/CD пайплайнов'],
+    })
+  } else {
+    improvementProposals.push({
+      aspect: 'Инфраструктура и развертывание',
+      currentStatus: 'В резюме нет навыков контейнеризации (Docker).',
+      recommendation: 'Изучите основы Docker. Умение упаковать приложение в контейнер требуется в 90% современных вакансий.',
+      resources: ['Docker для начинающих разработчиков', 'Создание Dockerfile', 'Деплой контейнеров'],
+    })
+  }
+
+  // Aspect 4: Testing & Culture
+  const hasTesting = userSkillsSet.has('jest') || userSkillsSet.has('cypress') || userSkillsSet.has('pytest') || userSkillsSet.has('playwright') || userSkillsSet.has('selenium')
+  
+  if (hasTesting) {
+    improvementProposals.push({
+      aspect: 'Инженерная культура и тестирование',
+      currentStatus: 'У вас есть опыт написания тестов — это показатель зрелости инженера.',
+      recommendation: 'Внедрите методологию TDD (Test-Driven Development) в свои пет-проекты и разберитесь с интеграционным E2E тестированием.',
+      resources: ['Методология TDD на практике', 'Сквозное тестирование с Cypress/Playwright', 'Настройка тестового покрытия'],
+    })
+  } else {
+    improvementProposals.push({
+      aspect: 'Инженерная культура и тестирование',
+      currentStatus: 'Навыки автоматического тестирования не указаны.',
+      recommendation: 'Изучите написание базовых Unit-тестов (например, Jest для JS или PyTest для Python). Наличие тестов в пет-проектах повышает шансы на оффер на 40%.',
+      resources: ['Введение в Unit-тестирование', 'Основы Jest/PyTest', 'Как писать тестируемый код'],
+    })
+  }
+
+  const individualProgram: IndividualProgram = {
+    personalizedAdvice,
+    metrics: {
+      marketDemandScore,
+      skillMatchPercentage,
+      activeOpportunitiesCount,
+      growthPotential,
+    },
+    improvementProposals,
+  }
+
   return {
     analysisTimestamp: new Date(),
     sourceStats: {
@@ -550,6 +803,7 @@ export async function generateSkillImprovementReport(
     learningPath,
     careerDirections,
     nextSteps,
+    individualProgram,
   }
 }
 

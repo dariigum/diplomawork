@@ -34,6 +34,10 @@ export async function proxy(request: NextRequest) {
   }
 
   // Role-based protection within the dashboard
+  if (session?.user?.role === 'ADMIN' && path.startsWith('/dashboard')) {
+    return NextResponse.redirect(new URL('/admin', request.nextUrl));
+  }
+
   if (path.startsWith('/dashboard/employee') && session?.user?.role !== 'EMPLOYEE') {
     return NextResponse.redirect(new URL('/dashboard/employer', request.nextUrl));
   }

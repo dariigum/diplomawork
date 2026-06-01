@@ -13,7 +13,13 @@ export async function syncArticleCatalog(): Promise<{ synced: number; removed: n
   let synced = 0
 
   for (const entry of ARTICLE_CATALOG) {
-    const metadata = await resolveArticleMetadata(entry.sourceUrl, entry.language)
+    let metadata
+    try {
+      metadata = await resolveArticleMetadata(entry.sourceUrl, entry.language)
+    } catch (err) {
+      console.warn(`[ArticleSync] Skipping ${entry.sourceUrl}:`, err)
+      continue
+    }
 
     if (entry.language === "en" && !isEnglishDisplayText(metadata.title)) {
       await Article.deleteMany({ sourceUrl: entry.sourceUrl })

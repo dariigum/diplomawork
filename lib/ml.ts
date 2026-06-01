@@ -2,8 +2,15 @@ export type MlEmbedResponse = {
   embedding: number[]
 }
 
-const ML_EMBED_URL = 'http://localhost:8000/embed'
 const DEFAULT_TIMEOUT_MS = 8000
+
+function getMlEmbedUrl(): string {
+  const base = process.env.ML_SERVICE_URL?.trim().replace(/\/$/, '')
+  if (!base) {
+    return 'http://localhost:8000/embed'
+  }
+  return `${base}/embed`
+}
 
 export async function getEmbedding(text: string, opts?: { timeoutMs?: number }): Promise<number[]> {
   const timeoutMs = opts?.timeoutMs ?? DEFAULT_TIMEOUT_MS
@@ -16,7 +23,7 @@ export async function getEmbedding(text: string, opts?: { timeoutMs?: number }):
   const timeoutId = setTimeout(() => controller.abort(), timeoutMs)
 
   try {
-    const url = `${ML_EMBED_URL}?text=${encodeURIComponent(text)}`
+    const url = `${getMlEmbedUrl()}?text=${encodeURIComponent(text)}`
 
     const res = await fetch(url, {
       method: 'GET',

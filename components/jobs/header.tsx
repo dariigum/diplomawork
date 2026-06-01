@@ -217,7 +217,7 @@ export function Header({ savedJobsCount }: HeaderProps) {
                       {notifications.map((n) => (
                         <DropdownMenuItem key={n.id} asChild>
                           <Link 
-                            href={userRole === 'EMPLOYER' ? '/dashboard/employer' : '/dashboard/employee'} 
+                            href={userRole === 'ADMIN' ? '/admin' : userRole === 'EMPLOYER' ? '/dashboard/employer' : '/dashboard/employee'} 
                             className="flex flex-col items-start cursor-pointer px-3 py-2 border-b last:border-0 hover:bg-muted/50 rounded-md"
                           >
                             <div className="flex items-center justify-between w-full">
@@ -274,7 +274,7 @@ export function Header({ savedJobsCount }: HeaderProps) {
             <div className="hidden sm:flex items-center gap-2 ml-2">
               {userRole ? (
                 <>
-                  <Link href={userRole === 'EMPLOYER' ? '/dashboard/employer' : '/dashboard/employee'}>
+                  <Link href={userRole === 'ADMIN' ? '/admin' : userRole === 'EMPLOYER' ? '/dashboard/employer' : '/dashboard/employee'}>
                     <Button variant="ghost" className="text-muted-foreground flex items-center gap-2">
                       <UserIcon className="h-4 w-4" />
                       {t.header.profile}
@@ -341,7 +341,16 @@ export function Header({ savedJobsCount }: HeaderProps) {
                         </DropdownMenuItem>
                       )}
                       <DropdownMenuItem asChild>
-                        <Link href={userRole === 'EMPLOYER' ? '/dashboard/employer' : '/dashboard/employee'} className="w-full">
+                        <Link
+                          href={
+                            userRole === 'ADMIN'
+                             ? '/admin'
+                             : userRole === 'EMPLOYER'
+                             ? '/dashboard/employer'
+                             : '/dashboard/employee'
+                          }
+                          className="w-full"
+                        >
                           {t.header.profile}
                         </Link>
                       </DropdownMenuItem>
@@ -364,6 +373,7 @@ export function Header({ savedJobsCount }: HeaderProps) {
                 </DropdownMenuContent>
               </DropdownMenu>
             )}
+                    
           </div>
         </div>
       </div>

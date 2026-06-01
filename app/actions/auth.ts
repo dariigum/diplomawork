@@ -54,11 +54,6 @@ export async function loginAction(formData: FormData) {
 
   if (!identifier || !password) return { error: 'Missing credentials' };
 
-  if (identifier.toLowerCase() === 'admin@admin' && password === 'yaycat123') {
-    await setSession({ id: 'admin_user', role: 'ADMIN' as any, email: 'admin@admin' });
-    return { success: true, redirectTo: '/admin' };
-  }
-
   try {
     await dbConnect();
     const user = await User.findOne({
@@ -74,12 +69,14 @@ export async function loginAction(formData: FormData) {
     if (!isValid) return { error: 'Invalid credentials' };
 
     await setSession({ id: user.id, role: user.role, email: user.email });
+    return {
+      success: true,
+      redirectTo: user.role === 'ADMIN' ? '/admin' : '/',
+    };
   } catch (err: any) {
     console.error(err);
     return { error: 'Failed to authenticate' };
   }
-
-  return { success: true, redirectTo: '/' };
 }
 
 export async function logoutAction() {

@@ -11,6 +11,7 @@
     "backfill:embeddings": "tsx scripts/backfill-vacancy-embeddings.ts",
     "ingestion:demo": "tsx scripts/seed-ingestion-demo.ts",
     "seed:articles": "tsx scripts/seed-articles.ts",
+    "eval:recommendations": "tsx scripts/eval-recommendations.ts",
     "test": "vitest run",
     "test:watch": "vitest",
     "test:ui": "vitest --ui"

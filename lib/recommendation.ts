@@ -57,7 +57,12 @@ function emptyBehaviourProfile(): BehaviourProfileForScore {
   return { preferredSkills: [], preferredKeywords: [], preferredCategories: [] }
 }
 
-export async function getTopRecommendations(params: { userId: string; limit?: number }): Promise<RecommendationItem[]> {
+export async function getTopRecommendations(params: {
+  userId: string
+  limit?: number
+  /** Holdout vacancy ids omitted from behaviour profile (offline evaluation). */
+  excludeVacancyIdsFromBehaviour?: string[]
+}): Promise<RecommendationItem[]> {
   const limit = params.limit ?? 10
 
   await dbConnect()
@@ -106,7 +111,9 @@ export async function getTopRecommendations(params: { userId: string; limit?: nu
 
   let profile: BehaviourProfileForScore = emptyBehaviourProfile()
   try {
-    const built = await buildUserBehaviourProfile(params.userId)
+    const built = await buildUserBehaviourProfile(params.userId, {
+      excludeVacancyIds: params.excludeVacancyIdsFromBehaviour,
+    })
     profile = {
       preferredSkills: built.preferredSkills,
       preferredKeywords: built.preferredKeywords,

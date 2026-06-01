@@ -2,8 +2,23 @@ import { SignJWT, jwtVerify } from 'jose';
 import { cookies } from 'next/headers';
 import bcrypt from 'bcryptjs';
 
-const secretKey = process.env.SESSION_SECRET || 'diploma-secret-super-long-key-for-jwt';
-const key = new TextEncoder().encode(secretKey);
+function resolveSessionSecret(): string {
+  const secret = process.env.SESSION_SECRET?.trim()
+  if (process.env.NODE_ENV === 'production') {
+    if (!secret) {
+      // next build sets NODE_ENV=production; allow collect page data without crashing
+      if (process.env.NEXT_PHASE === 'phase-production-build') {
+        return 'build-phase-placeholder-not-for-runtime'
+      }
+      throw new Error('SESSION_SECRET environment variable is required in production')
+    }
+    return secret
+  }
+  return secret || 'diploma-secret-super-long-key-for-jwt'
+}
+
+const secretKey = resolveSessionSecret()
+const key = new TextEncoder().encode(secretKey)
 
 export async function encrypt(payload: any) {
   return await new SignJWT(payload)

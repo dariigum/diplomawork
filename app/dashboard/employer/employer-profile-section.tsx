@@ -7,6 +7,7 @@ import { Input } from '@/components/ui/input';
 import { Textarea } from '@/components/ui/textarea';
 import { updateEmployerProfileAction } from '@/app/actions/employer';
 import { useI18n } from '@/lib/i18n/provider';
+import { EmployerMatchingCandidates } from '@/components/dashboard/employer-matching-candidates';
 
 export type EmployerProfileProps = {
   companyName: string;
@@ -126,6 +127,10 @@ export function EmployerProfileSection({
           )}
         </CardContent>
       </Card>
+
+      <EmployerMatchingCandidates
+        vacancies={vacancies.map((v) => ({ id: v.id, title: v.title }))}
+      />
     </div>
   );
 }

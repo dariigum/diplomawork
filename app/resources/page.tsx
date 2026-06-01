@@ -16,6 +16,7 @@ export default async function ResourcesPage() {
   const rawArticles = await Article.find({}).sort({ createdAt: -1 }).lean()
   const articles = rawArticles.map((a: Record<string, unknown>) => {
     const external = parseSafeExternalUrl(a.sourceUrl)
+    const sourceSite = external ? new URL(external.href).hostname.replace(/^www\./i, "") : null
     return {
       id: String((a as { _id?: unknown })._id),
       title: typeof a.title === "string" ? a.title : "Untitled article",
@@ -26,6 +27,7 @@ export default async function ResourcesPage() {
       readTime: typeof a.readTime === "string" ? a.readTime : "",
       imageUrl: typeof a.imageUrl === "string" && a.imageUrl.trim() ? a.imageUrl : "/placeholder.svg",
       sourceUrl: external?.href ?? null,
+      sourceSite,
       createdAt: toIsoDateString(a.createdAt),
     }
   })

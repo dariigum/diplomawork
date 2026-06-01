@@ -1,0 +1,263 @@
+'use client'
+
+import { useState, useRef, useEffect } from 'react'
+import { Send, Sparkles, Bot, User, Loader2, AlertCircle, Trash2 } from 'lucide-react'
+import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/components/ui/card'
+import { Button } from '@/components/ui/button'
+import { useI18n } from '@/lib/i18n/provider'
+
+type Message = {
+  role: 'user' | 'model'
+  text: string
+}
+
+export function CareerChatbot() {
+  const { t } = useI18n()
+  const [messages, setMessages] = useState<Message[]>([])
+  const [input, setInput] = useState('')
+  const [loading, setLoading] = useState(false)
+  const [apiKeyError, setApiKeyError] = useState(false)
+  
+  const messagesEndRef = useRef<HTMLDivElement>(null)
+
+  const scrollToBottom = () => {
+    messagesEndRef.current?.scrollIntoView({ behavior: 'smooth' })
+  }
+
+  useEffect(() => {
+    scrollToBottom()
+  }, [messages, loading])
+
+  const handleSend = async (textToSend: string) => {
+    if (!textToSend.trim() || loading) return
+
+    const userMessage: Message = { role: 'user', text: textToSend }
+    const updatedMessages = [...messages, userMessage]
+    
+    setMessages(updatedMessages)
+    setInput('')
+    setLoading(true)
+    setApiKeyError(false)
+
+    try {
+      const res = await fetch('/api/chat-ai', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({
+          messages: updatedMessages,
+        }),
+      })
+
+      const data = await res.json()
+
+      if (data.error === 'missing_api_key') {
+        setApiKeyError(true)
+        setMessages((prev) => [
+          ...prev,
+          {
+            role: 'model',
+            text: data.text || t.skillImprovement.chatbotApiKeyWarning,
+          },
+        ])
+      } else if (!res.ok || data.error) {
+        const errorText = data.details
+          ? `${data.error}: ${data.details}`
+          : (data.error || 'Failed to generate response. Please try again.')
+        setMessages((prev) => [
+          ...prev,
+          {
+            role: 'model',
+            text: errorText,
+          },
+        ])
+      } else {
+        setMessages((prev) => [
+          ...prev,
+          {
+            role: 'model',
+            text: data.text,
+          },
+        ])
+      }
+    } catch (err) {
+      console.error(err)
+      setMessages((prev) => [
+        ...prev,
+        {
+          role: 'model',
+          text: 'An error occurred. Please check your network connection.',
+        },
+      ])
+    } finally {
+      setLoading(false)
+    }
+  }
+
+  const handleClear = () => {
+    setMessages([])
+    setApiKeyError(false)
+  }
+
+  // Quick suggestions depending on active language
+  const quickSuggestions = [
+    t.locale === 'ru' 
+      ? 'Как стать Frontend разработчиком?' 
+      : t.locale === 'kk' 
+      ? 'Frontend әзірлеушісі қалай болуға болады?' 
+      : 'How to become a Frontend developer?',
+    t.locale === 'ru'
+      ? 'Какие навыки нужны для DevOps?'
+      : t.locale === 'kk'
+      ? 'DevOps үшін қандай дағдылар қажет?'
+      : 'What skills are needed for DevOps?',
+    t.locale === 'ru'
+      ? 'Как вырасти от Junior до Senior?'
+      : t.locale === 'kk'
+      ? 'Junior-ден Senior-ге қалай өсуге болады?'
+      : 'How to grow from Junior to Senior?',
+  ]
+
+  return (
+    <Card className="flex flex-col h-full border-border/70 shadow-sm overflow-hidden bg-card">
+      <CardHeader className="p-4 border-b border-border/60 flex flex-row items-center justify-between">
+        <div className="space-y-0.5">
+          <CardTitle className="text-md font-bold flex items-center gap-1.5 text-foreground">
+            <Sparkles className="h-4 w-4 text-primary animate-pulse" />
+            {t.skillImprovement.chatbotTitle}
+          </CardTitle>
+          <CardDescription className="text-xs text-muted-foreground line-clamp-1">
+            {t.skillImprovement.chatbotSubtitle}
+          </CardDescription>
+        </div>
+        {messages.length > 0 && (
+          <Button
+            variant="ghost"
+            size="icon"
+            className="h-8 w-8 text-muted-foreground hover:text-destructive transition-colors"
+            onClick={handleClear}
+            title="Clear chat"
+          >
+            <Trash2 className="h-4 w-4" />
+          </Button>
+        )}
+      </CardHeader>
+      
+      <CardContent className="flex-1 overflow-y-auto p-4 space-y-4 min-h-[300px] flex flex-col">
+        {messages.length === 0 ? (
+          <div className="flex-1 flex flex-col items-center justify-center text-center p-4 space-y-4">
+            <div className="h-12 w-12 rounded-full bg-primary/10 flex items-center justify-center">
+              <Bot className="h-6 w-6 text-primary" />
+            </div>
+            <div className="max-w-[240px] space-y-1">
+              <p className="text-sm font-medium text-foreground">
+                {t.skillImprovement.chatbotTitle}
+              </p>
+              <p className="text-xs text-muted-foreground">
+                {t.skillImprovement.chatbotEmpty}
+              </p>
+            </div>
+            <div className="w-full max-w-xs space-y-2 pt-2">
+              {quickSuggestions.map((suggestion, idx) => (
+                <button
+                  key={idx}
+                  onClick={() => handleSend(suggestion)}
+                  className="w-full text-left text-xs bg-muted/50 hover:bg-muted text-muted-foreground hover:text-foreground rounded-lg p-2.5 transition-colors border border-border/40 font-medium"
+                >
+                  {suggestion}
+                </button>
+              ))}
+            </div>
+          </div>
+        ) : (
+          <div className="space-y-4 flex-1">
+            {messages.map((msg, index) => {
+              const isUser = msg.role === 'user'
+              return (
+                <div
+                  key={index}
+                  className={`flex items-start gap-2.5 ${isUser ? 'justify-end' : 'justify-start'}`}
+                >
+                  {!isUser && (
+                    <div className="h-7 w-7 rounded-full bg-primary/10 border border-primary/20 flex items-center justify-center shrink-0">
+                      <Bot className="h-4 w-4 text-primary" />
+                    </div>
+                  )}
+                  <div
+                    className={`rounded-2xl px-3.5 py-2.5 text-sm shadow-sm max-w-[85%] whitespace-pre-wrap ${
+                      isUser
+                        ? 'bg-primary text-primary-foreground rounded-tr-none'
+                        : 'bg-muted text-foreground border border-border/40 rounded-tl-none'
+                    }`}
+                  >
+                    {msg.text}
+                  </div>
+                  {isUser && (
+                    <div className="h-7 w-7 rounded-full bg-muted border border-border/60 flex items-center justify-center shrink-0">
+                      <User className="h-4 w-4 text-muted-foreground" />
+                    </div>
+                  )}
+                </div>
+              )
+            })}
+            
+            {loading && (
+              <div className="flex items-start gap-2.5 justify-start">
+                <div className="h-7 w-7 rounded-full bg-primary/10 border border-primary/20 flex items-center justify-center shrink-0">
+                  <Bot className="h-4 w-4 text-primary" />
+                </div>
+                <div className="bg-muted text-muted-foreground border border-border/40 rounded-2xl rounded-tl-none px-3.5 py-2.5 text-sm shadow-sm flex items-center gap-1.5">
+                  <Loader2 className="h-3.5 w-3.5 animate-spin" />
+                  <span>Thinking...</span>
+                </div>
+              </div>
+            )}
+            
+            {apiKeyError && (
+              <div className="rounded-lg bg-destructive/10 border border-destructive/20 p-3 text-xs text-destructive flex items-start gap-2">
+                <AlertCircle className="h-4 w-4 shrink-0 mt-0.5" />
+                <div>
+                  <span className="font-semibold block mb-0.5">Configuration Needed</span>
+                  Please check your <code>.env</code> file. Add the environment variable:
+                  <code className="block bg-destructive/20 rounded px-1.5 py-1 mt-1 font-mono text-[10px] select-all">
+                    GEMINI_API_KEY="your_api_key"
+                  </code>
+                </div>
+              </div>
+            )}
+            
+            <div ref={messagesEndRef} />
+          </div>
+        )}
+      </CardContent>
+      
+      <div className="p-3 border-t border-border/60 bg-muted/30">
+        <form
+          onSubmit={(e) => {
+            e.preventDefault()
+            handleSend(input)
+          }}
+          className="flex items-center gap-2"
+        >
+          <input
+            type="text"
+            value={input}
+            onChange={(e) => setInput(e.target.value)}
+            placeholder={t.skillImprovement.chatbotPlaceholder}
+            disabled={loading}
+            className="flex-1 bg-background border border-border/70 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-1 focus:ring-primary focus:border-primary disabled:opacity-50"
+          />
+          <Button
+            type="submit"
+            disabled={!input.trim() || loading}
+            size="icon"
+            className="h-9 w-9 shrink-0"
+          >
+            <Send className="h-4 w-4" />
+          </Button>
+        </form>
+      </div>
+    </Card>
+  )
+}

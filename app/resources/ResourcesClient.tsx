@@ -17,6 +17,7 @@ interface Article {
   readTime: string
   imageUrl: string
   sourceUrl: string | null
+  sourceSite: string | null
   createdAt: string | null
 }
 
@@ -49,6 +50,11 @@ function ArticleCard({ article }: { article: Article }) {
           {article.title}
         </h3>
         <p className="text-sm text-muted-foreground line-clamp-3 mb-4 flex-1">{article.summary}</p>
+        {article.sourceSite && (
+          <p className="text-xs text-muted-foreground mb-3">
+            {t.resources.source}: {article.sourceSite}
+          </p>
+        )}
         <div className="flex items-center justify-between text-xs text-muted-foreground font-medium mt-auto pt-4 border-t border-border">
           <div className="flex items-center gap-1.5">
             <Clock className="h-3.5 w-3.5" />

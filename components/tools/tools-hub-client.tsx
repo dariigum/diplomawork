@@ -15,6 +15,8 @@ import {
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
 import { Button } from "@/components/ui/button"
 import { useI18n } from "@/lib/i18n/provider"
+import { SkillImprovementInlineSection } from "@/components/tools/skill-improvement-inline-section"
+import { CareerChatbot } from "@/components/tools/career-chatbot"
 import type { ToolsHubEmployeeStats, ToolsHubEmployerStats } from "@/app/actions/tools-hub"
 
 type ToolsHubClientProps = {
@@ -131,50 +133,61 @@ export function ToolsHubClient({ role, employee, employer }: ToolsHubClientProps
     return (
       <>
         {pageHeader}
-        <div className="space-y-8">
-        <div className="grid gap-4 sm:grid-cols-3">
-          <Card>
-            <CardContent className="p-5">
-              <p className="text-sm text-muted-foreground">{t.tools.savedVacancies}</p>
-              <p className="mt-1 text-3xl font-bold text-foreground">{employee.savedVacancies}</p>
-            </CardContent>
-          </Card>
-          <Card>
-            <CardContent className="p-5">
-              <p className="text-sm text-muted-foreground">{t.tools.applications}</p>
-              <p className="mt-1 text-3xl font-bold text-foreground">{employee.applications}</p>
-            </CardContent>
-          </Card>
-          <Card>
-            <CardContent className="p-5">
-              <p className="text-sm text-muted-foreground">{t.tools.resumes}</p>
-              <p className="mt-1 text-3xl font-bold text-foreground">{employee.resumes}</p>
-            </CardContent>
-          </Card>
-        </div>
+        <div className="grid grid-cols-1 lg:grid-cols-12 gap-8 items-start">
+          {/* Left column: AI Chatbot */}
+          <div className="lg:col-span-4 lg:sticky lg:top-8 h-[800px] flex flex-col">
+            <CareerChatbot />
+          </div>
 
-        <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-3">
-          <ActionCard href="/" title={t.tools.browseVacancies} description={t.tools.browseVacanciesDesc} openLabel={t.tools.open} icon={Briefcase} />
-          <ActionCard href="/dashboard/employee/recommendations" title={t.tools.aiMatches} description={t.tools.aiMatchesDesc} openLabel={t.tools.open} icon={Sparkles} />
-          <ActionCard href="/dashboard/employee" title={t.tools.myDashboard} description={t.tools.myDashboardDesc} openLabel={t.tools.open} icon={FileText} />
-          <ActionCard href="/resources" title={t.header.resources} description={t.tools.resourcesDesc} openLabel={t.tools.open} icon={FileText} />
-          <ActionCard href="/companies" title={t.header.companies} description={t.tools.companiesDesc} openLabel={t.tools.open} icon={Building2} />
-        </div>
+          {/* Right column: Main tools */}
+          <div className="lg:col-span-8 space-y-8">
+            <div className="grid gap-4 sm:grid-cols-3">
+              <Card>
+                <CardContent className="p-5">
+                  <p className="text-sm text-muted-foreground">{t.tools.savedVacancies}</p>
+                  <p className="mt-1 text-3xl font-bold text-foreground">{employee.savedVacancies}</p>
+                </CardContent>
+              </Card>
+              <Card>
+                <CardContent className="p-5">
+                  <p className="text-sm text-muted-foreground">{t.tools.applications}</p>
+                  <p className="mt-1 text-3xl font-bold text-foreground">{employee.applications}</p>
+                </CardContent>
+              </Card>
+              <Card>
+                <CardContent className="p-5">
+                  <p className="text-sm text-muted-foreground">{t.tools.resumes}</p>
+                  <p className="mt-1 text-3xl font-bold text-foreground">{employee.resumes}</p>
+                </CardContent>
+              </Card>
+            </div>
 
-        <Card className="border-primary/20 bg-primary/[0.03]">
-          <CardHeader>
-            <CardTitle className="text-lg">{t.tools.jobSeekerChecklist}</CardTitle>
-          </CardHeader>
-          <CardContent>
-            <ul className="grid gap-2 sm:grid-cols-2 text-sm text-muted-foreground">
-              <li className="flex items-start gap-2"><Heart className="mt-0.5 h-4 w-4 shrink-0 text-primary" />{t.tools.checklistSeeker1}</li>
-              <li className="flex items-start gap-2"><Heart className="mt-0.5 h-4 w-4 shrink-0 text-primary" />{t.tools.checklistSeeker2}</li>
-              <li className="flex items-start gap-2"><Heart className="mt-0.5 h-4 w-4 shrink-0 text-primary" />{t.tools.checklistSeeker3}</li>
-              <li className="flex items-start gap-2"><Heart className="mt-0.5 h-4 w-4 shrink-0 text-primary" />{t.tools.checklistSeeker4}</li>
-            </ul>
-          </CardContent>
-        </Card>
-      </div>
+            <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-3">
+              <ActionCard href="/" title={t.tools.browseVacancies} description={t.tools.browseVacanciesDesc} openLabel={t.tools.open} icon={Briefcase} />
+              <ActionCard href="/dashboard/employee/recommendations" title={t.tools.aiMatches} description={t.tools.aiMatchesDesc} openLabel={t.tools.open} icon={Sparkles} />
+              <ActionCard href="/tools/skill-improvement" title={t.skillImprovement.title} description={t.skillImprovement.subtitle} openLabel={t.tools.open} icon={Sparkles} />
+              <ActionCard href="/dashboard/employee" title={t.tools.myDashboard} description={t.tools.myDashboardDesc} openLabel={t.tools.open} icon={FileText} />
+              <ActionCard href="/resources" title={t.header.resources} description={t.tools.resourcesDesc} openLabel={t.tools.open} icon={FileText} />
+              <ActionCard href="/companies" title={t.header.companies} description={t.tools.companiesDesc} openLabel={t.tools.open} icon={Building2} />
+            </div>
+
+            <Card className="border-primary/20 bg-primary/[0.03]">
+              <CardHeader>
+                <CardTitle className="text-lg">{t.tools.jobSeekerChecklist}</CardTitle>
+              </CardHeader>
+              <CardContent>
+                <ul className="grid gap-2 sm:grid-cols-2 text-sm text-muted-foreground">
+                  <li className="flex items-start gap-2"><Heart className="mt-0.5 h-4 w-4 shrink-0 text-primary" />{t.tools.checklistSeeker1}</li>
+                  <li className="flex items-start gap-2"><Heart className="mt-0.5 h-4 w-4 shrink-0 text-primary" />{t.tools.checklistSeeker2}</li>
+                  <li className="flex items-start gap-2"><Heart className="mt-0.5 h-4 w-4 shrink-0 text-primary" />{t.tools.checklistSeeker3}</li>
+                  <li className="flex items-start gap-2"><Heart className="mt-0.5 h-4 w-4 shrink-0 text-primary" />{t.tools.checklistSeeker4}</li>
+                </ul>
+              </CardContent>
+            </Card>
+
+            <SkillImprovementInlineSection />
+          </div>
+        </div>
       </>
     )
   }

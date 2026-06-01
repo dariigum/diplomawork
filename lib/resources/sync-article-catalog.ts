@@ -13,11 +13,14 @@ export async function syncArticleCatalog(): Promise<{ synced: number; removed: n
   let synced = 0
 
   for (const entry of ARTICLE_CATALOG) {
-    let metadata
+    let metadata: Awaited<ReturnType<typeof resolveArticleMetadata>>
     try {
       metadata = await resolveArticleMetadata(entry.sourceUrl, entry.language)
-    } catch (err) {
-      console.warn(`[ArticleSync] Skipping ${entry.sourceUrl}:`, err)
+    } catch (error) {
+      console.warn(
+        `[resources] Failed to resolve metadata for ${entry.sourceUrl}. Skipping this entry.`,
+        error,
+      )
       continue
     }
 

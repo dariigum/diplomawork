@@ -15,8 +15,10 @@ import {
 import { Badge } from '@/components/ui/badge';
 import { Search, Loader2, ChevronLeft, ChevronRight } from 'lucide-react';
 import { format } from 'date-fns';
+import { useI18n } from '@/lib/i18n/provider';
 
 export default function AdminUsersPage() {
+  const { t, locale } = useI18n();
   const [users, setUsers] = useState<any[]>([]);
   const [isLoading, setIsLoading] = useState(true);
   const [search, setSearch] = useState('');
@@ -54,17 +56,17 @@ export default function AdminUsersPage() {
   return (
     <div className="flex flex-col gap-6">
       <div>
-        <h1 className="text-3xl font-bold tracking-tight">User Management</h1>
-        <p className="text-muted-foreground">View and manage all registered users.</p>
+        <h1 className="text-3xl font-bold tracking-tight">{t.admin.users.title}</h1>
+        <p className="text-muted-foreground">{t.admin.users.subtitle}</p>
       </div>
 
       <Card>
         <CardHeader>
           <div className="flex items-center justify-between">
-            <CardTitle>Users List</CardTitle>
+            <CardTitle>{t.admin.users.listTitle}</CardTitle>
             <div className="flex w-full max-w-sm items-center space-x-2">
               <Input 
-                placeholder="Search by name or email..." 
+                placeholder={t.admin.users.searchPlaceholder} 
                 value={search}
                 onChange={(e) => { setSearch(e.target.value); setPage(1); }}
               />
@@ -79,11 +81,11 @@ export default function AdminUsersPage() {
             <Table>
               <TableHeader>
                 <TableRow>
-                  <TableHead>Name</TableHead>
-                  <TableHead>Email</TableHead>
-                  <TableHead>Role</TableHead>
-                  <TableHead>Registered</TableHead>
-                  <TableHead>Activity</TableHead>
+                  <TableHead>{t.admin.users.colName}</TableHead>
+                  <TableHead>{t.admin.users.colEmail}</TableHead>
+                  <TableHead>{t.admin.users.colRole}</TableHead>
+                  <TableHead>{t.admin.users.colRegistered}</TableHead>
+                  <TableHead>{t.admin.users.colActivity}</TableHead>
                 </TableRow>
               </TableHeader>
               <TableBody>
@@ -96,7 +98,7 @@ export default function AdminUsersPage() {
                 ) : users.length === 0 ? (
                   <TableRow>
                     <TableCell colSpan={5} className="h-24 text-center text-muted-foreground">
-                      No users found.
+                      {t.admin.users.noUsers}
                     </TableCell>
                   </TableRow>
                 ) : (
@@ -114,9 +116,9 @@ export default function AdminUsersPage() {
                       </TableCell>
                       <TableCell>
                         {user.role === 'EMPLOYEE' ? (
-                          <span className="text-xs text-muted-foreground">{user.applicationsCount} apps</span>
+                          <span className="text-xs text-muted-foreground">{user.applicationsCount} {t.admin.users.apps}</span>
                         ) : user.role === 'EMPLOYER' ? (
-                          <span className="text-xs text-muted-foreground">{user.vacanciesCount} jobs</span>
+                          <span className="text-xs text-muted-foreground">{user.vacanciesCount} {t.admin.users.jobs}</span>
                         ) : (
                           <span className="text-xs text-muted-foreground">-</span>
                         )}
@@ -130,7 +132,11 @@ export default function AdminUsersPage() {
         </CardContent>
         <CardFooter className="flex items-center justify-between">
           <div className="text-sm text-muted-foreground">
-            Page {page} of {totalPages === 0 ? 1 : totalPages}
+            {locale === 'ru' 
+              ? `Страница ${page} из ${totalPages === 0 ? 1 : totalPages}` 
+              : locale === 'kk' 
+              ? `Парақ ${page} / ${totalPages === 0 ? 1 : totalPages}` 
+              : `Page ${page} of ${totalPages === 0 ? 1 : totalPages}`}
           </div>
           <div className="space-x-2">
             <Button
@@ -140,7 +146,7 @@ export default function AdminUsersPage() {
               disabled={page <= 1}
             >
               <ChevronLeft className="h-4 w-4 mr-2" />
-              Previous
+              {t.admin.users.previous}
             </Button>
             <Button
               variant="outline"
@@ -148,7 +154,7 @@ export default function AdminUsersPage() {
               onClick={() => setPage((p) => Math.min(totalPages, p + 1))}
               disabled={page >= totalPages}
             >
-              Next
+              {t.admin.users.next}
               <ChevronRight className="h-4 w-4 ml-2" />
             </Button>
           </div>

@@ -338,6 +338,13 @@ export const dictionaries = {
       matchLoading: 'Finding matching candidates...',
       matchNoCandidates: 'No matching candidates with active AI resumes and embeddings yet.',
       matchLoadError: 'Could not load matching candidates',
+      matchErrorUnauthorized: 'Please sign in to view recommended candidates.',
+      matchErrorForbidden: 'You do not have permission to view recommended candidates.',
+      matchErrorVacancyNotFound: 'Vacancy not found.',
+      matchErrorInvalidVacancy: 'Invalid vacancy selected.',
+      matchErrorVacancyEmbedding:
+        'Vacancy embedding is not available. Save the vacancy again to generate embeddings.',
+      matchErrorInvalidRequest: 'Invalid request. Please try again.',
       matchFitStrong: 'Strong Fit',
       matchFitRelated: 'Related',
       matchFitExploratory: 'Exploratory',
@@ -383,6 +390,8 @@ export const dictionaries = {
       rankingSummaryStrongFit: 'Strong Fit',
       rankingSummaryRelated: 'Related',
       rankingSummaryExploratory: 'Exploratory',
+      rankedApplicantsLimitedNote: 'Showing top {shown} of {total} applicants',
+      aiAnalysisStatsScopeNote: 'Fit statistics are based on displayed ranked applicants.',
       selectApplicantToStartChat: 'Select an applicant to start chatting.',
     },
     forms: {
@@ -766,6 +775,13 @@ export const dictionaries = {
       matchLoading: 'Подбор кандидатов...',
       matchNoCandidates: 'Пока нет кандидатов с активным AI-резюме и эмбеддингами.',
       matchLoadError: 'Не удалось загрузить кандидатов',
+      matchErrorUnauthorized: 'Войдите в систему, чтобы видеть рекомендуемых кандидатов.',
+      matchErrorForbidden: 'Нет доступа к рекомендуемым кандидатам.',
+      matchErrorVacancyNotFound: 'Вакансия не найдена.',
+      matchErrorInvalidVacancy: 'Выбрана некорректная вакансия.',
+      matchErrorVacancyEmbedding:
+        'Embedding вакансии недоступен. Сохраните вакансию снова, чтобы сгенерировать embedding.',
+      matchErrorInvalidRequest: 'Некорректный запрос. Попробуйте снова.',
       matchFitStrong: 'Отличное соответствие',
       matchFitRelated: 'Хорошее соответствие',
       matchFitExploratory: 'Исследовательское',
@@ -811,6 +827,9 @@ export const dictionaries = {
       rankingSummaryStrongFit: 'Отличное соответствие',
       rankingSummaryRelated: 'Хорошее соответствие',
       rankingSummaryExploratory: 'Исследовательское',
+      rankedApplicantsLimitedNote: 'Показаны топ-{shown} из {total} откликов',
+      aiAnalysisStatsScopeNote:
+        'Статистика соответствия рассчитана по отображаемым ранжированным кандидатам.',
       selectApplicantToStartChat: 'Выберите кандидата для начала общения.',
     },
     forms: {
@@ -1194,6 +1213,13 @@ export const dictionaries = {
       matchLoading: 'Сәйкес үміткерлер ізделуде...',
       matchNoCandidates: 'Белсенді AI түйіндемесі және эмбеддингі бар үміткерлер әлі жоқ.',
       matchLoadError: 'Үміткерлерді жүктеу сәтсіз аяқталды',
+      matchErrorUnauthorized: 'Ұсынылатын үміткерлерді көру үшін жүйеге кіріңіз.',
+      matchErrorForbidden: 'Ұсынылатын үміткерлерді көруге рұқсат жоқ.',
+      matchErrorVacancyNotFound: 'Вакансия табылмады.',
+      matchErrorInvalidVacancy: 'Жарамсыз вакансия таңдалды.',
+      matchErrorVacancyEmbedding:
+        'Вакансия embedding қолжетімсіз. Embedding жасау үшін вакансияны қайта сақтаңыз.',
+      matchErrorInvalidRequest: 'Жарамсыз сұрау. Қайта көріңіз.',
       matchFitStrong: 'Жақсы сәйкестік',
       matchFitRelated: 'Жеткілікті сәйкестік',
       matchFitExploratory: 'Зерттеулік',
@@ -1239,6 +1265,9 @@ export const dictionaries = {
       rankingSummaryStrongFit: 'Жақсы сәйкестік',
       rankingSummaryRelated: 'Жеткілікті сәйкестік',
       rankingSummaryExploratory: 'Зерттеулік',
+      rankedApplicantsLimitedNote: 'Жалпы {total} өтініштің үздік {shown} көрсетілген',
+      aiAnalysisStatsScopeNote:
+        'Сәйкестік статистикасы көрсетілген рейтингтелген үміткерлер бойынша есептелген.',
       selectApplicantToStartChat: 'Хабарласуды бастау үшін кандидатты таңдаңыз.',
     },
     forms: {

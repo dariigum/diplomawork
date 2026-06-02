@@ -17,93 +17,13 @@ import { MessageBubble, type ChatMessageDTO } from '@/components/chat/message-bu
 import { MessageInput } from '@/components/chat/message-input';
 import { TypingIndicator } from '@/components/chat/typing-indicator';
 import { cn } from '@/lib/utils';
+import { formatSkillDisplayName } from '@/lib/format-skill-display-name';
 import { useI18n } from '@/lib/i18n/provider';
 import type { Dictionary } from '@/lib/i18n/dictionaries';
 
 const MAX_MATCHING_SKILLS = 5;
-
-/** UI-only display names; does not change overlap or API data. */
-const SKILL_DISPLAY_MAP: Record<string, string> = {
-  typescript: 'TypeScript',
-  ts: 'TypeScript',
-  javascript: 'JavaScript',
-  js: 'JavaScript',
-  html: 'HTML',
-  css: 'CSS',
-  'node.js': 'Node.js',
-  nodejs: 'Node.js',
-  node: 'Node.js',
-  'next.js': 'Next.js',
-  nextjs: 'Next.js',
-  react: 'React',
-  reactjs: 'React',
-  mongodb: 'MongoDB',
-  mongo: 'MongoDB',
-  vue: 'Vue.js',
-  vuejs: 'Vue.js',
-  angular: 'Angular',
-  python: 'Python',
-  java: 'Java',
-  kotlin: 'Kotlin',
-  swift: 'Swift',
-  golang: 'Go',
-  go: 'Go',
-  rust: 'Rust',
-  php: 'PHP',
-  ruby: 'Ruby',
-  docker: 'Docker',
-  kubernetes: 'Kubernetes',
-  k8s: 'Kubernetes',
-  aws: 'AWS',
-  azure: 'Azure',
-  gcp: 'GCP',
-  graphql: 'GraphQL',
-  postgresql: 'PostgreSQL',
-  postgres: 'PostgreSQL',
-  mysql: 'MySQL',
-  redis: 'Redis',
-  tensorflow: 'TensorFlow',
-  pytorch: 'PyTorch',
-  figma: 'Figma',
-  tailwind: 'Tailwind CSS',
-  tailwindcss: 'Tailwind CSS',
-  express: 'Express.js',
-  'express.js': 'Express.js',
-  nestjs: 'NestJS',
-  'c#': 'C#',
-  csharp: 'C#',
-  'c++': 'C++',
-  cpp: 'C++',
-};
-
-function skillLookupKeys(raw: string): string[] {
-  const trimmed = raw.trim();
-  const lower = trimmed.toLowerCase();
-  const compact = lower.replace(/\s+/g, '');
-  const dotted = lower.replace(/\s+/g, '.');
-  return [lower, compact, dotted];
-}
-
-function toTitleCaseSkill(raw: string): string {
-  return raw
-    .split(/([\s,/|]+)/)
-    .map((part) => {
-      if (!part || /^[\s,/|]+$/.test(part)) return part;
-      if (part.length <= 4 && part === part.toUpperCase()) return part;
-      return part.charAt(0).toUpperCase() + part.slice(1).toLowerCase();
-    })
-    .join('');
-}
-
-function formatSkillDisplayName(raw: string): string {
-  const trimmed = raw.trim();
-  if (!trimmed) return trimmed;
-  for (const key of skillLookupKeys(trimmed)) {
-    const mapped = SKILL_DISPLAY_MAP[key];
-    if (mapped) return mapped;
-  }
-  return toTitleCaseSkill(trimmed);
-}
+/** Max candidates requested from ranked-applicants (API allows up to 80; default server limit is 20). */
+const RANKED_FETCH_LIMIT = 80;
 
 type ApplicantFitLevel = 'Strong Fit' | 'Related' | 'Exploratory';
 
@@ -192,7 +112,10 @@ export function EmployerChatView({ currentUserId }: { currentUserId: string }) {
     setRankedApplicantsTotal(null);
     try {
       // Prefer AI-ranked applicants (falls back to plain applicants on errors).
-      const rankedRes = await fetch(`/api/employer/vacancies/${vid}/ranked-applicants`, { credentials: 'include' });
+      const rankedRes = await fetch(
+        `/api/employer/vacancies/${vid}/ranked-applicants?limit=${RANKED_FETCH_LIMIT}`,
+        { credentials: 'include' },
+      );
       if (rankedRes.ok) {
         const data = await rankedRes.json();
         const rows = Array.isArray(data.candidates) ? data.candidates : [];
@@ -383,7 +306,6 @@ export function EmployerChatView({ currentUserId }: { currentUserId: string }) {
     }
     if (strongFit + related + exploratory === 0) return null;
     return {
-      total: applicants.length,
       strongFit,
       related,
       exploratory,
@@ -394,6 +316,9 @@ export function EmployerChatView({ currentUserId }: { currentUserId: string }) {
     rankedApplicantsTotal ??
     (vacancyId ? vacancies.find((x) => x.id === vacancyId)?.applicantCount : undefined) ??
     applicants.length;
+
+  const showRankedListCapNote =
+    !rankError && applicants.length > 0 && applicants.length < applicantsTotalForHeader;
 
   const colVacancies = (
     <div className="flex h-full min-w-0 min-h-0 flex-col rounded-xl border border-border/60 bg-card/40">
@@ -474,6 +399,13 @@ export function EmployerChatView({ currentUserId }: { currentUserId: string }) {
                 <p className="mt-1 text-[11px] leading-relaxed text-muted-foreground">
                   {rankError ? rankError : t.chat.aiRankedExplanation}
                 </p>
+                {showRankedListCapNote ? (
+                  <p className="mt-1 text-[11px] leading-relaxed text-muted-foreground/90">
+                    {t.chat.rankedApplicantsLimitedNote
+                      .replace('{shown}', String(applicants.length))
+                      .replace('{total}', String(applicantsTotalForHeader))}
+                  </p>
+                ) : null}
                 {rankingSummary ? (
                   <div className="mt-2.5 space-y-2 border-t border-border/50 pt-2.5">
                     <div className="flex items-start gap-2">
@@ -499,7 +431,7 @@ export function EmployerChatView({ currentUserId }: { currentUserId: string }) {
                     </div>
                     <div>
                       <Badge variant="secondary" className="text-[10px] font-medium">
-                        {t.chat.rankingSummaryApplicants}: {rankingSummary.total}
+                        {t.chat.rankingSummaryApplicants}: {applicantsTotalForHeader}
                       </Badge>
                     </div>
                     <div className="flex flex-wrap gap-1.5">
@@ -522,6 +454,11 @@ export function EmployerChatView({ currentUserId }: { currentUserId: string }) {
                         {t.chat.rankingSummaryExploratory}: {rankingSummary.exploratory}
                       </Badge>
                     </div>
+                    {showRankedListCapNote ? (
+                      <p className="text-[10px] leading-relaxed text-muted-foreground/90">
+                        {t.chat.aiAnalysisStatsScopeNote}
+                      </p>
+                    ) : null}
                   </div>
                 ) : null}
               </div>

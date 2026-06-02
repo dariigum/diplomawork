@@ -27,10 +27,11 @@ export default async function CompaniesPage() {
       return {
         id: emp._id.toString(),
         name: formatEmployerName(emp),
-        industry: emp.industry || "Technology",
+        // Keep public company listing honest: do not fabricate defaults.
+        industry: emp.industry || "",
         description: emp.description || "",
         location: emp.location || "",
-        employees: emp.employees || "50-200",
+        employees: emp.employees || "",
         openJobs,
         logoUrl: emp.logoUrl || null,
       }

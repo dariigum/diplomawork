@@ -10,6 +10,7 @@ import { useI18n } from '@/lib/i18n/provider';
 import { EmployerMatchingCandidates } from '@/components/dashboard/employer-matching-candidates';
 
 export type EmployerProfileProps = {
+  companyId: string;
   companyName: string;
   location: string;
   website: string;
@@ -19,6 +20,7 @@ export type EmployerProfileProps = {
 };
 
 export function EmployerProfileSection({
+  companyId,
   companyName,
   location,
   website,
@@ -31,8 +33,11 @@ export function EmployerProfileSection({
   return (
     <div className="grid grid-cols-1 gap-8 md:grid-cols-2">
       <Card className="rounded-xl shadow-sm">
-        <CardHeader>
+        <CardHeader className="flex flex-row items-center justify-between gap-3">
           <CardTitle>{t.dashboard.companyProfile}</CardTitle>
+          <Button size="sm" variant="outline" asChild>
+            <Link href={`/companies/${companyId}`}>{t.dashboard.viewPublicCompanyProfile}</Link>
+          </Button>
         </CardHeader>
         <CardContent>
           <form action={updateEmployerProfileAction} className="space-y-4">

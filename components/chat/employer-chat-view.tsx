@@ -4,12 +4,13 @@ import * as React from 'react';
 import { useCallback, useEffect, useRef, useState } from 'react';
 import Link from 'next/link';
 import { format } from 'date-fns';
-import { ArrowLeft, FileText } from 'lucide-react';
+import { ArrowLeft, FileText, HelpCircle, MessageSquareText } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
 import { Card } from '@/components/ui/card';
 import { ScrollArea } from '@/components/ui/scroll-area';
 import { Skeleton } from '@/components/ui/skeleton';
+import { Tooltip, TooltipContent, TooltipTrigger } from '@/components/ui/tooltip';
 import { useIsMobile } from '@/hooks/use-mobile';
 import { useChatSocket } from '@/hooks/use-chat-socket';
 import { MessageBubble, type ChatMessageDTO } from '@/components/chat/message-bubble';
@@ -159,6 +160,7 @@ export function EmployerChatView({ currentUserId }: { currentUserId: string }) {
   const [applicants, setApplicants] = useState<ApplicantRow[]>([]);
   const [loadingApp, setLoadingApp] = useState(false);
   const [rankError, setRankError] = useState<string | null>(null);
+  const [rankedApplicantsTotal, setRankedApplicantsTotal] = useState<number | null>(null);
 
   const [selectedChatId, setSelectedChatId] = useState<string | null>(null);
   const [activeApplicant, setActiveApplicant] = useState<ApplicantRow | null>(null);
@@ -187,12 +189,15 @@ export function EmployerChatView({ currentUserId }: { currentUserId: string }) {
   const loadApplicants = useCallback(async (vid: string) => {
     setLoadingApp(true);
     setRankError(null);
+    setRankedApplicantsTotal(null);
     try {
       // Prefer AI-ranked applicants (falls back to plain applicants on errors).
       const rankedRes = await fetch(`/api/employer/vacancies/${vid}/ranked-applicants`, { credentials: 'include' });
       if (rankedRes.ok) {
         const data = await rankedRes.json();
         const rows = Array.isArray(data.candidates) ? data.candidates : [];
+        const total = Number(data?.vacancy?.applicantsTotal ?? rows.length);
+        setRankedApplicantsTotal(Number.isFinite(total) ? total : rows.length);
         setApplicants(
           rows.map((c: any) => ({
             applicationId: String(c.applicationId ?? ''),
@@ -230,14 +235,15 @@ export function EmployerChatView({ currentUserId }: { currentUserId: string }) {
       const fallback = await fetch(`/api/employer/vacancies/${vid}/applicants`, { credentials: 'include' });
       const data = await fallback.json();
       setApplicants(data.applicants || []);
-      setRankError('AI ranking is unavailable for this vacancy.')
+      setRankError(t.chat.rankErrorUnavailable)
     } finally {
       setLoadingApp(false);
     }
-  }, []);
+  }, [t]);
 
   const pickVacancy = (vid: string) => {
     setVacancyId(vid);
+    setRankedApplicantsTotal(null);
     void loadApplicants(vid);
     if (isMobile) setStep(1);
   };
@@ -384,6 +390,11 @@ export function EmployerChatView({ currentUserId }: { currentUserId: string }) {
     };
   }, [applicants, rankError]);
 
+  const applicantsTotalForHeader =
+    rankedApplicantsTotal ??
+    (vacancyId ? vacancies.find((x) => x.id === vacancyId)?.applicantCount : undefined) ??
+    applicants.length;
+
   const colVacancies = (
     <div className="flex h-full min-w-0 min-h-0 flex-col rounded-xl border border-border/60 bg-card/40">
       <div className="border-b border-border/60 px-3 py-2 text-sm font-medium">{t.chat.vacancies}</div>
@@ -454,17 +465,38 @@ export function EmployerChatView({ currentUserId }: { currentUserId: string }) {
                 <p className="text-xs font-semibold leading-snug text-foreground">
                   {t.chat.aiRankedApplicants}{' '}
                   <span className="font-medium text-muted-foreground">
-                    {t.chat.aiRankedApplicantsCount.replace('{count}', String(applicants.length))}
+                    {t.chat.aiRankedApplicantsCount.replace('{count}', String(applicantsTotalForHeader))}
                   </span>
+                </p>
+                <p className="mt-1 text-[11px] leading-relaxed text-muted-foreground">
+                  {t.chat.rankedApplicantsDescription}
                 </p>
                 <p className="mt-1 text-[11px] leading-relaxed text-muted-foreground">
                   {rankError ? rankError : t.chat.aiRankedExplanation}
                 </p>
                 {rankingSummary ? (
                   <div className="mt-2.5 space-y-2 border-t border-border/50 pt-2.5">
-                    <p className="text-[11px] font-semibold tracking-tight text-foreground">
-                      {t.chat.aiAnalysis}
-                    </p>
+                    <div className="flex items-start gap-2">
+                      <p className="text-[11px] font-semibold tracking-tight text-foreground">{t.chat.aiAnalysis}</p>
+                      <Tooltip>
+                        <TooltipTrigger asChild>
+                          <HelpCircle className="mt-0.5 h-4 w-4 text-muted-foreground" />
+                        </TooltipTrigger>
+                        <TooltipContent>
+                          <div className="space-y-1">
+                            <p>
+                              {t.dashboard.matchFitStrong}: 80–100%
+                            </p>
+                            <p>
+                              {t.dashboard.matchFitRelated}: 60–79%
+                            </p>
+                            <p>
+                              {t.dashboard.matchFitExploratory}: 0–59%
+                            </p>
+                          </div>
+                        </TooltipContent>
+                      </Tooltip>
+                    </div>
                     <div>
                       <Badge variant="secondary" className="text-[10px] font-medium">
                         {t.chat.rankingSummaryApplicants}: {rankingSummary.total}
@@ -535,7 +567,14 @@ export function EmployerChatView({ currentUserId }: { currentUserId: string }) {
                           {fitLevelLabel(fitLevel, t)}
                         </Badge>
                       </div>
-                    ) : null}
+                    ) : (
+                      <div className="mb-2.5 rounded-md border border-border/30 bg-muted/25 px-2.5 py-2">
+                        <p className="text-[11px] font-medium text-muted-foreground">{t.chat.notRanked}</p>
+                        <p className="mt-0.5 text-[11px] text-muted-foreground/90">
+                          {t.chat.resumeEmbeddingUnavailable}
+                        </p>
+                      </div>
+                    )}
 
                     {matchingSkills.length > 0 ? (
                       <div className="mb-2">
@@ -608,35 +647,44 @@ export function EmployerChatView({ currentUserId }: { currentUserId: string }) {
       ) : null}
 
       <div ref={scrollRef} className="min-h-0 flex-1 overflow-y-auto overscroll-contain px-3 py-3">
-        {selectedChatId && hasMore && oldestId ? (
-          <div className="mb-3 flex justify-center">
-            <Button
-              type="button"
-              variant="outline"
-              size="sm"
-              onClick={() => selectedChatId && void loadMessages(selectedChatId, oldestId)}
-            >
-              {t.chat.loadOlder}
-            </Button>
+        {selectedChatId && activeApplicant ? (
+          <>
+            {hasMore && oldestId ? (
+              <div className="mb-3 flex justify-center">
+                <Button
+                  type="button"
+                  variant="outline"
+                  size="sm"
+                  onClick={() => selectedChatId && void loadMessages(selectedChatId, oldestId)}
+                >
+                  {t.chat.loadOlder}
+                </Button>
+              </div>
+            ) : null}
+            <div className="flex flex-col gap-3">
+              {messages.map((m, idx) => {
+                const prev = messages[idx - 1];
+                const showAvatar = !prev || prev.senderId !== m.senderId;
+                return (
+                  <MessageBubble
+                    key={m.id}
+                    message={m}
+                    isSelf={m.senderId === currentUserId}
+                    showAvatar={showAvatar}
+                    peerName={peerName}
+                    peerImage={peerImage}
+                  />
+                );
+              })}
+            </div>
+            <TypingIndicator visible={typing} label={t.chat.applicantIsTyping} />
+          </>
+        ) : (
+          <div className="flex h-full flex-col items-center justify-center gap-3 text-center">
+            <MessageSquareText className="h-5 w-5 text-muted-foreground" />
+            <p className="text-sm text-muted-foreground">{t.chat.selectApplicantToStartChat}</p>
           </div>
-        ) : null}
-        <div className="flex flex-col gap-3">
-          {messages.map((m, idx) => {
-            const prev = messages[idx - 1];
-            const showAvatar = !prev || prev.senderId !== m.senderId;
-            return (
-              <MessageBubble
-                key={m.id}
-                message={m}
-                isSelf={m.senderId === currentUserId}
-                showAvatar={showAvatar}
-                peerName={peerName}
-                peerImage={peerImage}
-              />
-            );
-          })}
-        </div>
-        <TypingIndicator visible={typing} label={t.chat.applicantIsTyping} />
+        )}
       </div>
 
       <MessageInput

@@ -100,7 +100,12 @@ export function EmployerMatchingCandidates({ vacancies }: EmployerMatchingCandid
           <Sparkles className="h-5 w-5 text-primary" />
           {t.dashboard.topMatchingCandidates}
         </CardTitle>
-        <p className="text-sm text-muted-foreground">{t.dashboard.topMatchingCandidatesHint}</p>
+        <p className="text-xs leading-relaxed text-muted-foreground">
+          {t.dashboard.recommendedCandidatesDescription}
+        </p>
+        <p className="text-[11px] leading-relaxed text-muted-foreground">
+          {t.dashboard.topMatchingCandidatesHint}
+        </p>
       </CardHeader>
       <CardContent className="space-y-4">
         <div className="flex flex-col gap-2 sm:flex-row sm:items-center">

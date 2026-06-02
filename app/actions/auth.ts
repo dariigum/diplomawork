@@ -71,7 +71,12 @@ export async function loginAction(formData: FormData) {
     await setSession({ id: user.id, role: user.role, email: user.email });
     return {
       success: true,
-      redirectTo: user.role === 'ADMIN' ? '/admin' : '/',
+      redirectTo:
+        user.role === 'ADMIN'
+          ? '/admin'
+          : user.role === 'EMPLOYER'
+            ? '/dashboard/employer'
+            : '/',
     };
   } catch (err: any) {
     console.error(err);
@@ -162,5 +167,5 @@ export async function completeGoogleSignupAction(formData: FormData) {
     return { error: 'Ошибка при завершении регистрации.' };
   }
 
-  return { success: true, redirectTo: '/' };
+  return { success: true, redirectTo: role === 'EMPLOYER' ? '/dashboard/employer' : '/' };
 }

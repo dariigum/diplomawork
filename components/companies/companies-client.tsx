@@ -70,9 +70,11 @@ export function CompaniesClient({ companies }: { companies: CompanyListItem[] })
                     </div>
                     <div className="min-w-0 flex-1">
                       <h3 className="truncate text-lg font-semibold text-foreground">{company.name}</h3>
-                      <Badge variant="secondary" className="mt-1">
-                        {company.industry}
-                      </Badge>
+                      {company.industry ? (
+                        <Badge variant="secondary" className="mt-1">
+                          {company.industry}
+                        </Badge>
+                      ) : null}
                     </div>
                   </div>
 
@@ -87,7 +89,7 @@ export function CompaniesClient({ companies }: { companies: CompanyListItem[] })
                     </div>
                     <div className="flex items-center gap-1.5">
                       <Users className="h-4 w-4" />
-                      <span>{company.employees}</span>
+                      <span>{company.employees || "—"}</span>
                     </div>
                   </div>
 

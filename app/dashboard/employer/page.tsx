@@ -46,6 +46,7 @@ export default async function EmployerDashboard() {
       subtitle={t.common.employer + " / " + t.common.employee + " Dashboard"}
       profile={
         <EmployerProfileSection
+          companyId={session.user.id}
           companyName={userData?.name || ''}
           location={userData?.location || ''}
           website={userData?.website || ''}

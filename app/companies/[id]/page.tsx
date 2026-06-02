@@ -57,7 +57,11 @@ export default async function CompanyProfilePage({ params }: { params: Promise<{
           <div className="flex-1">
             <h1 className="text-3xl font-bold text-foreground">{formatEmployerName(company)}</h1>
             <div className="flex items-center gap-4 mt-2 mb-4">
-              <Badge variant="secondary">{company.industry || 'Technology'}</Badge>
+              {company.industry ? (
+                <Badge variant="secondary">{company.industry}</Badge>
+              ) : (
+                <span className="text-muted-foreground">—</span>
+              )}
             </div>
             <p className="text-muted-foreground max-w-2xl leading-relaxed">
               {company.description || "Leading innovator in the industry."}
@@ -70,7 +74,7 @@ export default async function CompanyProfilePage({ params }: { params: Promise<{
              </div>
              <div className="flex items-center gap-2">
                <Users className="h-4 w-4 text-primary" />
-               <span>{company.employees || '50-200 employees'}</span>
+               <span>{company.employees || '—'}</span>
              </div>
              <div className="flex items-center gap-2">
                <Globe className="h-4 w-4 text-primary" />

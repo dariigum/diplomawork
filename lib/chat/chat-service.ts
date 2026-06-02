@@ -56,6 +56,7 @@ export async function assertUserCanAccessChat(user: SessionUser, chatId: string)
   const er = chat.employerId?._id?.toString() ?? chat.employerId?.toString();
   if (user.role === 'EMPLOYEE' && emp !== uid) throw new Error('Forbidden');
   if (user.role === 'EMPLOYER' && er !== uid) throw new Error('Forbidden');
+  if (user.role === 'EMPLOYEE' && !!(chat as IChat).hiddenForEmployee) throw new Error('Forbidden');
   return chat as IChat;
 }
 
@@ -81,9 +82,35 @@ export async function verifyApplicationOwnsChat(chat: IChat | Record<string, any
   return app.userId.toString() === emp && app.vacancyId.toString() === vac;
 }
 
+export async function hideChatForEmployee(user: SessionUser, chatId: string): Promise<void> {
+  if (user.role !== 'EMPLOYEE') throw new Error('Forbidden');
+  if (!mongoose.Types.ObjectId.isValid(chatId)) throw new Error('Invalid chat');
+
+  const chat = await Chat.findOne({
+    _id: chatId,
+    employeeId: new mongoose.Types.ObjectId(user.id),
+  });
+  if (!chat) throw new Error('Chat not found');
+
+  await Chat.updateOne(
+    { _id: chat._id },
+    {
+      $set: {
+        hiddenForEmployee: true,
+        hiddenForEmployeeAt: new Date(),
+        unreadCountEmployee: 0,
+        updatedAt: new Date(),
+      },
+    },
+  );
+}
+
 export async function listChatsSerialized(user: SessionUser) {
   const uid = user.id;
-  const q = user.role === 'EMPLOYER' ? { employerId: uid } : { employeeId: uid };
+  const q =
+    user.role === 'EMPLOYER'
+      ? { employerId: uid }
+      : { employeeId: uid, hiddenForEmployee: { $ne: true } };
 
   const chats = await Chat.find(q)
     .populate('employeeId', 'name logoUrl')
@@ -248,7 +275,11 @@ export async function persistMessage(params: {
   receiverId: string;
   text: string;
   attachments?: IAttachment[];
-}): Promise<{ message: ReturnType<typeof serializeMessage>; chatPatch: Record<string, unknown> }> {
+}): Promise<{
+  message: ReturnType<typeof serializeMessage>;
+  chatPatch: Record<string, unknown>;
+  notifyReceiver: boolean;
+}> {
   const hasAtt = (params.attachments?.length ?? 0) > 0;
   const sanitized = sanitizeChatMessageText(params.text);
   if (!sanitized && !hasAtt) {
@@ -274,7 +305,14 @@ export async function persistMessage(params: {
   });
 
   const receiverIsEmployer = params.receiverId === chatRow.employerId.toString();
-  const inc = receiverIsEmployer ? { unreadCountEmployer: 1 } : { unreadCountEmployee: 1 };
+  const employeeHidden = !!chatRow.hiddenForEmployee;
+  const inc =
+    receiverIsEmployer
+      ? { unreadCountEmployer: 1 }
+      : employeeHidden
+        ? {}
+        : { unreadCountEmployee: 1 };
+  const notifyReceiver = receiverIsEmployer || !employeeHidden;
 
   const previewText = preview(sanitized || (params.attachments?.length ? '[Attachment]' : ''));
 
@@ -295,6 +333,7 @@ export async function persistMessage(params: {
       lastMessagePreview: previewText,
       lastMessageAt: serialized.createdAt,
     },
+    notifyReceiver,
   };
 }
 

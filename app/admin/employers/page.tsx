@@ -16,8 +16,10 @@ import { Badge } from '@/components/ui/badge';
 import { Search, Loader2, CheckCircle2, XCircle, ChevronLeft, ChevronRight } from 'lucide-react';
 import { format } from 'date-fns';
 import { toast } from 'sonner';
+import { useI18n } from '@/lib/i18n/provider';
 
 export default function AdminEmployersPage() {
+  const { t, locale } = useI18n();
   const [employers, setEmployers] = useState<any[]>([]);
   const [isLoading, setIsLoading] = useState(true);
   const [search, setSearch] = useState('');
@@ -55,17 +57,17 @@ export default function AdminEmployersPage() {
   return (
     <div className="flex flex-col gap-6">
       <div>
-        <h1 className="text-3xl font-bold tracking-tight">Employer Management</h1>
-        <p className="text-muted-foreground">Verify companies and monitor their hiring activities.</p>
+        <h1 className="text-3xl font-bold tracking-tight">{t.admin.employers.title}</h1>
+        <p className="text-muted-foreground">{t.admin.employers.subtitle}</p>
       </div>
 
       <Card>
         <CardHeader>
           <div className="flex items-center justify-between">
-            <CardTitle>Registered Employers</CardTitle>
+            <CardTitle>{t.admin.employers.listTitle}</CardTitle>
             <div className="flex w-full max-w-sm items-center space-x-2">
               <Input 
-                placeholder="Search by company name..." 
+                placeholder={t.admin.employers.searchPlaceholder} 
                 value={search}
                 onChange={(e) => { setSearch(e.target.value); setPage(1); }}
               />
@@ -80,11 +82,11 @@ export default function AdminEmployersPage() {
             <Table>
               <TableHeader>
                 <TableRow>
-                  <TableHead>Company Name</TableHead>
-                  <TableHead>Email</TableHead>
-                  <TableHead>Vacancies</TableHead>
-                  <TableHead>Joined</TableHead>
-                  <TableHead className="text-right">Actions</TableHead>
+                  <TableHead>{t.admin.employers.colCompanyName}</TableHead>
+                  <TableHead>{t.admin.employers.colEmail}</TableHead>
+                  <TableHead>{t.admin.employers.colVacancies}</TableHead>
+                  <TableHead>{t.admin.employers.colJoined}</TableHead>
+                  <TableHead className="text-right">{t.admin.employers.colActions}</TableHead>
                 </TableRow>
               </TableHeader>
               <TableBody>
@@ -97,7 +99,7 @@ export default function AdminEmployersPage() {
                 ) : employers.length === 0 ? (
                   <TableRow>
                     <TableCell colSpan={5} className="h-24 text-center text-muted-foreground">
-                      No employers found.
+                      {t.admin.employers.noEmployers}
                     </TableCell>
                   </TableRow>
                 ) : (
@@ -106,13 +108,13 @@ export default function AdminEmployersPage() {
                       <TableCell className="font-medium">{employer.name}</TableCell>
                       <TableCell>{employer.email}</TableCell>
                       <TableCell>
-                        <span className="font-medium">{employer.vacanciesCount}</span> posted
+                        <span className="font-medium">{employer.vacanciesCount}</span> {t.admin.employers.posted}
                       </TableCell>
                       <TableCell>
                         {format(new Date(employer.createdAt), 'MMM d, yyyy')}
                       </TableCell>
                       <TableCell className="text-right space-x-2">
-                        <Button variant="ghost" size="icon" className="text-destructive" onClick={() => toast.error('Action disabled')}>
+                        <Button variant="ghost" size="icon" className="text-destructive" onClick={() => toast.error(t.admin.employers.actionDisabled)}>
                           <XCircle className="h-4 w-4" />
                         </Button>
                       </TableCell>
@@ -125,7 +127,11 @@ export default function AdminEmployersPage() {
         </CardContent>
         <CardFooter className="flex items-center justify-between">
           <div className="text-sm text-muted-foreground">
-            Page {page} of {totalPages === 0 ? 1 : totalPages}
+            {locale === 'ru' 
+              ? `Страница ${page} из ${totalPages === 0 ? 1 : totalPages}` 
+              : locale === 'kk' 
+              ? `Парақ ${page} / ${totalPages === 0 ? 1 : totalPages}` 
+              : `Page ${page} of ${totalPages === 0 ? 1 : totalPages}`}
           </div>
           <div className="space-x-2">
             <Button
@@ -135,7 +141,7 @@ export default function AdminEmployersPage() {
               disabled={page <= 1}
             >
               <ChevronLeft className="h-4 w-4 mr-2" />
-              Previous
+              {t.admin.users.previous}
             </Button>
             <Button
               variant="outline"
@@ -143,7 +149,7 @@ export default function AdminEmployersPage() {
               onClick={() => setPage((p) => Math.min(totalPages, p + 1))}
               disabled={page >= totalPages}
             >
-              Next
+              {t.admin.users.next}
               <ChevronRight className="h-4 w-4 ml-2" />
             </Button>
           </div>

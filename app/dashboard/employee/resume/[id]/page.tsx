@@ -5,6 +5,7 @@ import { Resume } from "@/lib/db/schema";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
+import { ResumeCvFileUpload } from "@/components/forms/resume-cv-file-upload";
 import { updateResumeAction } from "@/app/actions/employee";
 import { parseSafeExternalUrl } from "@/lib/vacancy-detail-display";
 import Link from "next/link";
@@ -77,7 +78,7 @@ export default async function EditResumePage({ params }: EditResumePageProps) {
 
             <div className="space-y-2">
               <label htmlFor="cvFile" className="text-sm font-medium">{t.forms.uploadCv}</label>
-              <Input id="cvFile" name="cvFile" type="file" accept=".pdf" />
+              <ResumeCvFileUpload chooseLabel={t.forms.uploadCv} />
               {cvFileLink ? (
                 <p className="text-xs text-muted-foreground mt-1">
                   {t.forms.currentFile} <a href={resume.cvFile} target="_blank" rel="noopener noreferrer" className="text-primary hover:underline">{t.forms.viewCurrentCv}</a>

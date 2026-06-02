@@ -97,13 +97,13 @@ export function attachChatSocketHandlers(io: Server) {
             return;
           }
           await dbConnect();
-          const { message, chatPatch } = await sendMessageFromUser({
+          const { message, chatPatch, notifyReceiver } = await sendMessageFromUser({
             user: { id: uid, role },
             chatId,
             text: typeof payload.text === 'string' ? payload.text : '',
             attachments: payload.attachments,
           });
-          publishNewMessage(chatId, message, chatPatch, payload.clientTempId);
+          publishNewMessage(chatId, message, chatPatch, payload.clientTempId, { notifyReceiver });
           cb?.({ ok: true, message });
         } catch (e: any) {
           cb?.({ ok: false, error: e?.message || 'error' });

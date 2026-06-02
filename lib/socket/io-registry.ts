@@ -18,10 +18,14 @@ export function publishNewMessage(
   chatId: string,
   message: { receiverId: string },
   chatPatch: Record<string, unknown>,
-  clientTempId?: string
+  clientTempId?: string,
+  options?: { notifyReceiver?: boolean }
 ) {
+  const notifyReceiver = options?.notifyReceiver !== false;
   emitChatEvent(chatId, 'chat:new_message', { chatId, message, clientTempId });
-  emitToUser(message.receiverId, 'chat:new_message', { chatId, message, clientTempId });
+  if (notifyReceiver) {
+    emitToUser(message.receiverId, 'chat:new_message', { chatId, message, clientTempId });
+  }
   emitChatEvent(chatId, 'chat:meta', { chatId, ...chatPatch });
 }
 

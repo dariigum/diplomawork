@@ -1,4 +1,5 @@
 import Link from "next/link"
+import { cookies } from "next/headers"
 import { ArrowLeft, MapPin, Clock, Briefcase, Heart, Wifi, Building2, Calendar, Globe, Share2, Flag, ExternalLink } from "lucide-react"
 import { Button } from "@/components/ui/button"
 import { Badge } from "@/components/ui/badge"
@@ -11,11 +12,25 @@ import { Vacancy, SavedVacancy } from "@/lib/db/schema"
 import { getSession } from "@/lib/auth"
 import { recordVacancyBehaviourEvent } from "@/lib/vacancy-behaviour-events"
 import { buildVacancyDetailView } from "@/lib/vacancy-detail-display"
+import { getDictionary } from "@/lib/i18n/dictionaries"
 
 export const dynamic = "force-dynamic"
 
-export default async function JobDetailsPage({ params }: { params: Promise<{ id: string }> }) {
+export default async function JobDetailsPage({
+  params,
+  searchParams,
+}: {
+  params: Promise<{ id: string }>
+  searchParams: Promise<{ from?: string }>
+}) {
+  const cookieStore = await cookies()
+  const locale = (cookieStore.get('NEXT_LOCALE')?.value || 'en') as 'en' | 'ru' | 'kk'
+  const t = getDictionary(locale)
+
   const { id } = await params
+  const { from } = await searchParams
+  const backHref = from ? decodeURIComponent(from) : '/'
+  const backLabel = from ? t.jobs.back : t.jobs.backToJobs
 
   await dbConnect()
   const jobRecord = await Vacancy.findById(id).populate("employerId").lean()
@@ -25,10 +40,10 @@ export default async function JobDetailsPage({ params }: { params: Promise<{ id:
       <div className="min-h-screen bg-background">
         <Header savedJobsCount={0} />
         <main className="container mx-auto px-4 py-12 text-center">
-          <h1 className="text-2xl font-bold text-foreground">Job not found</h1>
-          <p className="text-muted-foreground mt-2">The job you are looking for does not exist.</p>
+          <h1 className="text-2xl font-bold text-foreground">{t.jobs.jobNotFound}</h1>
+          <p className="text-muted-foreground mt-2">{t.jobs.jobNotFoundDescription}</p>
           <Link href="/">
-            <Button className="mt-6">Back to Jobs</Button>
+            <Button className="mt-6">{t.jobs.backToJobs}</Button>
           </Link>
         </main>
       </div>
@@ -63,16 +78,16 @@ export default async function JobDetailsPage({ params }: { params: Promise<{ id:
 
       <main className="container mx-auto px-4 py-8">
         <Link
-          href="/"
+          href={backHref}
           className="inline-flex items-center gap-2 text-muted-foreground hover:text-foreground mb-6 transition-colors"
         >
           <ArrowLeft className="h-4 w-4" />
-          Back to Jobs
+          {backLabel}
         </Link>
 
         {view.metadataIncomplete ? (
           <p className="mb-4 text-sm text-muted-foreground rounded-lg border border-border/60 bg-muted/30 px-3 py-2">
-            Some listing details are incomplete or imported from an external source. Core information is shown where available.
+            {t.jobs.metadataIncomplete}
           </p>
         ) : null}
 
@@ -91,10 +106,10 @@ export default async function JobDetailsPage({ params }: { params: Promise<{ id:
                         <p className="text-lg text-muted-foreground mt-1 break-words">{view.companyName}</p>
                       </div>
                       <div className="flex gap-2 shrink-0">
-                        <Button variant="ghost" size="icon" type="button" aria-label="Save (header)">
+                        <Button variant="ghost" size="icon" type="button" aria-label={t.common.save}>
                           <Heart className="h-5 w-5" />
                         </Button>
-                        <Button variant="ghost" size="icon" type="button" aria-label="Share">
+                        <Button variant="ghost" size="icon" type="button" aria-label={t.common.save}>
                           <Share2 className="h-5 w-5" />
                         </Button>
                       </div>
@@ -116,7 +131,7 @@ export default async function JobDetailsPage({ params }: { params: Promise<{ id:
                       {view.isRemote ? (
                         <div className="flex items-center gap-1.5 text-accent">
                           <Wifi className="h-4 w-4 shrink-0" />
-                          <span className="font-medium">Remote</span>
+                          <span className="font-medium">{t.forms.remote}</span>
                         </div>
                       ) : null}
                     </div>
@@ -131,7 +146,7 @@ export default async function JobDetailsPage({ params }: { params: Promise<{ id:
                         className="inline-flex items-center gap-1.5 mt-3 text-sm text-primary hover:underline"
                       >
                         <ExternalLink className="h-4 w-4 shrink-0" />
-                        View original listing
+                        {t.jobs.viewOriginalListing}
                       </a>
                     ) : null}
                   </div>
@@ -141,7 +156,7 @@ export default async function JobDetailsPage({ params }: { params: Promise<{ id:
 
             <Card>
               <CardHeader>
-                <CardTitle>Job Description</CardTitle>
+                <CardTitle>{t.jobs.jobDescription}</CardTitle>
               </CardHeader>
               <CardContent className="space-y-4">
                 <p className="text-muted-foreground whitespace-pre-wrap break-words">{view.description}</p>
@@ -152,7 +167,7 @@ export default async function JobDetailsPage({ params }: { params: Promise<{ id:
 
                     {view.showResponsibilitiesSection ? (
                       <div>
-                        <h3 className="font-semibold text-foreground mb-3">Responsibilities</h3>
+                        <h3 className="font-semibold text-foreground mb-3">{t.jobs.responsibilities}</h3>
                         <ul className="list-disc list-inside space-y-2 text-muted-foreground">
                           {view.responsibilities.map((resp) => (
                             <li key={resp} className="break-words">
@@ -167,7 +182,7 @@ export default async function JobDetailsPage({ params }: { params: Promise<{ id:
 
                     {view.showRequirementsSection ? (
                       <div>
-                        <h3 className="font-semibold text-foreground mb-3">Requirements</h3>
+                        <h3 className="font-semibold text-foreground mb-3">{t.jobs.requirements}</h3>
                         <ul className="list-disc list-inside space-y-2 text-muted-foreground">
                           {view.requirements.map((req) => (
                             <li key={req} className="break-words">
@@ -185,7 +200,7 @@ export default async function JobDetailsPage({ params }: { params: Promise<{ id:
             {view.showSkillsSection ? (
               <Card>
                 <CardHeader>
-                  <CardTitle>Required Skills</CardTitle>
+                  <CardTitle>{t.jobs.requiredSkills}</CardTitle>
                 </CardHeader>
                 <CardContent>
                   <div className="flex flex-wrap gap-2">
@@ -213,13 +228,13 @@ export default async function JobDetailsPage({ params }: { params: Promise<{ id:
                   initialSaved={isSaved}
                   canApply={session?.user?.role !== "EMPLOYER"}
                 />
-                <p className="text-xs text-center text-muted-foreground">Posted {view.postedLabel}</p>
+                <p className="text-xs text-center text-muted-foreground">{t.jobs.posted} {view.postedLabel}</p>
               </CardContent>
             </Card>
 
             <Card>
               <CardHeader>
-                <CardTitle>About the Company</CardTitle>
+                <CardTitle>{t.jobs.aboutCompany}</CardTitle>
               </CardHeader>
               <CardContent className="space-y-4">
                 <div className="flex items-center gap-3">
@@ -263,7 +278,7 @@ export default async function JobDetailsPage({ params }: { params: Promise<{ id:
                     ) : null}
                     <div className="flex items-center gap-3 text-muted-foreground">
                       <Calendar className="h-4 w-4 shrink-0" />
-                      <span>Active Hiring</span>
+                      <span>{t.jobs.activeHiring}</span>
                     </div>
                   </div>
                 ) : null}
@@ -271,7 +286,7 @@ export default async function JobDetailsPage({ params }: { params: Promise<{ id:
                 {view.companyProfileId ? (
                   <Link href={`/companies/${view.companyProfileId}`}>
                     <Button variant="outline" className="w-full mt-2">
-                      View Company Profile
+                      {t.jobs.viewCompanyProfile}
                     </Button>
                   </Link>
                 ) : null}
@@ -283,7 +298,7 @@ export default async function JobDetailsPage({ params }: { params: Promise<{ id:
               className="flex items-center gap-2 text-sm text-muted-foreground hover:text-foreground transition-colors mx-auto"
             >
               <Flag className="h-4 w-4" />
-              Report this job
+              {t.jobs.reportJob}
             </button>
           </div>
         </div>

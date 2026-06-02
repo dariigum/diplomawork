@@ -12,7 +12,7 @@ type Message = {
 }
 
 export function CareerChatbot() {
-  const { t } = useI18n()
+  const { t, locale } = useI18n()
   const [messages, setMessages] = useState<Message[]>([])
   const [input, setInput] = useState('')
   const [loading, setLoading] = useState(false)
@@ -64,7 +64,7 @@ export function CareerChatbot() {
       } else if (!res.ok || data.error) {
         const errorText = data.details
           ? `${data.error}: ${data.details}`
-          : (data.error || 'Failed to generate response. Please try again.')
+          : (data.error || t.tools.failedToGenerate)
         setMessages((prev) => [
           ...prev,
           {
@@ -87,7 +87,7 @@ export function CareerChatbot() {
         ...prev,
         {
           role: 'model',
-          text: 'An error occurred. Please check your network connection.',
+          text: t.tools.networkError,
         },
       ])
     } finally {
@@ -102,19 +102,19 @@ export function CareerChatbot() {
 
   // Quick suggestions depending on active language
   const quickSuggestions = [
-    t.locale === 'ru' 
-      ? 'Как стать Frontend разработчиком?' 
-      : t.locale === 'kk' 
-      ? 'Frontend әзірлеушісі қалай болуға болады?' 
+    locale === 'ru'
+      ? 'Как стать Frontend разработчиком?'
+      : locale === 'kk'
+      ? 'Frontend әзірлеушісі қалай болуға болады?'
       : 'How to become a Frontend developer?',
-    t.locale === 'ru'
+    locale === 'ru'
       ? 'Какие навыки нужны для DevOps?'
-      : t.locale === 'kk'
+      : locale === 'kk'
       ? 'DevOps үшін қандай дағдылар қажет?'
       : 'What skills are needed for DevOps?',
-    t.locale === 'ru'
+    locale === 'ru'
       ? 'Как вырасти от Junior до Senior?'
-      : t.locale === 'kk'
+      : locale === 'kk'
       ? 'Junior-ден Senior-ге қалай өсуге болады?'
       : 'How to grow from Junior to Senior?',
   ]
@@ -137,7 +137,7 @@ export function CareerChatbot() {
             size="icon"
             className="h-8 w-8 text-muted-foreground hover:text-destructive transition-colors"
             onClick={handleClear}
-            title="Clear chat"
+            title={t.tools.clearChat}
           >
             <Trash2 className="h-4 w-4" />
           </Button>
@@ -209,7 +209,7 @@ export function CareerChatbot() {
                 </div>
                 <div className="bg-muted text-muted-foreground border border-border/40 rounded-2xl rounded-tl-none px-3.5 py-2.5 text-sm shadow-sm flex items-center gap-1.5">
                   <Loader2 className="h-3.5 w-3.5 animate-spin" />
-                  <span>Thinking...</span>
+                  <span>{t.tools.thinking}</span>
                 </div>
               </div>
             )}

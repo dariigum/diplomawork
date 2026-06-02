@@ -8,11 +8,12 @@ import { Input } from "@/components/ui/input"
 import { Textarea } from "@/components/ui/textarea"
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
 import { Header } from "@/components/jobs/header"
-
+import { useI18n } from "@/lib/i18n/provider"
 import { sendContactMessageAction } from "@/app/actions/contact"
 import { toast } from "sonner"
 
 export default function ContactPage() {
+  const { t } = useI18n()
   const [isPending, setIsPending] = useState(false)
   const [isSuccess, setIsSuccess] = useState(false)
 
@@ -20,13 +21,13 @@ export default function ContactPage() {
     e.preventDefault()
     setIsPending(true)
     const formData = new FormData(e.currentTarget)
-    
+
     try {
       await sendContactMessageAction(formData)
       setIsSuccess(true)
-      toast.success("Message sent successfully!")
+      toast.success(t.contact.successToast)
     } catch (error) {
-      toast.error("Failed to send message. Please try again.")
+      toast.error(t.contact.errorToast)
       console.error(error)
     } finally {
       setIsPending(false)
@@ -42,12 +43,10 @@ export default function ContactPage() {
             <div className="w-16 h-16 bg-primary/10 rounded-full flex items-center justify-center mx-auto">
               <Send className="h-8 w-8 text-primary" />
             </div>
-            <h1 className="text-3xl font-bold">Message Sent!</h1>
-            <p className="text-muted-foreground">
-              Thank you for reaching out. We&apos;ve received your message and will get back to you at alimzhan.gabit@gmail.com soon.
-            </p>
+            <h1 className="text-3xl font-bold">{t.contact.messageSent}</h1>
+            <p className="text-muted-foreground">{t.contact.messageSentDesc}</p>
             <Button asChild className="mt-6">
-              <Link href="/">Back to Home</Link>
+              <Link href="/">{t.contact.backToHome}</Link>
             </Button>
           </div>
         </main>
@@ -62,17 +61,14 @@ export default function ContactPage() {
       <main className="container mx-auto px-4 py-8">
         <Link href="/" className="inline-flex items-center gap-2 text-muted-foreground hover:text-foreground mb-6 transition-colors">
           <ArrowLeft className="h-4 w-4" />
-          Back to Jobs
+          {t.contact.backToJobs}
         </Link>
 
         <div className="max-w-4xl mx-auto">
-          <h1 className="text-3xl font-bold text-foreground mb-2">Contact Us</h1>
-          <p className="text-muted-foreground mb-8">
-            Have questions? We&apos;d love to hear from you. Send us a message and we&apos;ll respond as soon as possible.
-          </p>
+          <h1 className="text-3xl font-bold text-foreground mb-2">{t.contact.title}</h1>
+          <p className="text-muted-foreground mb-8">{t.contact.subtitle}</p>
 
           <div className="grid lg:grid-cols-3 gap-8">
-            {/* Contact Form */}
             <div className="lg:col-span-2">
               <Card>
                 <CardContent className="p-6">
@@ -80,24 +76,24 @@ export default function ContactPage() {
                     <div className="grid sm:grid-cols-2 gap-4">
                       <div className="space-y-2">
                         <label htmlFor="name" className="text-sm font-medium text-foreground">
-                          Your Name
+                          {t.contact.yourName}
                         </label>
                         <Input
                           id="name"
                           name="name"
-                          placeholder="John Doe"
+                          placeholder={t.contact.namePlaceholder}
                           required
                         />
                       </div>
                       <div className="space-y-2">
                         <label htmlFor="email" className="text-sm font-medium text-foreground">
-                          Email Address
+                          {t.contact.emailAddress}
                         </label>
                         <Input
                           id="email"
                           name="email"
                           type="email"
-                          placeholder="john@example.com"
+                          placeholder={t.contact.emailPlaceholder}
                           required
                         />
                       </div>
@@ -105,24 +101,24 @@ export default function ContactPage() {
 
                     <div className="space-y-2">
                       <label htmlFor="subject" className="text-sm font-medium text-foreground">
-                        Subject
+                        {t.contact.subject}
                       </label>
                       <Input
                         id="subject"
                         name="subject"
-                        placeholder="How can we help?"
+                        placeholder={t.contact.subjectPlaceholder}
                         required
                       />
                     </div>
 
                     <div className="space-y-2">
                       <label htmlFor="message" className="text-sm font-medium text-foreground">
-                        Message
+                        {t.contact.message}
                       </label>
                       <Textarea
                         id="message"
                         name="message"
-                        placeholder="Tell us more about your inquiry..."
+                        placeholder={t.contact.messagePlaceholder}
                         rows={6}
                         required
                       />
@@ -130,18 +126,17 @@ export default function ContactPage() {
 
                     <Button type="submit" className="w-full sm:w-auto" disabled={isPending}>
                       <Send className="h-4 w-4 mr-2" />
-                      {isPending ? "Sending..." : "Send Message"}
+                      {isPending ? t.contact.sending : t.contact.sendMessage}
                     </Button>
                   </form>
                 </CardContent>
               </Card>
             </div>
 
-            {/* Contact Info */}
             <div className="space-y-6">
               <Card>
                 <CardHeader>
-                  <CardTitle>Get in Touch</CardTitle>
+                  <CardTitle>{t.contact.getInTouch}</CardTitle>
                 </CardHeader>
                 <CardContent className="space-y-6">
                   <div className="flex items-start gap-4">
@@ -149,7 +144,7 @@ export default function ContactPage() {
                       <Mail className="h-5 w-5 text-primary" />
                     </div>
                     <div>
-                      <h3 className="font-medium text-foreground">Email</h3>
+                      <h3 className="font-medium text-foreground">{t.contact.email}</h3>
                       <p className="text-sm text-muted-foreground">support@jobflow.com</p>
                     </div>
                   </div>
@@ -159,8 +154,8 @@ export default function ContactPage() {
                       <Phone className="h-5 w-5 text-primary" />
                     </div>
                     <div>
-                      <h3 className="font-medium text-foreground">Phone</h3>
-                      <p className="text-sm text-muted-foreground">+1 (555) 123-4567</p>
+                      <h3 className="font-medium text-foreground">{t.contact.phone}</h3>
+                      <p className="text-sm text-muted-foreground">+7 (700) 123-4567</p>
                     </div>
                   </div>
 
@@ -169,10 +164,9 @@ export default function ContactPage() {
                       <MapPin className="h-5 w-5 text-primary" />
                     </div>
                     <div>
-                      <h3 className="font-medium text-foreground">Address</h3>
+                      <h3 className="font-medium text-foreground">{t.contact.address}</h3>
                       <p className="text-sm text-muted-foreground">
-                        123 Tech Street<br />
-                        San Francisco, CA 94105
+                        Almaty, Kazakhstan
                       </p>
                     </div>
                   </div>
@@ -181,11 +175,11 @@ export default function ContactPage() {
 
               <Card className="bg-muted/50">
                 <CardContent className="p-6">
-                  <h3 className="font-semibold text-foreground mb-2">Office Hours</h3>
+                  <h3 className="font-semibold text-foreground mb-2">{t.contact.officeHours}</h3>
                   <div className="space-y-1 text-sm text-muted-foreground">
-                    <p>Monday - Friday: 9AM - 6PM PST</p>
-                    <p>Saturday: 10AM - 4PM PST</p>
-                    <p>Sunday: Closed</p>
+                    <p>{t.contact.officeHours1}</p>
+                    <p>{t.contact.officeHours2}</p>
+                    <p>{t.contact.officeHours3}</p>
                   </div>
                 </CardContent>
               </Card>

@@ -17,6 +17,7 @@ import { Textarea } from "@/components/ui/textarea"
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs"
 import { getAuthSession } from "@/app/actions/auth"
 import { getEmployeeResumesAction, submitVacancyResponseAction } from "@/app/actions/employee"
+import { useI18n } from "@/lib/i18n/provider"
 import { toast } from "sonner"
 
 interface ApplyTarget {
@@ -40,6 +41,7 @@ interface ApplyModalProps {
 }
 
 export function ApplyModal({ job, isOpen, onClose }: ApplyModalProps) {
+  const { t } = useI18n()
   const [mode, setMode] = useState<"custom" | "existing">("custom")
   const [selectedResumeId, setSelectedResumeId] = useState("")
   const [resumes, setResumes] = useState<ResumeOption[]>([])
@@ -86,9 +88,9 @@ export function ApplyModal({ job, isOpen, onClose }: ApplyModalProps) {
   }, [hasResumes, mode])
 
   const submitLabel = useMemo(() => {
-    if (isPending) return "Submitting..."
-    return mode === "existing" ? "Apply with Selected Resume" : "Create Resume and Apply"
-  }, [isPending, mode])
+    if (isPending) return t.applyModal.submitting
+    return mode === "existing" ? t.applyModal.applyWithSelected : t.applyModal.createAndApply
+  }, [isPending, mode, t])
 
   const handleSubmit = (formData: FormData) => {
     if (!job) return
@@ -107,7 +109,7 @@ export function ApplyModal({ job, isOpen, onClose }: ApplyModalProps) {
       }
 
       setIsSubmitted(true)
-      toast.success("Application submitted.")
+      toast.success(t.applyModal.successToast)
     })
   }
 
@@ -131,16 +133,18 @@ export function ApplyModal({ job, isOpen, onClose }: ApplyModalProps) {
               <CheckCircle2 className="h-8 w-8 text-accent" />
             </div>
             <h3 className="mb-2 text-xl font-semibold text-foreground">
-              Application Submitted
+              {t.applyModal.applicationSubmitted}
             </h3>
             <p className="text-muted-foreground">
-              Your response for {job.title} at {job.company} is now in review.
+              {t.applyModal.responseInReview
+                .replace('{title}', job.title)
+                .replace('{company}', job.company)}
             </p>
           </div>
         ) : (
           <>
             <DialogHeader>
-              <DialogTitle className="text-xl">Apply for {job.title}</DialogTitle>
+              <DialogTitle className="text-xl">{t.applyModal.applyFor} {job.title}</DialogTitle>
               <DialogDescription>
                 {job.company} • {job.location}
               </DialogDescription>
@@ -148,7 +152,7 @@ export function ApplyModal({ job, isOpen, onClose }: ApplyModalProps) {
 
             {access === "loading" && (
               <div className="py-10 text-center text-sm text-muted-foreground">
-                Loading your profile data...
+                {t.applyModal.loadingProfile}
               </div>
             )}
 
@@ -156,20 +160,20 @@ export function ApplyModal({ job, isOpen, onClose }: ApplyModalProps) {
               <div className="space-y-4 rounded-xl border border-border bg-muted/30 p-6 text-center">
                 <Briefcase className="mx-auto h-8 w-8 text-primary" />
                 <div>
-                  <h3 className="font-semibold text-foreground">Sign in as a job seeker to apply</h3>
+                  <h3 className="font-semibold text-foreground">{t.applyModal.signInToApply}</h3>
                   <p className="mt-1 text-sm text-muted-foreground">
-                    You need an employee account to submit resumes for vacancies.
+                    {t.applyModal.needEmployeeAccount}
                   </p>
                 </div>
                 <Button asChild>
-                  <Link href="/login">Go to Login</Link>
+                  <Link href="/login">{t.applyModal.goToLogin}</Link>
                 </Button>
               </div>
             )}
 
             {access === "other" && (
               <div className="rounded-xl border border-border bg-muted/30 p-6 text-center text-sm text-muted-foreground">
-                Only employee accounts can respond to vacancies.
+                {t.applyModal.onlyEmployeeAccounts}
               </div>
             )}
 
@@ -178,63 +182,63 @@ export function ApplyModal({ job, isOpen, onClose }: ApplyModalProps) {
                 <Tabs value={mode} onValueChange={(value) => setMode(value as "custom" | "existing")} className="w-full">
                   <TabsList className="grid h-11 w-full grid-cols-2 rounded-xl p-1">
                     <TabsTrigger value="custom" className="rounded-lg">
-                      Fill Resume for This Vacancy
+                      {t.applyModal.fillResumeTab}
                     </TabsTrigger>
                     <TabsTrigger value="existing" className="rounded-lg" disabled={!hasResumes}>
-                      Choose Existing Resume
+                      {t.applyModal.chooseExistingTab}
                     </TabsTrigger>
                   </TabsList>
 
                   <TabsContent value="custom" className="space-y-4 rounded-xl border border-border p-5">
                     <div className="grid grid-cols-1 gap-4 md:grid-cols-2">
                       <div className="space-y-2">
-                        <Label htmlFor="title">Resume Title</Label>
+                        <Label htmlFor="title">{t.applyModal.resumeTitle}</Label>
                         <Input id="title" name="title" placeholder={job.title} required={mode === "custom"} />
                       </div>
                       <div className="space-y-2">
-                        <Label htmlFor="skills">Skills</Label>
+                        <Label htmlFor="skills">{t.applyModal.skills}</Label>
                         <Input
                           id="skills"
                           name="skills"
-                          placeholder="React, TypeScript, Node.js"
+                          placeholder={t.applyModal.skillsPlaceholder}
                           required={mode === "custom"}
                         />
                       </div>
                       <div className="space-y-2">
-                        <Label htmlFor="experience">Experience</Label>
-                        <Input id="experience" name="experience" placeholder="3 years in frontend development" />
+                        <Label htmlFor="experience">{t.applyModal.experience}</Label>
+                        <Input id="experience" name="experience" placeholder={t.applyModal.experiencePlaceholder} />
                       </div>
                       <div className="space-y-2">
-                        <Label htmlFor="education">Education</Label>
-                        <Input id="education" name="education" placeholder="BSc Computer Science" />
+                        <Label htmlFor="education">{t.applyModal.education}</Label>
+                        <Input id="education" name="education" placeholder={t.applyModal.educationPlaceholder} />
                       </div>
                       <div className="space-y-2">
-                        <Label htmlFor="cvLink">CV Link</Label>
+                        <Label htmlFor="cvLink">{t.applyModal.cvLink}</Label>
                         <Input id="cvLink" name="cvLink" placeholder="https://..." />
                       </div>
                       <div className="space-y-2">
-                        <Label htmlFor="cvFile">CV File</Label>
+                        <Label htmlFor="cvFile">{t.applyModal.cvFile}</Label>
                         <Input id="cvFile" name="cvFile" type="file" accept=".pdf" />
                       </div>
                       <div className="space-y-2">
-                        <Label htmlFor="phone">Phone</Label>
+                        <Label htmlFor="phone">{t.applyModal.phone}</Label>
                         <Input id="phone" name="phone" placeholder="+7 700 000 00 00" />
                       </div>
                       <div className="space-y-2">
-                        <Label htmlFor="telegram">Telegram</Label>
+                        <Label htmlFor="telegram">{t.forms.telegram}</Label>
                         <Input id="telegram" name="telegram" placeholder="@username" />
                       </div>
                       <div className="space-y-2">
-                        <Label htmlFor="linkedin">LinkedIn</Label>
+                        <Label htmlFor="linkedin">{t.forms.linkedin}</Label>
                         <Input id="linkedin" name="linkedin" placeholder="https://linkedin.com/in/username" />
                       </div>
                       <div className="space-y-2">
-                        <Label htmlFor="github">GitHub</Label>
+                        <Label htmlFor="github">{t.forms.github}</Label>
                         <Input id="github" name="github" placeholder="https://github.com/username" />
                       </div>
                       <div className="space-y-2 md:col-span-2">
-                        <Label htmlFor="coverLetterCustom">Cover Letter</Label>
-                        <Textarea id="coverLetterCustom" name="coverLetter" placeholder="Write a short cover letter explaining why you are a good fit for this role." rows={4} />
+                        <Label htmlFor="coverLetterCustom">{t.applyModal.coverLetter}</Label>
+                        <Textarea id="coverLetterCustom" name="coverLetter" placeholder={t.applyModal.coverLetterPlaceholder} rows={4} />
                       </div>
                     </div>
                   </TabsContent>
@@ -265,7 +269,7 @@ export function ApplyModal({ job, isOpen, onClose }: ApplyModalProps) {
                                 <FileText className={`h-5 w-5 shrink-0 ${isSelected ? "text-primary" : "text-muted-foreground"}`} />
                               </div>
                               <p className="mt-3 text-xs text-muted-foreground">
-                                Created {new Date(resume.createdAt).toLocaleDateString()}
+                                {t.applyModal.created} {new Date(resume.createdAt).toLocaleDateString()}
                               </p>
                             </button>
                           )
@@ -274,20 +278,20 @@ export function ApplyModal({ job, isOpen, onClose }: ApplyModalProps) {
                     ) : (
                       <div className="rounded-xl border border-dashed border-border bg-muted/20 p-8 text-center">
                         <PlusCircle className="mx-auto h-8 w-8 text-muted-foreground" />
-                        <p className="mt-3 font-medium text-foreground">You do not have saved resumes yet.</p>
+                        <p className="mt-3 font-medium text-foreground">{t.applyModal.noSavedResumes}</p>
                         <p className="mt-1 text-sm text-muted-foreground">
-                          Create one in your dashboard or fill a tailored resume here.
+                          {t.applyModal.createResumeHint}
                         </p>
                         <Button asChild variant="outline" className="mt-4">
-                          <Link href="/dashboard/employee/resume/new">Create Resume</Link>
+                          <Link href="/dashboard/employee/resume/new">{t.applyModal.createResume}</Link>
                         </Button>
                       </div>
                     )}
-                    
+
                     {hasResumes && (
                       <div className="space-y-2 mt-4">
-                        <Label htmlFor="coverLetterExisting">Cover Letter</Label>
-                        <Textarea id="coverLetterExisting" name="coverLetter" placeholder="Write a short cover letter explaining why you are a good fit for this role." rows={4} />
+                        <Label htmlFor="coverLetterExisting">{t.applyModal.coverLetter}</Label>
+                        <Textarea id="coverLetterExisting" name="coverLetter" placeholder={t.applyModal.coverLetterPlaceholder} rows={4} />
                       </div>
                     )}
                   </TabsContent>
@@ -295,7 +299,7 @@ export function ApplyModal({ job, isOpen, onClose }: ApplyModalProps) {
 
                 <div className="flex gap-3 pt-2">
                   <Button type="button" variant="outline" className="flex-1" onClick={onClose}>
-                    Cancel
+                    {t.common.cancel}
                   </Button>
                   <Button
                     type="submit"

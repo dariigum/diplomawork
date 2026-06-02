@@ -31,14 +31,26 @@ function parseVacancyFormData(formData: FormData) {
     throw new Error('City is required for on-site vacancies');
   }
 
+  const salaryMin = parseInt(salaryMinStr, 10);
+  const salaryMax = parseInt(salaryMaxStr, 10);
+  if (!Number.isFinite(salaryMin) || !Number.isFinite(salaryMax)) {
+    throw new Error('Salary values must be valid numbers');
+  }
+  if (salaryMin < 0 || salaryMax < 0) {
+    throw new Error('Salary values must be non-negative');
+  }
+  if (salaryMin > salaryMax) {
+    throw new Error('Minimum salary cannot exceed maximum salary');
+  }
+
   const vacancyAddress = workMode === 'REMOTE' ? 'Remote' : city;
 
   return {
     title,
     description: description || '',
     skillsRequired: skillsRequired || '',
-    salaryMin: parseInt(salaryMinStr, 10),
-    salaryMax: parseInt(salaryMaxStr, 10),
+    salaryMin,
+    salaryMax,
     employmentType,
     workMode: workMode as 'REMOTE' | 'ONSITE',
     country: country || '',
@@ -76,7 +88,7 @@ export async function createVacancyAction(formData: FormData) {
 
   revalidatePath('/dashboard/employer');
   revalidatePath('/');
-  redirect('/dashboard/employer');
+  redirect('/dashboard/employer?tab=profile');
 }
 
 export async function updateVacancyAction(formData: FormData) {
@@ -121,29 +133,41 @@ export async function updateVacancyAction(formData: FormData) {
   revalidatePath('/dashboard/employer');
   revalidatePath('/');
   revalidatePath(`/jobs/${vacancyId}`);
-  redirect('/dashboard/employer');
+  redirect('/dashboard/employer?tab=profile');
 }
 
-export async function updateEmployerProfileAction(formData: FormData) {
+export async function updateEmployerProfileAction(
+  formData: FormData,
+): Promise<{ success: true } | { success: false; error: string }> {
   const session = await getSession();
-  if (!session || session.user.role !== 'EMPLOYER') throw new Error('Unauthorized');
+  if (!session || session.user.role !== 'EMPLOYER') {
+    return { success: false, error: 'Unauthorized' };
+  }
 
   const companyName = formData.get('companyName') as string;
   const location = formData.get('location') as string;
   const website = formData.get('website') as string;
   const description = formData.get('description') as string;
 
-  if (!companyName) throw new Error('Company name is required');
+  if (!companyName) {
+    return { success: false, error: 'Company name is required' };
+  }
 
-  await dbConnect();
-  await User.findByIdAndUpdate(session.user.id, {
-    name: companyName,
-    location: location || '',
-    website: website || '',
-    description: description || '',
-  });
+  try {
+    await dbConnect();
+    await User.findByIdAndUpdate(session.user.id, {
+      name: companyName,
+      location: location || '',
+      website: website || '',
+      description: description || '',
+    });
 
-  revalidatePath('/dashboard/employer');
-  revalidatePath('/companies');
-  revalidatePath(`/companies/${session.user.id}`);
+    revalidatePath('/dashboard/employer');
+    revalidatePath('/companies');
+    revalidatePath(`/companies/${session.user.id}`);
+
+    return { success: true };
+  } catch {
+    return { success: false, error: 'Failed to update profile' };
+  }
 }

@@ -1,6 +1,7 @@
 "use client"
 
 import { useEffect, useMemo, useState, useTransition } from "react"
+import Link from "next/link"
 import { Button } from "@/components/ui/button"
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
 import { Input } from "@/components/ui/input"
@@ -39,6 +40,8 @@ export function VacancyForm({ mode, vacancyId, initialValues }: VacancyFormProps
   const [country, setCountry] = useState(initialValues?.country || "Kazakhstan")
   const [city, setCity] = useState(initialValues?.city || "")
   const [workMode, setWorkMode] = useState<string>(initialValues?.workMode || "REMOTE")
+  const [salaryMin, setSalaryMin] = useState(initialValues?.salaryMin ?? 0)
+  const [salaryMax, setSalaryMax] = useState(initialValues?.salaryMax ?? 0)
   const [isLoadingLocations, startLoadingLocations] = useTransition()
 
   const formAction = mode === "edit" ? updateVacancyAction : createVacancyAction
@@ -86,7 +89,16 @@ export function VacancyForm({ mode, vacancyId, initialValues }: VacancyFormProps
           <CardTitle>{t.forms.vacancyDetails}</CardTitle>
         </CardHeader>
         <CardContent>
-          <form action={formAction} className="space-y-5">
+          <form
+          action={formAction}
+          className="space-y-5"
+          onSubmit={(e) => {
+            if (salaryMin > salaryMax) {
+              e.preventDefault()
+              toast.error(t.forms.salaryMinMaxError)
+            }
+          }}
+        >
             {mode === "edit" && vacancyId ? (
               <input type="hidden" name="vacancyId" value={vacancyId} />
             ) : null}
@@ -221,7 +233,9 @@ export function VacancyForm({ mode, vacancyId, initialValues }: VacancyFormProps
                   name="salaryMin"
                   type="number"
                   placeholder="50000"
-                  defaultValue={initialValues?.salaryMin}
+                  value={salaryMin || ''}
+                  onChange={(e) => setSalaryMin(Number(e.target.value))}
+                  min={0}
                   required
                 />
               </div>
@@ -234,15 +248,25 @@ export function VacancyForm({ mode, vacancyId, initialValues }: VacancyFormProps
                   name="salaryMax"
                   type="number"
                   placeholder="100000"
-                  defaultValue={initialValues?.salaryMax}
+                  value={salaryMax || ''}
+                  onChange={(e) => setSalaryMax(Number(e.target.value))}
+                  min={salaryMin > 0 ? salaryMin : 0}
                   required
                 />
+                {salaryMin > 0 && salaryMax > 0 && salaryMin > salaryMax ? (
+                  <p className="text-xs text-destructive">{t.forms.salaryMinMaxError}</p>
+                ) : null}
               </div>
             </div>
 
-            <Button type="submit" className="w-full">
-              {submitLabel}
-            </Button>
+            <div className="flex flex-col gap-2 sm:flex-row sm:gap-3">
+              <Button type="submit" className="flex-1">
+                {submitLabel}
+              </Button>
+              <Button type="button" variant="outline" className="flex-1 sm:flex-none" asChild>
+                <Link href="/dashboard/employer?tab=profile">{t.common.cancel}</Link>
+              </Button>
+            </div>
           </form>
         </CardContent>
       </Card>

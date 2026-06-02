@@ -1,16 +1,25 @@
+import { redirect } from 'next/navigation';
 import { getSession } from '@/lib/auth';
 import dbConnect from '@/lib/db/mongoose';
 import mongoose from 'mongoose';
 import { User, Vacancy, Response } from '@/lib/db/schema';
 import { ProfileChatDashboardShell } from '@/components/dashboard/profile-chat-dashboard-shell';
 import { EmployerProfileSection } from './employer-profile-section';
+import { EmployerCandidatesTab } from '@/components/dashboard/employer-candidates-tab';
 import { EmployerChatView } from '@/components/chat/employer-chat-view';
+import { EmployerAlerts } from './employer-alerts';
 import { cookies } from 'next/headers';
 import { getDictionary } from '@/lib/i18n/dictionaries';
 
-export default async function EmployerDashboard() {
+type EmployerDashboardProps = {
+  searchParams: Promise<{ resumeAccess?: string; tab?: string; vacancy?: string }>;
+};
+
+export default async function EmployerDashboard({ searchParams }: EmployerDashboardProps) {
   const session = await getSession();
-  if (!session || session.user.role !== 'EMPLOYER') return null;
+  if (!session || session.user.role !== 'EMPLOYER') redirect('/login');
+
+  const { resumeAccess } = await searchParams;
 
   await dbConnect();
   
@@ -40,10 +49,14 @@ export default async function EmployerDashboard() {
     responseCount: countMap.get(v._id.toString()) ?? 0,
   }));
 
+  const vacancyShortList = vacancies.map((v) => ({ id: v.id, title: v.title }));
+
   return (
-    <ProfileChatDashboardShell
-      profileTitle={t.common.employer + " Dashboard"}
-      subtitle={t.common.employer + " / " + t.common.employee + " Dashboard"}
+    <>
+      <EmployerAlerts resumeAccess={resumeAccess} />
+      <ProfileChatDashboardShell
+        profileTitle={t.dashboard.employerDashboardTitle}
+        subtitle={t.dashboard.employerDashboardSubtitle}
       profile={
         <EmployerProfileSection
           companyId={session.user.id}
@@ -55,7 +68,9 @@ export default async function EmployerDashboard() {
           vacancies={vacancies}
         />
       }
+      candidates={<EmployerCandidatesTab vacancies={vacancyShortList} />}
       chat={<EmployerChatView currentUserId={session.user.id} />}
     />
+    </>
   );
 }

@@ -7,10 +7,12 @@ import { cn } from '@/lib/utils'
 import type { BehaviourAnalyticsSnapshot } from '@/lib/behaviour-analytics'
 import { getBehaviourCategoryDisplayName } from '@/lib/behaviour-ui-explanations'
 import { formatBehaviourPhraseForDisplay } from '@/lib/recommendations-display-format'
+import { getDictionary } from '@/lib/i18n/dictionaries'
 
 type Props = {
   snapshot: BehaviourAnalyticsSnapshot
   variant?: 'full' | 'compact'
+  locale?: string
 }
 
 function trendBarPct(value: number, max: number): number {
@@ -19,7 +21,8 @@ function trendBarPct(value: number, max: number): number {
   return Math.min(100, Math.round((value / m) * 100))
 }
 
-export function EmployeeBehaviourAnalyticsDashboard({ snapshot, variant = 'full' }: Props) {
+export function EmployeeBehaviourAnalyticsDashboard({ snapshot, variant = 'full', locale = 'en' }: Props) {
+  const t = getDictionary(locale)
   const isCompact = variant === 'compact'
   const { windows, categoryRanked, skillRanked, profileTopCategories, profileTopSkills } = snapshot
   const max7 = Math.max(1, windows.last7Days.viewed, windows.last7Days.saved, windows.last7Days.applied)
@@ -32,7 +35,7 @@ export function EmployeeBehaviourAnalyticsDashboard({ snapshot, variant = 'full'
           <CardHeader className="pb-2">
             <CardTitle className="text-base flex items-center gap-2">
               <Activity className="h-4 w-4 text-muted-foreground" />
-              Interaction insights
+              {t.employeeDashboard.interactionInsights}
             </CardTitle>
           </CardHeader>
           <CardContent className="space-y-3 text-sm text-muted-foreground leading-relaxed">
@@ -58,19 +61,17 @@ export function EmployeeBehaviourAnalyticsDashboard({ snapshot, variant = 'full'
       <div className="flex flex-col sm:flex-row sm:items-end sm:justify-between gap-3">
         <div className="space-y-1">
           <h2 className={cn('font-semibold text-foreground tracking-tight', isCompact ? 'text-base' : 'text-lg')}>
-            {isCompact ? 'Signals from your recent activity' : 'Activity & adaptive signals'}
+            {isCompact ? t.employeeDashboard.signalsFromActivity : t.employeeDashboard.activityAdaptiveSignals}
           </h2>
           <p className="text-xs sm:text-sm text-muted-foreground max-w-2xl leading-relaxed">
-            {isCompact
-              ? 'Uses the same activity signals as your recommendations — summarized here in a shorter view.'
-              : 'Weighted from your saved interactions, using the same category rules as recommendations — not a separate ML training pipeline.'}
+            {isCompact ? t.employeeDashboard.signalsCompact : t.employeeDashboard.signalsFull}
           </p>
         </div>
-      
+
         {!isCompact ? (
           <Badge variant="outline" className="rounded-full shrink-0 border-primary/25 bg-primary/[0.06] text-primary">
             <Sparkles className="h-3 w-3 mr-1" />
-            Adaptive visibility
+            {t.employeeDashboard.adaptiveVisibility}
           </Badge>
         ) : null}
       </div>
@@ -80,15 +81,15 @@ export function EmployeeBehaviourAnalyticsDashboard({ snapshot, variant = 'full'
           <CardHeader className="pb-2">
             <CardTitle className="text-sm flex items-center gap-2">
               <TrendingUp className="h-4 w-4 text-primary" />
-              Last 7 days
+              {t.employeeDashboard.last7Days}
             </CardTitle>
           </CardHeader>
           <CardContent className="space-y-3 text-xs">
             {(
               [
-                ['Views', windows.last7Days.viewed],
-                ['Saves', windows.last7Days.saved],
-                ['Applies', windows.last7Days.applied],
+                [t.employeeDashboard.views, windows.last7Days.viewed],
+                [t.employeeDashboard.saves, windows.last7Days.saved],
+                [t.employeeDashboard.applies, windows.last7Days.applied],
               ] as const
             ).map(([label, n]) => (
               <div key={label}>
@@ -100,8 +101,9 @@ export function EmployeeBehaviourAnalyticsDashboard({ snapshot, variant = 'full'
               </div>
             ))}
             <p className="text-[0.65rem] text-muted-foreground pt-1 border-t border-border/40">
-              30 days: {windows.last30Days.viewed} views · {windows.last30Days.saved} saves ·{' '}
-              {windows.last30Days.applied} applies
+              {t.employeeDashboard.days30} {windows.last30Days.viewed} {t.employeeDashboard.views.toLowerCase()} ·{' '}
+              {windows.last30Days.saved} {t.employeeDashboard.saves.toLowerCase()} ·{' '}
+              {windows.last30Days.applied} {t.employeeDashboard.applies.toLowerCase()}
             </p>
           </CardContent>
         </Card>
@@ -110,24 +112,24 @@ export function EmployeeBehaviourAnalyticsDashboard({ snapshot, variant = 'full'
           <CardHeader className="pb-2">
             <CardTitle className="text-sm flex items-center gap-2">
               <Activity className="h-4 w-4 text-emerald-600" />
-              All-time totals
+              {t.employeeDashboard.allTimeTotals}
             </CardTitle>
           </CardHeader>
           <CardContent className="grid grid-cols-2 gap-2 text-xs">
             <div className="rounded-lg border border-border/50 bg-background/60 px-2 py-1.5">
-              <p className="text-muted-foreground">Views</p>
+              <p className="text-muted-foreground">{t.employeeDashboard.views}</p>
               <p className="text-lg font-semibold tabular-nums">{windows.allTime.viewed}</p>
             </div>
             <div className="rounded-lg border border-border/50 bg-background/60 px-2 py-1.5">
-              <p className="text-muted-foreground">Saves</p>
+              <p className="text-muted-foreground">{t.employeeDashboard.saves}</p>
               <p className="text-lg font-semibold tabular-nums">{windows.allTime.saved}</p>
             </div>
             <div className="rounded-lg border border-border/50 bg-background/60 px-2 py-1.5">
-              <p className="text-muted-foreground">Applies</p>
+              <p className="text-muted-foreground">{t.employeeDashboard.applies}</p>
               <p className="text-lg font-semibold tabular-nums">{windows.allTime.applied}</p>
             </div>
             <div className="rounded-lg border border-border/50 bg-background/60 px-2 py-1.5">
-              <p className="text-muted-foreground">Unsaves</p>
+              <p className="text-muted-foreground">{t.employeeDashboard.unsaves}</p>
               <p className="text-lg font-semibold tabular-nums">{windows.allTime.unsaved}</p>
             </div>
           </CardContent>
@@ -137,16 +139,15 @@ export function EmployeeBehaviourAnalyticsDashboard({ snapshot, variant = 'full'
           <CardHeader className="pb-2">
             <CardTitle className="text-sm flex items-center gap-2">
               <Layers className="h-4 w-4 text-violet-600" />
-              Favourite inferred categories
+              {t.employeeDashboard.favouriteCategories}
             </CardTitle>
             <p className="text-[0.65rem] text-muted-foreground font-normal leading-snug">
-              Views, saves, and applies weighted over ~90 days (capped reads). Categories from keyword buckets on vacancy
-              text.
+              {t.employeeDashboard.categoriesDesc}
             </p>
           </CardHeader>
           <CardContent className="space-y-2">
             {categoryRanked.length === 0 ? (
-              <p className="text-xs text-muted-foreground">No category mass in the current window.</p>
+              <p className="text-xs text-muted-foreground">{t.employeeDashboard.noCategoryMass}</p>
             ) : (
               <div className="flex flex-wrap gap-2">
                 {categoryRanked.map((c) => (
@@ -172,11 +173,11 @@ export function EmployeeBehaviourAnalyticsDashboard({ snapshot, variant = 'full'
       <div className={cn('grid gap-4', isCompact ? 'md:grid-cols-1' : 'lg:grid-cols-2')}>
         <Card className="border-border/65 shadow-sm">
           <CardHeader className="pb-2">
-            <CardTitle className="text-sm">Top skill phrases (weighted)</CardTitle>
+            <CardTitle className="text-sm">{t.employeeDashboard.topSkillPhrases}</CardTitle>
           </CardHeader>
           <CardContent className="flex flex-wrap gap-1.5">
             {skillRanked.length === 0 ? (
-              <p className="text-xs text-muted-foreground">No skill phrases aggregated in this window.</p>
+              <p className="text-xs text-muted-foreground">{t.employeeDashboard.noSkillPhrases}</p>
             ) : (
               skillRanked.map((s) => (
                 <Badge key={s.skill} variant="outline" className="rounded-full text-xs font-normal gap-1.5">
@@ -190,14 +191,14 @@ export function EmployeeBehaviourAnalyticsDashboard({ snapshot, variant = 'full'
 
         <Card className="border-border/65 shadow-sm bg-muted/10">
           <CardHeader className="pb-2">
-            <CardTitle className="text-sm">Profile builder alignment</CardTitle>
+            <CardTitle className="text-sm">{t.employeeDashboard.profileBuilderAlignment}</CardTitle>
             <p className="text-[0.65rem] text-muted-foreground font-normal leading-snug">
-              Same profile lists as on recommendation cards (transparency cross-check).
+              {t.employeeDashboard.profileBuilderDesc}
             </p>
           </CardHeader>
           <CardContent className="space-y-2 text-xs text-muted-foreground">
             <div>
-              <p className="font-medium text-foreground/90 mb-1">Categories</p>
+              <p className="font-medium text-foreground/90 mb-1">{t.employeeDashboard.categories}</p>
               <div className="flex flex-wrap gap-1">
                 {profileTopCategories.length ? (
                   profileTopCategories.map((id) => (
@@ -211,7 +212,7 @@ export function EmployeeBehaviourAnalyticsDashboard({ snapshot, variant = 'full'
               </div>
             </div>
             <div>
-              <p className="font-medium text-foreground/90 mb-1">Skills</p>
+              <p className="font-medium text-foreground/90 mb-1">{t.employeeDashboard.skills}</p>
               <p className="leading-relaxed">
                 {profileTopSkills.length
                   ? profileTopSkills
@@ -228,7 +229,7 @@ export function EmployeeBehaviourAnalyticsDashboard({ snapshot, variant = 'full'
       {!isCompact ? (
         <Card className="border-primary/15 bg-gradient-to-r from-background to-primary/[0.04]">
           <CardHeader className="pb-2">
-            <CardTitle className="text-sm">Activity summary</CardTitle>
+            <CardTitle className="text-sm">{t.employeeDashboard.activitySummary}</CardTitle>
           </CardHeader>
           <CardContent className="space-y-3">
             {snapshot.summaryLines[0] ? (
@@ -253,9 +254,9 @@ export function EmployeeBehaviourAnalyticsDashboard({ snapshot, variant = 'full'
       {isCompact ? (
         <p className="text-xs">
           <Link href="/dashboard/employee" className="text-primary hover:underline">
-            Open workspace
+            {t.employeeDashboard.openWorkspace}
           </Link>{' '}
-          for the full analytics card.
+          {t.employeeDashboard.forFullAnalytics}
         </p>
       ) : null}
     </section>

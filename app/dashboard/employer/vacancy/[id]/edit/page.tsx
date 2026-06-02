@@ -1,4 +1,4 @@
-import { notFound } from "next/navigation"
+import { notFound, redirect } from "next/navigation"
 import { getSession } from "@/lib/auth"
 import dbConnect from "@/lib/db/mongoose"
 import { Vacancy } from "@/lib/db/schema"
@@ -13,7 +13,7 @@ type PageProps = {
 export default async function EditVacancyPage({ params }: PageProps) {
   const { id } = await params
   const session = await getSession()
-  if (!session || session.user.role !== "EMPLOYER") return null
+  if (!session || session.user.role !== "EMPLOYER") redirect("/login")
 
   await dbConnect()
   const vacancy = await Vacancy.findOne({ _id: id, employerId: session.user.id }).lean()

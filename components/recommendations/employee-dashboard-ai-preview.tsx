@@ -12,6 +12,7 @@ import { Badge } from '@/components/ui/badge'
 import { Button } from '@/components/ui/button'
 import { Skeleton } from '@/components/ui/skeleton'
 import { cn } from '@/lib/utils'
+import { useI18n } from '@/lib/i18n/provider'
 import type { BehaviourSessionInsights, RecommendationApiItem } from '@/lib/recommendations-api-types'
 import { parseRecommendationsApiPayload } from '@/lib/recommendations-api-types'
 
@@ -50,14 +51,6 @@ function scoreToPercent(score: number): number {
   return Math.max(0, Math.min(100, Math.round(score * 100)))
 }
 
-function fitTierLabel(pct: number | null): string | null {
-  if (pct === null) return null
-  if (pct >= 85) return 'Strong fit'
-  if (pct >= 70) return 'Good fit'
-  if (pct >= 50) return 'Related'
-  return 'Exploratory'
-}
-
 function formatSyncedLabel(ts: number): string {
   try {
     return new Intl.DateTimeFormat(undefined, { timeStyle: 'short' }).format(new Date(ts))
@@ -71,7 +64,16 @@ type EmployeeDashboardAiPreviewProps = {
 }
 
 export function EmployeeDashboardAiPreview({ serverHints }: EmployeeDashboardAiPreviewProps) {
+  const { t } = useI18n()
   const [state, setState] = useState<PreviewState>({ kind: 'idle' })
+
+  const fitTierLabel = (pct: number | null): string | null => {
+    if (pct === null) return null
+    if (pct >= 85) return t.employeeDashboard.strongFit
+    if (pct >= 70) return t.employeeDashboard.goodFit
+    if (pct >= 50) return t.dashboard.matchFitRelated
+    return t.dashboard.matchFitExploratory
+  }
 
   const load = () => {
     setState({ kind: 'loading' })
@@ -129,12 +131,12 @@ export function EmployeeDashboardAiPreview({ serverHints }: EmployeeDashboardAiP
     state.kind === 'ok' && state.topTitle
       ? (() => {
           const tier = fitTierLabel(state.topPercent)
-          return `Top pick: ${state.topTitle}${state.topCompany ? ` · ${state.topCompany}` : ''}${
+          return `${t.employeeDashboard.topPick} ${state.topTitle}${state.topCompany ? ` · ${state.topCompany}` : ''}${
             tier ? ` · ${tier}` : ''
           }`
         })()
       : state.kind === 'ok'
-        ? `${state.count} roles in this preview.`
+        ? `${state.count} ${t.employeeDashboard.rolesInPreview}`
         : null
 
   return (
@@ -154,16 +156,16 @@ export function EmployeeDashboardAiPreview({ serverHints }: EmployeeDashboardAiP
           <div className="flex flex-wrap items-center gap-2">
             <Badge className="gap-1.5 rounded-full border-primary/30 bg-primary/15 px-3 py-1 text-primary shadow-sm transition-colors hover:bg-primary/20">
               <Sparkles className="h-3.5 w-3.5" />
-              Semantic recommendations
+              {t.employeeDashboard.semanticRecommendations}
             </Badge>
           </div>
 
           <AiReadinessStrip serverHints={serverHints} state={state} />
 
           <div>
-            <h2 className="text-xl sm:text-2xl font-bold tracking-tight">Roles matched for you</h2>
+            <h2 className="text-xl sm:text-2xl font-bold tracking-tight">{t.employeeDashboard.rolesMatchedForYou}</h2>
             <p className="text-sm text-muted-foreground mt-1.5 max-w-xl leading-relaxed">
-              Live preview from the same list as your recommendations page — personalized, not keyword search.
+              {t.employeeDashboard.livePreviewDesc}
             </p>
           </div>
 
@@ -178,7 +180,7 @@ export function EmployeeDashboardAiPreview({ serverHints }: EmployeeDashboardAiP
             <details className="rounded-xl border border-amber-500/25 bg-amber-500/[0.05] dark:bg-amber-500/[0.08] px-3.5 py-3 max-w-2xl">
               <summary className="flex cursor-pointer list-none items-center gap-2 text-xs font-semibold text-foreground outline-none marker:content-none [&::-webkit-details-marker]:hidden">
                 <Info className="h-3.5 w-3.5 text-amber-700 dark:text-amber-300 shrink-0" />
-                Why these roles match you
+                {t.employeeDashboard.whyTheseRolesMatch}
               </summary>
               <div className="mt-3 space-y-2 pt-2 border-t border-border/40">
                 {state.behaviourSession.productBadge ? (
@@ -216,23 +218,23 @@ export function EmployeeDashboardAiPreview({ serverHints }: EmployeeDashboardAiP
               <div className="grid gap-4 grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 w-full max-w-3xl">
                 <div className="rounded-xl border border-border/55 bg-gradient-to-br from-primary/[0.08] to-background/95 p-4 shadow-sm transition-all duration-300 hover:border-primary/25 hover:shadow-md">
                   <p className="text-[0.65rem] font-semibold uppercase tracking-wide text-muted-foreground">
-                    In this preview
+                    {t.employeeDashboard.inThisPreview}
                   </p>
                   <p className="text-3xl font-bold tabular-nums tracking-tight text-foreground mt-1">{state.count}</p>
                   <p className="text-xs text-muted-foreground leading-snug mt-1.5">
-                    Previewing {state.count} matched roles
+                    {state.count} {t.employeeDashboard.rolesInPreview}
                   </p>
                 </div>
                 <div className="min-w-0 rounded-xl border border-border/55 bg-gradient-to-br from-emerald-500/[0.08] to-background/95 p-4 shadow-sm transition-all duration-300 hover:border-emerald-500/25 hover:shadow-md">
                   <p className="text-[0.65rem] font-semibold uppercase tracking-wide text-muted-foreground">
-                    Match strength
+                    {t.employeeDashboard.matchStrength}
                   </p>
                   {state.topPercent !== null ? (
                     <>
                       <p className="text-2xl font-bold tracking-tight text-foreground mt-1">
                         {fitTierLabel(state.topPercent)}
                       </p>
-                      <p className="text-[0.65rem] text-muted-foreground mt-1">Compared with other roles in this batch</p>
+                      <p className="text-[0.65rem] text-muted-foreground mt-1">{t.employeeDashboard.comparedWithBatch}</p>
                     </>
                   ) : (
                     <p className="text-xs text-muted-foreground mt-2">—</p>
@@ -247,22 +249,22 @@ export function EmployeeDashboardAiPreview({ serverHints }: EmployeeDashboardAiP
                   )}
                 </div>
                 <div className="flex flex-col justify-center gap-1.5 rounded-xl border border-border/55 bg-muted/20 px-4 py-3 text-xs text-muted-foreground sm:col-span-2 lg:col-span-1 transition-colors duration-300 hover:bg-muted/30">
-                  <span className="text-foreground/80">Updated {formatSyncedLabel(state.syncedAt)}</span>
+                  <span className="text-foreground/80">{t.employeeDashboard.updated} {formatSyncedLabel(state.syncedAt)}</span>
                 </div>
               </div>
             )}
 
             {state.kind === 'empty' && (
               <div className="space-y-3 max-w-lg">
-                <p className="text-sm font-medium text-foreground">No strong matches found yet.</p>
+                <p className="text-sm font-medium text-foreground">{t.employeeDashboard.noMatchesYet}</p>
                 <p className="text-sm text-muted-foreground leading-relaxed">
-                  Try updating your profile or resume, or browse more roles — then refresh.
+                  {t.employeeDashboard.tryUpdatingProfile}
                 </p>
-                <p className="text-xs text-muted-foreground tabular-nums">Checked {formatSyncedLabel(state.syncedAt)}</p>
+                <p className="text-xs text-muted-foreground tabular-nums">{formatSyncedLabel(state.syncedAt)}</p>
                 {state.behaviourSession ? (
                   <details className="rounded-lg border border-border/60 bg-muted/25 px-3 py-2.5">
                     <summary className="cursor-pointer text-[0.65rem] font-semibold uppercase tracking-wide text-muted-foreground list-none marker:content-none [&::-webkit-details-marker]:hidden">
-                      Activity context
+                      {t.employeeDashboard.activityContext}
                     </summary>
                     <div className="mt-2 space-y-1.5">
                       <p className="text-xs text-muted-foreground">{state.behaviourSession.neutralSemanticLine}</p>
@@ -279,31 +281,30 @@ export function EmployeeDashboardAiPreview({ serverHints }: EmployeeDashboardAiP
 
             {state.kind === 'no_resume' && (
               <p className="text-sm text-muted-foreground leading-relaxed max-w-md">
-                Add a resume to unlock personalized recommendations.
+                {t.employeeDashboard.addResumeToUnlock}
               </p>
             )}
 
             {state.kind === 'no_embedding' && (
               <div className="space-y-2 max-w-md">
-                <p className="text-sm font-medium text-foreground">Finish setting up your profile</p>
+                <p className="text-sm font-medium text-foreground">{t.employeeDashboard.finishSetupProfile}</p>
                 <p className="text-sm text-muted-foreground leading-relaxed">
-                  Your resume is saved, but we still need a complete match profile. Re-save from the resume editor, then
-                  try again.
+                  {t.employeeDashboard.resumeSavedNeedMatch}
                 </p>
               </div>
             )}
 
             {state.kind === 'pipeline_error' && (
               <div className="space-y-2 max-w-md">
-                <p className="text-sm font-medium text-foreground">We couldn&apos;t load recommendations right now.</p>
-                <p className="text-sm text-muted-foreground leading-relaxed">Please try again in a moment.</p>
+                <p className="text-sm font-medium text-foreground">{t.employeeDashboard.couldntLoadRecs}</p>
+                <p className="text-sm text-muted-foreground leading-relaxed">{t.employeeDashboard.pleaseRetry}</p>
               </div>
             )}
 
             {state.kind === 'error' && (
               <div className="space-y-2 max-w-md">
-                <p className="text-sm font-medium text-foreground">We couldn&apos;t load recommendations right now.</p>
-                <p className="text-sm text-muted-foreground leading-relaxed">Please try again in a moment.</p>
+                <p className="text-sm font-medium text-foreground">{t.employeeDashboard.couldntLoadRecs}</p>
+                <p className="text-sm text-muted-foreground leading-relaxed">{t.employeeDashboard.pleaseRetry}</p>
               </div>
             )}
           </div>
@@ -312,7 +313,7 @@ export function EmployeeDashboardAiPreview({ serverHints }: EmployeeDashboardAiP
         <div className="flex flex-col sm:flex-row lg:flex-col gap-2 shrink-0 lg:justify-center border-t border-border/40 lg:border-t-0 lg:border-l lg:pl-6 pt-5 lg:pt-0">
           <Button asChild className="rounded-full shadow-md gap-1 transition-transform hover:translate-x-0.5">
             <Link href="/dashboard/employee/recommendations">
-              Explore all matches <ChevronRight className="h-4 w-4" />
+              {t.employeeDashboard.exploreAllMatches} <ChevronRight className="h-4 w-4" />
             </Link>
           </Button>
           <Button
@@ -323,13 +324,13 @@ export function EmployeeDashboardAiPreview({ serverHints }: EmployeeDashboardAiP
             onClick={load}
           >
             <RefreshCw className="h-4 w-4" />
-            Refresh preview
+            {t.employeeDashboard.refreshPreview}
           </Button>
         </div>
       </div>
 
       <div className="relative border-t border-border/50 bg-muted/20 px-5 py-2.5 sm:px-7 text-[0.7rem] sm:text-xs text-muted-foreground">
-        Personalized on the server — the numbers you see come from your latest data.
+        {t.employeeDashboard.personalizedFooter}
       </div>
     </div>
   )
@@ -342,26 +343,27 @@ function AiReadinessStrip({
   serverHints: EmployeeDashboardAiServerHints
   state: PreviewState
 }) {
+  const { t } = useI18n()
   let label = ''
   let variant: 'default' | 'secondary' | 'outline' | 'destructive' = 'secondary'
 
   if (state.kind === 'loading' || state.kind === 'idle') {
-    label = 'Preparing recommendations…'
+    label = t.employeeDashboard.preparingRecs
     variant = 'secondary'
   } else if (state.kind === 'ok') {
-    label = 'Recommendations ready'
+    label = t.employeeDashboard.recsReady
     variant = 'default'
   } else if (state.kind === 'empty') {
-    label = 'No matches in this preview'
+    label = t.employeeDashboard.noMatchesInPreview
     variant = 'outline'
   } else if (state.kind === 'no_resume') {
-    label = 'Resume needed'
+    label = t.employeeDashboard.resumeNeeded
     variant = 'secondary'
   } else if (state.kind === 'no_embedding') {
-    label = 'Profile setup needed'
+    label = t.employeeDashboard.profileSetupNeeded
     variant = 'secondary'
   } else if (state.kind === 'pipeline_error' || state.kind === 'error') {
-    label = 'Unavailable'
+    label = t.employeeDashboard.unavailable
     variant = 'destructive'
   }
 
@@ -379,7 +381,7 @@ function AiReadinessStrip({
         {label}
       </Badge>
       {(state.kind === 'loading' || state.kind === 'idle') && !serverHints.hasResume ? (
-        <span className="text-xs text-muted-foreground">Add a resume to get started.</span>
+        <span className="text-xs text-muted-foreground">{t.employeeDashboard.addResumeToGetStarted}</span>
       ) : null}
     </div>
   )

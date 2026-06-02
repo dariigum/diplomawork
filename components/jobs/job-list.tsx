@@ -107,7 +107,9 @@ export function JobList({ jobs, savedJobs, onSaveJob, canApply }: JobListProps) 
           ))}
 
           <p className="text-center text-sm text-muted-foreground">
-            Showing {visibleJobs.length} of {sortedJobs.length} vacancies
+            {t.home.showingVacancies
+              .replace('{visible}', String(visibleJobs.length))
+              .replace('{total}', String(sortedJobs.length))}
           </p>
 
           {visibleCount < sortedJobs.length ? (
@@ -119,7 +121,7 @@ export function JobList({ jobs, savedJobs, onSaveJob, canApply }: JobListProps) 
                 className="h-9 w-full min-w-0 sm:w-auto"
                 onClick={() => setVisibleCount((prev) => prev + LOAD_MORE_STEP)}
               >
-                Show more
+                {t.home.showMore}
               </Button>
             </div>
           ) : null}

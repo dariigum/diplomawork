@@ -7,6 +7,7 @@ import { Textarea } from '@/components/ui/textarea';
 import { Paperclip, Send } from 'lucide-react';
 import { AttachmentPreview, type PendingFile } from '@/components/chat/attachment-preview';
 import type { Socket } from 'socket.io-client';
+import { useI18n } from '@/lib/i18n/provider';
 
 type UploadedMeta = { storageKey: string; fileName: string; mimeType: string; size: number };
 
@@ -53,6 +54,7 @@ export function MessageInput({
   socketRef: MutableRefObject<Socket | null>;
   onSent?: () => void;
 }) {
+  const { t } = useI18n();
   const [text, setText] = useState('');
   const [sending, setSending] = useState(false);
   const [pending, setPending] = useState<PendingFile[]>([]);
@@ -187,7 +189,7 @@ export function MessageInput({
               void submit();
             }
           }}
-          placeholder={chatId ? 'Message…' : 'Select a chat'}
+          placeholder={chatId ? t.chat.typeMessage : t.chat.selectApplicantToStartChat}
           rows={1}
           className="min-h-[44px] max-h-32 resize-none"
           disabled={!chatId || disabled || sending}

@@ -1,50 +1,130 @@
 'use client';
 
 import * as React from 'react';
+import { usePathname, useRouter, useSearchParams } from 'next/navigation';
 import { Tabs, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { useI18n } from '@/lib/i18n/provider';
+import {
+  EmployerDashboardNavProvider,
+  type EmployerDashboardTab,
+  type PendingApplicant,
+} from '@/components/dashboard/employer-dashboard-nav';
 
-type Tab = 'profile' | 'chat';
+type Tab = EmployerDashboardTab;
+
+function parseTab(value: string | null): Tab | null {
+  if (value === 'profile' || value === 'candidates' || value === 'chat') return value;
+  return null;
+}
 
 export function ProfileChatDashboardShell({
   profileTitle,
   subtitle,
   profile,
+  candidates,
   chat,
 }: {
   profileTitle: string;
   subtitle?: string;
   profile: React.ReactNode;
+  candidates: React.ReactNode;
   chat: React.ReactNode;
 }) {
   const { t } = useI18n();
-  const [tab, setTab] = React.useState<Tab>('profile');
+  const router = useRouter();
+  const pathname = usePathname();
+  const searchParams = useSearchParams();
+
+  const [tab, setTab] = React.useState<Tab>(() => parseTab(searchParams.get('tab')) ?? 'profile');
+  const [vacancyId, setVacancyId] = React.useState<string | null>(() => searchParams.get('vacancy'));
+  const [pendingApplicant, setPendingApplicant] = React.useState<PendingApplicant | null>(null);
+
+  React.useEffect(() => {
+    const nextTab = parseTab(searchParams.get('tab'));
+    const nextVacancy = searchParams.get('vacancy');
+    if (nextTab) setTab(nextTab);
+    setVacancyId(nextVacancy);
+  }, [searchParams]);
+
+  const goToTab = React.useCallback(
+    (nextTab: Tab, nextVacancy?: string | null) => {
+      setTab(nextTab);
+      const resolvedVacancy = nextVacancy !== undefined ? nextVacancy : vacancyId;
+      if (nextVacancy !== undefined) setVacancyId(nextVacancy);
+
+      const params = new URLSearchParams(searchParams.toString());
+      params.set('tab', nextTab);
+      if (resolvedVacancy) params.set('vacancy', resolvedVacancy);
+      else params.delete('vacancy');
+
+      const qs = params.toString();
+      router.replace(qs ? `${pathname}?${qs}` : pathname, { scroll: false });
+    },
+    [pathname, router, searchParams, vacancyId],
+  );
+
+  const handleTabChange = React.useCallback(
+    (value: string) => {
+      goToTab(value as Tab);
+    },
+    [goToTab],
+  );
+
+  const handleVacancyIdChange = React.useCallback(
+    (id: string | null) => {
+      setVacancyId(id);
+      const params = new URLSearchParams(searchParams.toString());
+      params.set('tab', tab);
+      if (id) params.set('vacancy', id);
+      else params.delete('vacancy');
+      const qs = params.toString();
+      router.replace(qs ? `${pathname}?${qs}` : pathname, { scroll: false });
+    },
+    [pathname, router, searchParams, tab],
+  );
+
+  const navValue = React.useMemo(
+    () => ({
+      vacancyId,
+      setVacancyId: handleVacancyIdChange,
+      activeTab: tab,
+      goToTab,
+      pendingApplicant,
+      setPendingApplicant,
+    }),
+    [vacancyId, handleVacancyIdChange, tab, goToTab, pendingApplicant],
+  );
 
   return (
-    <div className="flex flex-col gap-4">
-      <div className="flex shrink-0 flex-col gap-3 sm:flex-row sm:items-end sm:justify-between">
-        <div className="space-y-1">
-          {subtitle ? (
-            <p className="text-xs font-medium uppercase tracking-wide text-muted-foreground">
-              {subtitle}
-            </p>
-          ) : null}
-          <h1 className="text-2xl font-bold tracking-tight md:text-3xl">{profileTitle}</h1>
+    <EmployerDashboardNavProvider value={navValue}>
+      <div className="flex flex-col gap-4">
+        <div className="flex shrink-0 flex-col gap-3 sm:flex-row sm:items-end sm:justify-between">
+          <div className="space-y-1">
+            {subtitle ? (
+              <p className="text-xs font-medium uppercase tracking-wide text-muted-foreground">
+                {subtitle}
+              </p>
+            ) : null}
+            <h1 className="text-2xl font-bold tracking-tight md:text-3xl">{profileTitle}</h1>
+          </div>
+          <Tabs value={tab} onValueChange={handleTabChange} className="w-full shrink-0 sm:w-auto">
+            <TabsList className="grid w-full grid-cols-3 sm:w-[360px]">
+              <TabsTrigger value="profile">{t.dashboard.myProfile}</TabsTrigger>
+              <TabsTrigger value="candidates">{t.dashboard.candidatesTab}</TabsTrigger>
+              <TabsTrigger value="chat">{t.chat.chat}</TabsTrigger>
+            </TabsList>
+          </Tabs>
         </div>
-        <Tabs value={tab} onValueChange={(v) => setTab(v as Tab)} className="w-full shrink-0 sm:w-auto">
-          <TabsList className="grid w-full grid-cols-2 sm:w-[220px]">
-            <TabsTrigger value="profile">{t.dashboard.myProfile}</TabsTrigger>
-            <TabsTrigger value="chat">{t.chat.chat}</TabsTrigger>
-          </TabsList>
-        </Tabs>
+        <div className="min-w-0 rounded-xl border border-border/60 bg-card/30">
+          {tab === 'profile' ? (
+            <div className="p-4 md:p-6">{profile}</div>
+          ) : tab === 'candidates' ? (
+            <div className="p-4 md:p-6">{candidates}</div>
+          ) : (
+            <div className="min-h-0 min-w-0 p-2 md:p-4">{chat}</div>
+          )}
+        </div>
       </div>
-      <div className="min-w-0 rounded-xl border border-border/60 bg-card/30">
-        {tab === 'profile' ? (
-          <div className="p-4 md:p-6">{profile}</div>
-        ) : (
-          <div className="min-h-0 min-w-0 p-2 md:p-4">{chat}</div>
-        )}
-      </div>
-    </div>
+    </EmployerDashboardNavProvider>
   );
 }

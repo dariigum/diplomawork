@@ -65,7 +65,7 @@ function ArticleCard({ article }: { article: Article }) {
               {t.resources.read} <ArrowRight className="h-3 w-3" />
             </div>
           ) : (
-            <span className="text-muted-foreground/80">No external link</span>
+            <span className="text-muted-foreground/80">{t.resources.noExternalLink}</span>
           )}
         </div>
       </CardContent>

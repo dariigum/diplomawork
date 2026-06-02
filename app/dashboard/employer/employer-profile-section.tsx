@@ -1,13 +1,14 @@
 'use client';
 
 import Link from 'next/link';
+import { useTransition } from 'react';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Textarea } from '@/components/ui/textarea';
+import { toast } from 'sonner';
 import { updateEmployerProfileAction } from '@/app/actions/employer';
 import { useI18n } from '@/lib/i18n/provider';
-import { EmployerMatchingCandidates } from '@/components/dashboard/employer-matching-candidates';
 
 export type EmployerProfileProps = {
   companyId: string;
@@ -29,6 +30,18 @@ export function EmployerProfileSection({
   vacancies,
 }: EmployerProfileProps) {
   const { t } = useI18n();
+  const [isPending, startTransition] = useTransition();
+
+  const handleProfileSubmit = (e: React.FormEvent<HTMLFormElement>) => {
+    e.preventDefault();
+    const formData = new FormData(e.currentTarget);
+    startTransition(async () => {
+      const result = await updateEmployerProfileAction(formData);
+      if (result.success) {
+        toast.success(t.dashboard.profileUpdated);
+      }
+    });
+  };
 
   return (
     <div className="grid grid-cols-1 gap-8 md:grid-cols-2">
@@ -36,11 +49,13 @@ export function EmployerProfileSection({
         <CardHeader className="flex flex-row items-center justify-between gap-3">
           <CardTitle>{t.dashboard.companyProfile}</CardTitle>
           <Button size="sm" variant="outline" asChild>
-            <Link href={`/companies/${companyId}`}>{t.dashboard.viewPublicCompanyProfile}</Link>
+            <Link href={`/companies/${companyId}?from=${encodeURIComponent('/dashboard/employer?tab=profile')}`}>
+              {t.dashboard.viewPublicCompanyProfile}
+            </Link>
           </Button>
         </CardHeader>
         <CardContent>
-          <form action={updateEmployerProfileAction} className="space-y-4">
+          <form onSubmit={handleProfileSubmit} className="space-y-4">
             <div className="space-y-2">
               <label htmlFor="companyName" className="text-sm font-medium">
                 {t.dashboard.companyName}
@@ -55,7 +70,7 @@ export function EmployerProfileSection({
                 id="location"
                 name="location"
                 defaultValue={location}
-                placeholder="Almaty, Kazakhstan"
+                placeholder={t.dashboard.companyLocationPlaceholder}
               />
             </div>
             <div className="space-y-2">
@@ -67,7 +82,7 @@ export function EmployerProfileSection({
                 name="website"
                 type="url"
                 defaultValue={website}
-                placeholder="https://company.com"
+                placeholder={t.dashboard.companyWebsitePlaceholder}
               />
             </div>
             <div className="space-y-2">
@@ -86,8 +101,8 @@ export function EmployerProfileSection({
               <p className="text-sm text-muted-foreground">{t.auth.email}</p>
               <p className="font-medium">{email}</p>
             </div>
-            <Button type="submit" variant="outline">
-              {t.dashboard.saveProfile}
+            <Button type="submit" variant="outline" disabled={isPending}>
+              {isPending ? t.common.loading : t.dashboard.saveProfile}
             </Button>
           </form>
         </CardContent>
@@ -123,7 +138,9 @@ export function EmployerProfileSection({
                       {v.responseCount} {t.dashboard.responses}
                     </span>
                     <Button variant="outline" size="sm" asChild>
-                      <Link href={`/jobs/${v.id}`}>{t.dashboard.viewListing}</Link>
+                      <Link href={`/jobs/${v.id}?from=${encodeURIComponent('/dashboard/employer?tab=profile')}`}>
+                        {t.dashboard.viewListing}
+                      </Link>
                     </Button>
                   </div>
                 </li>
@@ -133,9 +150,6 @@ export function EmployerProfileSection({
         </CardContent>
       </Card>
 
-      <EmployerMatchingCandidates
-        vacancies={vacancies.map((v) => ({ id: v.id, title: v.title }))}
-      />
     </div>
   );
 }

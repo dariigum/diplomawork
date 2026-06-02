@@ -112,7 +112,7 @@ export function JobCard({ job, onApply, onSave, isSaved, canApply }: JobCardProp
             {/* Salary */}
             <div className="mt-3 flex min-w-0 flex-wrap items-baseline gap-x-1.5 gap-y-0.5">
               {job.salary !== SALARY_NOT_SPECIFIED_LABEL ? (
-                <span className="text-xs text-muted-foreground sm:text-sm">Salary</span>
+                <span className="text-xs text-muted-foreground sm:text-sm">{t.common.salary}</span>
               ) : null}
               <span
                 className={cn(

@@ -7,6 +7,7 @@ import { getActiveResumeLeanForUser } from '@/lib/active-resume'
 import { Response, SavedVacancy, Vacancy, SkillImprovementReport } from '@/lib/db/schema'
 import { createSlidingWindowRateLimiter } from '@/lib/chat/rate-limit'
 import { extractSkillsFromText, categorizeSkills, getSkillDisplayName } from '@/lib/skill-analysis'
+import { getGeminiEnv } from '@/lib/gemini/env'
 
 type VacancyLeanDoc = {
   _id: string | { toString(): string }
@@ -326,14 +327,14 @@ export async function GET() {
           learningPath = cachedTrans.learningPath || learningPath
           nextSteps = cachedTrans.nextSteps || nextSteps
         } else {
-          const apiKey = process.env.GEMINI_API_KEY
-          if (apiKey && apiKey.trim() !== '') {
+          const gemini = getGeminiEnv()
+          if (gemini.ok) {
             const targetLangName = locale === 'kk' ? 'Kazakh' : 'English'
             try {
               const translated = await translateReport(
                 { individualProgram, topRecommendations, careerDirections, learningPath, nextSteps },
                 targetLangName,
-                apiKey
+                gemini.apiKey
               )
               if (translated) {
                 await SkillImprovementReport.updateOne(
@@ -372,12 +373,16 @@ export async function GET() {
     }
 
     // 3. Check Gemini API Key
-    const apiKey = process.env.GEMINI_API_KEY
-    if (!apiKey || apiKey.trim() === '') {
-      return NextResponse.json({
-        error: 'missing_api_key',
-        text: 'Google Gemini API Key is missing. Please add GEMINI_API_KEY="your_api_key" to your .env file to enable the Skill Improvement report. You can get a free key at https://aistudio.google.com/.'
-      })
+    const gemini = getGeminiEnv()
+    if (!gemini.ok) {
+      return NextResponse.json(
+        {
+          error: gemini.error,
+          expectedEnvVar: gemini.expectedEnvVar,
+          text: `${gemini.message} You can get a free key at https://aistudio.google.com/.`,
+        },
+        { status: 503 },
+      )
     }
 
     // 4. Construct prompt for Gemini
@@ -460,7 +465,7 @@ ${appliedVacanciesInfo || 'Нет откликов'}
       try {
         console.log(`[SkillImprovement] Attempting generateContent with model: ${model} (schema=${isGemini})`)
         response = await fetch(
-          `https://generativelanguage.googleapis.com/v1beta/models/${model}:generateContent?key=${apiKey}`,
+          `https://generativelanguage.googleapis.com/v1beta/models/${model}:generateContent?key=${gemini.apiKey}`,
           {
             method: 'POST',
             headers: {
@@ -494,7 +499,7 @@ ${appliedVacanciesInfo || 'Нет откликов'}
         if (response.status === 400 && isGemini) {
           console.log(`[SkillImprovement] Retrying model: ${model} without responseSchema`)
           response = await fetch(
-            `https://generativelanguage.googleapis.com/v1beta/models/${model}:generateContent?key=${apiKey}`,
+            `https://generativelanguage.googleapis.com/v1beta/models/${model}:generateContent?key=${gemini.apiKey}`,
             {
               method: 'POST',
               headers: {

@@ -1,6 +1,7 @@
 import { NextResponse } from 'next/server'
 import { getSession } from '@/lib/auth'
 import { createSlidingWindowRateLimiter } from '@/lib/chat/rate-limit'
+import { getGeminiEnv } from '@/lib/gemini/env'
 
 type MessageItem = {
   role: 'user' | 'model'
@@ -33,12 +34,16 @@ export async function POST(req: Request) {
       }, { status: 429 })
     }
 
-    const apiKey = process.env.GEMINI_API_KEY
-    if (!apiKey || apiKey.trim() === '') {
-      return NextResponse.json({
-        error: 'missing_api_key',
-        text: 'Google Gemini API Key is missing. Please add GEMINI_API_KEY="your_api_key" to your .env file to enable the AI Chatbot. You can get a free key at https://aistudio.google.com/.'
-      })
+    const gemini = getGeminiEnv()
+    if (!gemini.ok) {
+      return NextResponse.json(
+        {
+          error: gemini.error,
+          expectedEnvVar: gemini.expectedEnvVar,
+          text: `${gemini.message} You can get a free key at https://aistudio.google.com/.`,
+        },
+        { status: 503 },
+      )
     }
 
     const body = await req.json()
@@ -86,7 +91,7 @@ CRITICAL RULE: Under no circumstances are you allowed to discuss anything else.
       try {
         console.log(`Attempting generateContent with model: ${model}`)
         response = await fetch(
-          `https://generativelanguage.googleapis.com/v1beta/models/${model}:generateContent?key=${apiKey}`,
+          `https://generativelanguage.googleapis.com/v1beta/models/${model}:generateContent?key=${gemini.apiKey}`,
           {
             method: 'POST',
             headers: {

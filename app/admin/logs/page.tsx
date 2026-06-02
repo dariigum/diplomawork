@@ -11,6 +11,7 @@ import {
 } from '@/components/ui/table';
 import { Badge } from '@/components/ui/badge';
 import { ShieldAlert, Terminal, AlertTriangle, Info, CheckCircle2 } from 'lucide-react';
+import { useI18n } from '@/lib/i18n/provider';
 
 const mockLogs = [
   { id: 1, type: 'ERROR', message: 'Failed to connect to ML Service at 192.168.1.15', source: 'API Gateway', timestamp: new Date(Date.now() - 1000 * 60 * 5) },
@@ -22,6 +23,8 @@ const mockLogs = [
 ];
 
 export default function AdminLogsPage() {
+  const { t } = useI18n();
+
   const getBadgeVariant = (type: string) => {
     switch (type) {
       case 'ERROR': return 'destructive';
@@ -43,8 +46,8 @@ export default function AdminLogsPage() {
   return (
     <div className="flex flex-col gap-6">
       <div>
-        <h1 className="text-3xl font-bold tracking-tight">System Logs</h1>
-        <p className="text-muted-foreground">Monitor system events, errors, and security alerts.</p>
+        <h1 className="text-3xl font-bold tracking-tight">{t.admin.logs.title}</h1>
+        <p className="text-muted-foreground">{t.admin.logs.subtitle}</p>
       </div>
 
       <Card>
@@ -53,9 +56,9 @@ export default function AdminLogsPage() {
             <div>
               <CardTitle className="flex items-center">
                 <Terminal className="mr-2 h-5 w-5" />
-                Recent Events
+                {t.admin.logs.recentEvents}
               </CardTitle>
-              <CardDescription>The last 50 system logs and audit trails.</CardDescription>
+              <CardDescription>{t.admin.logs.logsDesc}</CardDescription>
             </div>
           </div>
         </CardHeader>
@@ -64,10 +67,10 @@ export default function AdminLogsPage() {
             <Table>
               <TableHeader>
                 <TableRow>
-                  <TableHead className="w-[180px]">Timestamp</TableHead>
-                  <TableHead className="w-[100px]">Level</TableHead>
-                  <TableHead className="w-[150px]">Source</TableHead>
-                  <TableHead>Message</TableHead>
+                  <TableHead className="w-[180px]">{t.admin.logs.colTimestamp}</TableHead>
+                  <TableHead className="w-[100px]">{t.admin.logs.colLevel}</TableHead>
+                  <TableHead className="w-[150px]">{t.admin.logs.colSource}</TableHead>
+                  <TableHead>{t.admin.logs.colMessage}</TableHead>
                 </TableRow>
               </TableHeader>
               <TableBody>

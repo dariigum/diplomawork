@@ -241,6 +241,9 @@ export interface IChat extends Document {
   lastMessageAt?: Date;
   unreadCountEmployer: number;
   unreadCountEmployee: number;
+  /** When true, chat is hidden from the employee UI; messages are still stored for the employer. */
+  hiddenForEmployee?: boolean;
+  hiddenForEmployeeAt?: Date;
   createdAt: Date;
   updatedAt: Date;
 }
@@ -255,6 +258,8 @@ const ChatSchema = new Schema<IChat>({
   lastMessageAt: { type: Date },
   unreadCountEmployer: { type: Number, default: 0 },
   unreadCountEmployee: { type: Number, default: 0 },
+  hiddenForEmployee: { type: Boolean, default: false },
+  hiddenForEmployeeAt: { type: Date },
   createdAt: { type: Date, default: Date.now },
   updatedAt: { type: Date, default: Date.now }
 });

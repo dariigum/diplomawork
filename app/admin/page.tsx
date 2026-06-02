@@ -5,8 +5,10 @@ import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Skeleton } from '@/components/ui/skeleton';
 import { Users, Building2, Briefcase, BrainCircuit, Activity, LineChart as LineChartIcon } from 'lucide-react';
 import { LineChart, Line, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer } from 'recharts';
+import { useI18n } from '@/lib/i18n/provider';
 
 export default function AdminDashboard() {
+  const { t, locale } = useI18n();
   const [stats, setStats] = useState<any>(null);
   const [isLoading, setIsLoading] = useState(true);
 
@@ -49,59 +51,63 @@ export default function AdminDashboard() {
     );
   }
 
-  if (!stats) return <div>Failed to load statistics.</div>;
+  if (!stats) return <div>{t.admin.overview.failedToLoad}</div>;
 
   return (
     <div className="flex flex-col gap-6">
       <div>
-        <h1 className="text-3xl font-bold tracking-tight">Dashboard Overview</h1>
-        <p className="text-muted-foreground">Monitor system performance and user activity.</p>
+        <h1 className="text-3xl font-bold tracking-tight">{t.admin.overview.title}</h1>
+        <p className="text-muted-foreground">{t.admin.overview.subtitle}</p>
       </div>
 
       <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-4">
         <Card>
           <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-            <CardTitle className="text-sm font-medium">Total Users</CardTitle>
+            <CardTitle className="text-sm font-medium">{t.admin.overview.totalUsers}</CardTitle>
             <Users className="h-4 w-4 text-muted-foreground" />
           </CardHeader>
           <CardContent>
             <div className="text-2xl font-bold">{stats.system?.totalUsers || 0}</div>
             <p className="text-xs text-muted-foreground">
-              {stats.system?.totalEmployees || 0} employees, {stats.system?.totalEmployers || 0} employers
+              {locale === 'ru'
+                ? `${stats.system?.totalEmployees || 0} соискателей, ${stats.system?.totalEmployers || 0} работодателей`
+                : locale === 'kk'
+                ? `${stats.system?.totalEmployees || 0} жұмыс іздеуші, ${stats.system?.totalEmployers || 0} жұмыс беруші`
+                : `${stats.system?.totalEmployees || 0} employees, ${stats.system?.totalEmployers || 0} employers`}
             </p>
           </CardContent>
         </Card>
         
         <Card>
           <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-            <CardTitle className="text-sm font-medium">Total Vacancies</CardTitle>
+            <CardTitle className="text-sm font-medium">{t.admin.overview.totalVacancies}</CardTitle>
             <Briefcase className="h-4 w-4 text-muted-foreground" />
           </CardHeader>
           <CardContent>
             <div className="text-2xl font-bold">{stats.system?.totalVacancies || 0}</div>
-            <p className="text-xs text-muted-foreground">Across the platform</p>
+            <p className="text-xs text-muted-foreground">{t.admin.overview.acrossPlatform}</p>
           </CardContent>
         </Card>
 
         <Card>
           <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-            <CardTitle className="text-sm font-medium">Total Applications</CardTitle>
+            <CardTitle className="text-sm font-medium">{t.admin.overview.totalApplications}</CardTitle>
             <Activity className="h-4 w-4 text-muted-foreground" />
           </CardHeader>
           <CardContent>
             <div className="text-2xl font-bold">{stats.system?.totalApplications || 0}</div>
-            <p className="text-xs text-muted-foreground">Applications submitted</p>
+            <p className="text-xs text-muted-foreground">{t.admin.overview.applicationsSubmitted}</p>
           </CardContent>
         </Card>
 
         <Card>
           <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-            <CardTitle className="text-sm font-medium">AI Embeddings</CardTitle>
+            <CardTitle className="text-sm font-medium">{t.admin.overview.aiEmbeddings}</CardTitle>
             <BrainCircuit className="h-4 w-4 text-muted-foreground" />
           </CardHeader>
           <CardContent>
             <div className="text-2xl font-bold">{stats.ai?.totalEmbeddingsGenerated || 0}</div>
-            <p className="text-xs text-muted-foreground">Generated for Resumes & Vacancies</p>
+            <p className="text-xs text-muted-foreground">{t.admin.overview.generatedForResumesVacancies}</p>
           </CardContent>
         </Card>
       </div>
@@ -109,7 +115,7 @@ export default function AdminDashboard() {
       <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-7">
         <Card className="col-span-4">
           <CardHeader>
-            <CardTitle>Activity Overview</CardTitle>
+            <CardTitle>{t.admin.overview.activityOverview}</CardTitle>
           </CardHeader>
           <CardContent className="pl-2">
             <div className="h-[300px]">
@@ -118,9 +124,18 @@ export default function AdminDashboard() {
                   <CartesianGrid strokeDasharray="3 3" vertical={false} />
                   <XAxis dataKey="name" axisLine={false} tickLine={false} />
                   <YAxis axisLine={false} tickLine={false} />
-                  <Tooltip />
-                  <Line type="monotone" dataKey="users" stroke="hsl(var(--primary))" strokeWidth={2} dot={false} />
-                  <Line type="monotone" dataKey="applications" stroke="hsl(var(--muted-foreground))" strokeWidth={2} dot={false} />
+                  <Tooltip
+                    contentStyle={{
+                      backgroundColor: 'var(--popover)',
+                      color: 'var(--popover-foreground)',
+                      borderColor: 'var(--border)',
+                      borderRadius: 'var(--radius)',
+                    }}
+                    labelStyle={{ color: 'var(--muted-foreground)' }}
+                    itemStyle={{ color: 'var(--popover-foreground)' }}
+                  />
+                  <Line type="monotone" dataKey="users" stroke="hsl(var(--primary))" strokeWidth={2} dot={{ r: 4 }} activeDot={{ r: 6 }} />
+                  <Line type="monotone" dataKey="applications" stroke="hsl(var(--muted-foreground))" strokeWidth={2} dot={{ r: 4 }} activeDot={{ r: 6 }} />
                 </LineChart>
               </ResponsiveContainer>
             </div>
@@ -129,28 +144,28 @@ export default function AdminDashboard() {
 
         <Card className="col-span-3">
           <CardHeader>
-            <CardTitle>System Performance</CardTitle>
+            <CardTitle>{t.admin.overview.systemPerformance}</CardTitle>
           </CardHeader>
           <CardContent>
             <div className="space-y-4">
               <div className="flex items-center justify-between">
-                <span className="text-sm font-medium">API Latency</span>
+                <span className="text-sm font-medium">{t.admin.overview.apiLatency}</span>
                 <span className="text-sm text-muted-foreground">{stats.performance?.apiLatency || 0} ms</span>
               </div>
               <div className="flex items-center justify-between">
-                <span className="text-sm font-medium">Recommendation Time</span>
+                <span className="text-sm font-medium">{t.admin.overview.recommendationTime}</span>
                 <span className="text-sm text-muted-foreground">{stats.performance?.recommendationResponseTime || 0} ms</span>
               </div>
               <div className="flex items-center justify-between">
-                <span className="text-sm font-medium">Cache Hit Rate</span>
+                <span className="text-sm font-medium">{t.admin.overview.cacheHitRate}</span>
                 <span className="text-sm text-muted-foreground">{stats.performance?.cacheHitRate || 0}%</span>
               </div>
               <div className="flex items-center justify-between">
-                <span className="text-sm font-medium">Active Users (Now)</span>
+                <span className="text-sm font-medium">{t.admin.overview.activeUsersNow}</span>
                 <span className="text-sm text-muted-foreground">{stats.performance?.activeUsers || 0}</span>
               </div>
               <div className="flex items-center justify-between">
-                <span className="text-sm font-medium">Concurrent Sessions</span>
+                <span className="text-sm font-medium">{t.admin.overview.concurrentSessions}</span>
                 <span className="text-sm text-muted-foreground">{stats.performance?.concurrentSessions || 0}</span>
               </div>
             </div>

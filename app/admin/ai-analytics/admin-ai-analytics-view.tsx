@@ -4,6 +4,7 @@ import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/com
 import { BrainCircuit, Target, Database } from 'lucide-react'
 import { PieChart, Pie, Cell, Tooltip, ResponsiveContainer } from 'recharts'
 import type { RecommendationEvalResults } from '@/lib/recommendation-eval-results'
+import { useI18n } from '@/lib/i18n/provider'
 
 type AdminAiAnalyticsViewProps = {
   evalResults: RecommendationEvalResults | null
@@ -12,34 +13,37 @@ type AdminAiAnalyticsViewProps = {
 
 const COLORS = ['hsl(var(--muted))']
 
-const matchDistributionData = [{ name: 'No data', value: 1 }]
-
 function formatMetric(value: number | null): string {
   if (typeof value !== 'number' || !Number.isFinite(value)) return '—'
   return value.toFixed(3)
 }
 
-function metricSubtitle(hasComputedMetrics: boolean, evalResults: RecommendationEvalResults | null): string {
-  if (hasComputedMetrics && evalResults) {
-    return `${evalResults.evaluatedUsers} user(s) · ${new Date(evalResults.generatedAt).toLocaleString()}`
-  }
-  if (evalResults && evalResults.evaluatedUsers === 0) {
-    return 'Insufficient data'
-  }
-  return 'Planned — run npm run eval:recommendations'
-}
-
 export function AdminAiAnalyticsView({ evalResults, hasComputedMetrics }: AdminAiAnalyticsViewProps) {
-  const precisionLabel = hasComputedMetrics ? formatMetric(evalResults?.precisionAt10 ?? null) : 'Planned'
-  const recallLabel = hasComputedMetrics ? formatMetric(evalResults?.recallAt10 ?? null) : 'Planned'
+  const { t, locale } = useI18n()
+  const precisionLabel = hasComputedMetrics ? formatMetric(evalResults?.precisionAt10 ?? null) : t.admin.aiAnalytics.planned
+  const recallLabel = hasComputedMetrics ? formatMetric(evalResults?.recallAt10 ?? null) : t.admin.aiAnalytics.planned
+
+  const matchDistributionData = [{ name: t.admin.aiAnalytics.noData, value: 1 }]
+
+  function metricSubtitle(hasComputedMetrics: boolean, evalResults: RecommendationEvalResults | null): string {
+    if (hasComputedMetrics && evalResults) {
+      const userLabel = locale === 'ru' ? t.admin.aiAnalytics.evaluatedUsers : locale === 'kk' ? t.admin.aiAnalytics.evaluatedUsers : 'user(s)';
+      return `${evalResults.evaluatedUsers} ${userLabel} · ${new Date(evalResults.generatedAt).toLocaleString()}`
+    }
+    if (evalResults && evalResults.evaluatedUsers === 0) {
+      return t.admin.aiAnalytics.insufficientDataSub
+    }
+    return t.admin.aiAnalytics.plannedEvalSub
+  }
+
   const precisionSub = metricSubtitle(hasComputedMetrics, evalResults)
   const recallSub = metricSubtitle(hasComputedMetrics, evalResults)
 
   return (
     <div className="flex flex-col gap-6">
       <div>
-        <h1 className="text-3xl font-bold tracking-tight">AI Analytics Panel</h1>
-        <p className="text-muted-foreground">Monitor recommendation system performance and embedding metrics.</p>
+        <h1 className="text-3xl font-bold tracking-tight">{t.admin.aiAnalytics.title}</h1>
+        <p className="text-muted-foreground">{t.admin.aiAnalytics.subtitle}</p>
         {evalResults?.methodology && (
           <p className="mt-2 text-xs text-muted-foreground max-w-4xl">{evalResults.methodology}</p>
         )}
@@ -70,23 +74,23 @@ export function AdminAiAnalyticsView({ evalResults, hasComputedMetrics }: AdminA
 
         <Card>
           <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-            <CardTitle className="text-sm font-medium">Avg Match Score</CardTitle>
+            <CardTitle className="text-sm font-medium">{t.admin.aiAnalytics.avgMatchScore}</CardTitle>
             <BrainCircuit className="h-4 w-4 text-muted-foreground" />
           </CardHeader>
           <CardContent>
-            <div className="text-2xl font-bold">Planned</div>
-            <p className="text-xs text-muted-foreground">Not part of offline eval pipeline</p>
+            <div className="text-2xl font-bold">{t.admin.aiAnalytics.planned}</div>
+            <p className="text-xs text-muted-foreground">{t.admin.aiAnalytics.notPartOfEval}</p>
           </CardContent>
         </Card>
 
         <Card>
           <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-            <CardTitle className="text-sm font-medium">Qdrant Vector DB</CardTitle>
+            <CardTitle className="text-sm font-medium">{t.admin.aiAnalytics.qdrantVectorDb}</CardTitle>
             <Database className="h-4 w-4 text-muted-foreground" />
           </CardHeader>
           <CardContent>
-            <div className="text-2xl font-bold">Planned</div>
-            <p className="text-xs text-muted-foreground">Status unavailable</p>
+            <div className="text-2xl font-bold">{t.admin.aiAnalytics.planned}</div>
+            <p className="text-xs text-muted-foreground">{t.admin.aiAnalytics.statusUnavailable}</p>
           </CardContent>
         </Card>
       </div>
@@ -94,20 +98,20 @@ export function AdminAiAnalyticsView({ evalResults, hasComputedMetrics }: AdminA
       <div className="grid gap-4 md:grid-cols-2">
         <Card>
           <CardHeader>
-            <CardTitle>Model Performance Trends</CardTitle>
-            <CardDescription>Precision and Recall over time</CardDescription>
+            <CardTitle>{t.admin.aiAnalytics.modelPerformanceTrends}</CardTitle>
+            <CardDescription>{t.admin.aiAnalytics.precisionRecallTime}</CardDescription>
           </CardHeader>
           <CardContent className="pl-2">
             <div className="h-[300px] flex items-center justify-center text-muted-foreground">
-              {hasComputedMetrics ? 'Historical trend logging is planned.' : 'Insufficient data — run offline evaluation first.'}
+              {hasComputedMetrics ? t.admin.aiAnalytics.historicalTrendsPlanned : t.admin.aiAnalytics.insufficientData}
             </div>
           </CardContent>
         </Card>
 
         <Card>
           <CardHeader>
-            <CardTitle>Recommendation Match Distribution</CardTitle>
-            <CardDescription>Distribution of match scores for all recommendations</CardDescription>
+            <CardTitle>{t.admin.aiAnalytics.matchDistribution}</CardTitle>
+            <CardDescription>{t.admin.aiAnalytics.matchDistributionDesc}</CardDescription>
           </CardHeader>
           <CardContent>
             <div className="h-[300px]">

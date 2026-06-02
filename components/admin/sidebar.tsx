@@ -8,31 +8,27 @@ import {
   Users,
   Building2,
   Briefcase,
-  BrainCircuit,
-  Activity,
-  LineChart,
   ShieldAlert
 } from 'lucide-react';
-
-const navigation = [
-  { name: 'Overview', href: '/admin', icon: LayoutDashboard },
-  { name: 'Users', href: '/admin/users', icon: Users },
-  { name: 'Employers', href: '/admin/employers', icon: Building2 },
-  { name: 'Vacancies', href: '/admin/vacancies', icon: Briefcase },
-  { name: 'AI Analytics', href: '/admin/ai-analytics', icon: BrainCircuit },
-  { name: 'ML Monitoring', href: '/admin/ml-monitoring', icon: Activity },
-  { name: 'Behavior Analytics', href: '/admin/behavior', icon: LineChart },
-  { name: 'System Logs', href: '/admin/logs', icon: ShieldAlert },
-];
+import { useI18n } from '@/lib/i18n/provider';
 
 export function AdminSidebar() {
   const pathname = usePathname();
+  const { t } = useI18n();
+
+  const navigation = [
+    { name: t.admin.sidebar.overview, href: '/admin', icon: LayoutDashboard },
+    { name: t.admin.sidebar.users, href: '/admin/users', icon: Users },
+    { name: t.admin.sidebar.employers, href: '/admin/employers', icon: Building2 },
+    { name: t.admin.sidebar.vacancies, href: '/admin/vacancies', icon: Briefcase },
+    { name: t.admin.sidebar.systemLogs, href: '/admin/logs', icon: ShieldAlert },
+  ];
 
   return (
     <div className="flex h-full w-64 flex-col border-r bg-card px-3 py-4">
       <div className="mb-6 px-4">
         <h2 className="text-lg font-semibold tracking-tight text-foreground">
-          Admin Panel
+          {t.admin.sidebar.title}
         </h2>
       </div>
       <nav className="flex-1 space-y-1">
@@ -40,7 +36,7 @@ export function AdminSidebar() {
           const isActive = pathname === item.href;
           return (
             <Link
-              key={item.name}
+              key={item.href}
               href={item.href}
               className={cn(
                 'group flex items-center rounded-md px-3 py-2 text-sm font-medium',

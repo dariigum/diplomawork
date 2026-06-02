@@ -4,10 +4,21 @@ import * as React from 'react';
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import Link from 'next/link';
 import { formatDistanceToNow } from 'date-fns';
-import { ArrowLeft, Briefcase, MessageSquare } from 'lucide-react';
+import { ArrowLeft, Briefcase, MessageSquare, Trash2 } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
 import { Card } from '@/components/ui/card';
+import {
+  AlertDialog,
+  AlertDialogAction,
+  AlertDialogCancel,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogTitle,
+  AlertDialogTrigger,
+} from '@/components/ui/alert-dialog';
 import { ScrollArea } from '@/components/ui/scroll-area';
 import { Skeleton } from '@/components/ui/skeleton';
 import { useIsMobile } from '@/hooks/use-mobile';
@@ -48,6 +59,7 @@ export function EmployeeChatView({ currentUserId }: { currentUserId: string }) {
   const [hasMore, setHasMore] = useState(false);
   const [oldestId, setOldestId] = useState<string | null>(null);
   const [typing, setTyping] = useState(false);
+  const [hidingChat, setHidingChat] = useState(false);
   const scrollRef = useRef<HTMLDivElement>(null);
 
   const loadChats = useCallback(async () => {
@@ -64,6 +76,29 @@ export function EmployeeChatView({ currentUserId }: { currentUserId: string }) {
   useEffect(() => {
     void loadChats();
   }, [loadChats]);
+
+  const hideSelectedChat = useCallback(async () => {
+    if (!selectedId || hidingChat) return;
+    setHidingChat(true);
+    try {
+      const res = await fetch(`/api/chats/${selectedId}/hide`, {
+        method: 'POST',
+        credentials: 'include',
+      });
+      if (!res.ok) return;
+      leaveChat(selectedId);
+      setSelectedId(null);
+      setDetail(null);
+      setMessages([]);
+      setHasMore(false);
+      setOldestId(null);
+      setTyping(false);
+      if (isMobile) setMobile('list');
+      await loadChats();
+    } finally {
+      setHidingChat(false);
+    }
+  }, [hidingChat, isMobile, leaveChat, loadChats, selectedId]);
 
   const loadMessages = useCallback(async (chatId: string, before?: string) => {
     const qs = before ? `?before=${encodeURIComponent(before)}` : '';
@@ -221,7 +256,38 @@ export function EmployeeChatView({ currentUserId }: { currentUserId: string }) {
           <Button variant="ghost" size="icon" type="button" onClick={() => setMobile('list')}>
             <ArrowLeft className="size-4" />
           </Button>
-          <span className="truncate text-sm font-medium">{peerName}</span>
+          <span className="min-w-0 flex-1 truncate text-sm font-medium">{peerName}</span>
+          {selectedId ? (
+            <AlertDialog>
+              <AlertDialogTrigger asChild>
+                <Button
+                  variant="ghost"
+                  size="icon"
+                  type="button"
+                  disabled={hidingChat}
+                  aria-label={t.chat.hideChat}
+                >
+                  <Trash2 className="size-4 text-muted-foreground" />
+                </Button>
+              </AlertDialogTrigger>
+              <AlertDialogContent>
+                <AlertDialogHeader>
+                  <AlertDialogTitle>{t.chat.hideChatTitle}</AlertDialogTitle>
+                  <AlertDialogDescription>{t.chat.hideChatDescription}</AlertDialogDescription>
+                </AlertDialogHeader>
+                <AlertDialogFooter>
+                  <AlertDialogCancel>{t.common.cancel}</AlertDialogCancel>
+                  <AlertDialogAction
+                    type="button"
+                    disabled={hidingChat}
+                    onClick={() => void hideSelectedChat()}
+                  >
+                    {t.chat.hideChatConfirm}
+                  </AlertDialogAction>
+                </AlertDialogFooter>
+              </AlertDialogContent>
+            </AlertDialog>
+          ) : null}
         </div>
       ) : null}
 
@@ -245,6 +311,38 @@ export function EmployeeChatView({ currentUserId }: { currentUserId: string }) {
                 ) : null}
               </div>
             </div>
+            {!isMobile ? (
+              <AlertDialog>
+                <AlertDialogTrigger asChild>
+                  <Button
+                    variant="outline"
+                    size="sm"
+                    type="button"
+                    disabled={hidingChat}
+                    className="shrink-0 gap-1.5 text-muted-foreground"
+                  >
+                    <Trash2 className="size-3.5" />
+                    {t.chat.hideChat}
+                  </Button>
+                </AlertDialogTrigger>
+                <AlertDialogContent>
+                  <AlertDialogHeader>
+                    <AlertDialogTitle>{t.chat.hideChatTitle}</AlertDialogTitle>
+                    <AlertDialogDescription>{t.chat.hideChatDescription}</AlertDialogDescription>
+                  </AlertDialogHeader>
+                  <AlertDialogFooter>
+                    <AlertDialogCancel>{t.common.cancel}</AlertDialogCancel>
+                    <AlertDialogAction
+                      type="button"
+                      disabled={hidingChat}
+                      onClick={() => void hideSelectedChat()}
+                    >
+                      {t.chat.hideChatConfirm}
+                    </AlertDialogAction>
+                  </AlertDialogFooter>
+                </AlertDialogContent>
+              </AlertDialog>
+            ) : null}
           </div>
         </Card>
       ) : null}

@@ -68,14 +68,14 @@ export async function POST(req: Request, ctx: { params: Promise<{ chatId: string
 
     await dbConnect();
     const role = session.user.role === 'EMPLOYER' ? 'EMPLOYER' : 'EMPLOYEE';
-    const { message, chatPatch } = await sendMessageFromUser({
+    const { message, chatPatch, notifyReceiver } = await sendMessageFromUser({
       user: { id: session.user.id, role },
       chatId,
       text,
       attachments,
     });
 
-    publishNewMessage(chatId, message, chatPatch, clientTempId);
+    publishNewMessage(chatId, message, chatPatch, clientTempId, { notifyReceiver });
 
     return NextResponse.json({ message, clientTempId });
   } catch (e: any) {

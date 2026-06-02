@@ -1,6 +1,9 @@
+import Link from "next/link";
+import { ChevronLeft } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
+import { ResumeCvFileUpload } from "@/components/forms/resume-cv-file-upload";
 import { createResumeAction } from "@/app/actions/employee";
 import { cookies } from "next/headers";
 import { getDictionary } from "@/lib/i18n/dictionaries";
@@ -12,7 +15,14 @@ export default async function NewResumePage() {
 
   return (
     <div className="max-w-2xl mx-auto space-y-8">
-      <h1 className="text-3xl font-bold">{t.forms.addNewResume}</h1>
+      <div className="flex items-center gap-2">
+        <Button variant="ghost" size="icon" className="shrink-0" asChild>
+          <Link href="/dashboard/employee" aria-label={t.forms.back}>
+            <ChevronLeft className="size-6" />
+          </Link>
+        </Button>
+        <h1 className="text-3xl font-bold">{t.forms.addNewResume}</h1>
+      </div>
       
       <Card>
         <CardHeader>
@@ -46,8 +56,10 @@ export default async function NewResumePage() {
             </div>
 
             <div className="space-y-2">
-              <label htmlFor="cvFile" className="text-sm font-medium">{t.forms.uploadCv}</label>
-              <Input id="cvFile" name="cvFile" type="file" accept=".pdf" />
+              <label htmlFor="cvFile" className="text-sm font-medium">
+                {t.forms.uploadCv}
+              </label>
+              <ResumeCvFileUpload chooseLabel={t.forms.uploadCv} />
             </div>
 
             <div className="grid grid-cols-1 md:grid-cols-2 gap-4">

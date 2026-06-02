@@ -353,6 +353,11 @@ export const dictionaries = {
       employerIsTyping: 'Employer is typing...',
       applicantIsTyping: 'Applicant is typing...',
       application: 'Application',
+      hideChat: 'Hide chat',
+      hideChatTitle: 'Hide this conversation?',
+      hideChatDescription:
+        'The chat will disappear from your list. The employer can still see the history. You will not receive new message notifications from this conversation.',
+      hideChatConfirm: 'Hide conversation',
     },
     forms: {
       postNewVacancy: 'Post New Vacancy',
@@ -390,6 +395,7 @@ export const dictionaries = {
       linkedin: 'LinkedIn',
       github: 'GitHub',
       createResume: 'Create Resume',
+      saveChanges: 'Save changes',
       couldNotLoadLocations: 'Could not load country and city list.',
       editResume: 'Edit Resume',
       back: 'Back',
@@ -908,6 +914,11 @@ export const dictionaries = {
       employerIsTyping: 'Работодатель печатает...',
       applicantIsTyping: 'Кандидат печатает...',
       application: 'Отклик',
+      hideChat: 'Скрыть чат',
+      hideChatTitle: 'Скрыть этот диалог?',
+      hideChatDescription:
+        'Чат исчезнет из вашего списка. Работодатель по-прежнему видит переписку. Новые уведомления о сообщениях из этого чата приходить не будут.',
+      hideChatConfirm: 'Скрыть диалог',
     },
     forms: {
       postNewVacancy: 'Создать вакансию',
@@ -1464,6 +1475,11 @@ export const dictionaries = {
       employerIsTyping: 'Жұмыс беруші теріп жатыр...',
       applicantIsTyping: 'Үміткер теріп жатыр...',
       application: 'Өтініш',
+      hideChat: 'Чатты жасыру',
+      hideChatTitle: 'Бұл сұхбатты жасыру керек пе?',
+      hideChatDescription:
+        'Чат тізіміңізден жоғалады. Жұмыс беруші хабарламалар тарихын көре алады. Осы чаттан жаңа хабарлама хабарландырулары келмейді.',
+      hideChatConfirm: 'Сұхбатты жасыру',
     },
     forms: {
       postNewVacancy: 'Жаңа вакансия жариялау',

@@ -6,6 +6,7 @@ import { Button } from "@/components/ui/button"
 import { ApplyModal } from "@/components/jobs/apply-modal"
 import { toggleSaveVacancyAction } from "@/app/actions/vacancy"
 import { emitSavedVacanciesUpdated } from "@/lib/saved-vacancies-events"
+import { useI18n } from "@/lib/i18n/provider"
 import { toast } from "sonner"
 
 interface JobDetailActionsProps {
@@ -20,6 +21,7 @@ interface JobDetailActionsProps {
 }
 
 export function JobDetailActions({ job, initialSaved, canApply }: JobDetailActionsProps) {
+  const { t } = useI18n()
   const [isSaved, setIsSaved] = useState(initialSaved)
   const [isApplyOpen, setIsApplyOpen] = useState(false)
   const [isPending, startTransition] = useTransition()
@@ -32,13 +34,13 @@ export function JobDetailActions({ job, initialSaved, canApply }: JobDetailActio
       const result = await toggleSaveVacancyAction(job.id)
       if (result?.error) {
         setIsSaved(previousState)
-        toast.error("Only employees can save vacancies.")
+        toast.error(t.home.onlyEmployeesCanSave)
         return
       }
 
       setIsSaved(!!result.saved)
       emitSavedVacanciesUpdated()
-      toast.success(result.saved ? "Vacancy saved." : "Vacancy removed from saved.")
+      toast.success(result.saved ? t.common.saved : t.common.save)
     })
   }
 
@@ -47,7 +49,7 @@ export function JobDetailActions({ job, initialSaved, canApply }: JobDetailActio
       <div className="space-y-4">
         {canApply && (
           <Button className="w-full h-12 text-base" size="lg" onClick={() => setIsApplyOpen(true)}>
-            Apply Now
+            {t.common.applyNow}
           </Button>
         )}
         <Button
@@ -58,7 +60,7 @@ export function JobDetailActions({ job, initialSaved, canApply }: JobDetailActio
           disabled={isPending}
         >
           <Heart className={`mr-2 h-5 w-5 ${isSaved ? "fill-current text-destructive" : ""}`} />
-          {isSaved ? "Saved" : "Save Job"}
+          {isSaved ? t.common.saved : t.common.save}
         </Button>
       </div>
 

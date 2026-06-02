@@ -5,6 +5,7 @@ import { getSession } from '@/lib/auth'
 import { Vacancy, Response, Chat } from '@/lib/db/schema'
 import { cosineSimilarity } from '@/lib/recommendation'
 import { isValidEmbeddingVector } from '@/lib/job-ingestion/embeddings/embedding-vector-guards'
+import { resolveEmployerCvForApi } from '@/lib/employer-cv-url.server'
 import { buildResumeEmbeddingText, buildVacancyEmbeddingText } from '@/lib/embedding-text'
 import { computeOverlapSkills, employerMatchFitLevel, matchScorePercent } from '@/lib/employer-candidate-matching'
 
@@ -66,14 +67,21 @@ export async function GET(req: Request, ctx: { params: Promise<{ vacancyId: stri
 
     const responses = (await Response.find({ vacancyId: new mongoose.Types.ObjectId(vacancyId) })
       .populate('userId', 'name logoUrl')
-      .populate('resumeId', 'title cvFile skills embedding')
+      .populate('resumeId', 'title cvFile cvLink skills embedding')
       .sort({ createdAt: -1 })
       .lean()) as any[]
 
     type RankedRow = {
       applicationId: string
       employee: { id: string; name: string; image?: string | null }
-      resume: { id: string; title: string; cvFile?: string; skillsPreview: string } | null
+      resume: {
+        id: string
+        title: string
+        cvFile?: string
+        cvLink?: string
+        cvUnavailable?: boolean
+        skillsPreview: string
+      } | null
       match: { semanticScore: number; matchScore: number; fitLevel: string } | null
       overlapSkills: string[]
       status: string
@@ -119,7 +127,8 @@ export async function GET(req: Request, ctx: { params: Promise<{ vacancyId: stri
           ? {
               id: String(resume._id),
               title: String(resume.title ?? ''),
-              cvFile: typeof resume.cvFile === 'string' ? resume.cvFile : '',
+              ...resolveEmployerCvForApi(resume.cvFile, resume.cvLink),
+              cvLink: typeof resume.cvLink === 'string' && resume.cvLink.trim() ? resume.cvLink.trim() : undefined,
               skillsPreview: String(resume.skills ?? '').slice(0, 160),
             }
           : null,

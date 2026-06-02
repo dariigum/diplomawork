@@ -9,6 +9,7 @@ import {
 } from '@/lib/behaviour-profile'
 import { isValidEmbeddingVector } from '@/lib/job-ingestion/embeddings/embedding-vector-guards'
 import mongoose from 'mongoose'
+import { resolveEmployerCvForApi } from '@/lib/employer-cv-url.server'
 
 export type EmployerMatchFitLevel = 'Strong Fit' | 'Related' | 'Exploratory'
 
@@ -19,6 +20,11 @@ export type EmployerMatchCandidate = {
   matchScore: number
   fitLevel: EmployerMatchFitLevel
   overlapSkills: string[]
+  /** Safe local /uploads/resumes/ path or verified external URL. */
+  cvFile?: string
+  /** DB had a CV reference but file is missing or path is invalid. */
+  cvUnavailable?: boolean
+  cvLink?: string
 }
 
 const DEFAULT_LIMIT = 10
@@ -144,7 +150,7 @@ export async function getTopMatchingCandidatesForVacancy(params: {
     activeForAi: true,
     embedding: { $exists: true, $ne: null },
   })
-    .select('userId title skills experience education embedding')
+    .select('userId title skills experience education embedding cvFile cvLink')
     .populate('userId', 'name')
     .lean()) as ResumeLean[]
 
@@ -185,6 +191,8 @@ export async function getTopMatchingCandidatesForVacancy(params: {
       matchScore,
       fitLevel: employerMatchFitLevel(matchScore),
       overlapSkills: computeOverlapSkills(vacancySkillText, resumeSkillText),
+      ...resolveEmployerCvForApi(resume.cvFile, resume.cvLink),
+      cvLink: typeof resume.cvLink === 'string' && resume.cvLink.trim() ? resume.cvLink.trim() : undefined,
       semanticScore,
     })
   }

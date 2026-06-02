@@ -8,6 +8,8 @@ import { cn } from '@/lib/utils'
 import { formatSkillDisplayName } from '@/lib/format-skill-display-name'
 import { localizeMatchingCandidatesError } from '@/lib/localize-matching-candidates-error'
 import { useI18n } from '@/lib/i18n/provider'
+import { useEmployerDashboardNav } from '@/components/dashboard/employer-dashboard-nav'
+import { EmployerCandidateCardActions } from '@/components/dashboard/employer-candidate-card-actions'
 
 const MAX_MATCHING_SKILLS = 5
 
@@ -18,10 +20,15 @@ type MatchCandidate = {
   matchScore: number
   fitLevel: 'Strong Fit' | 'Related' | 'Exploratory'
   overlapSkills: string[]
+  cvFile?: string
+  cvLink?: string
+  cvUnavailable?: boolean
 }
 
 type EmployerMatchingCandidatesProps = {
   vacancies: { id: string; title: string }[]
+  hideSelector?: boolean
+  onCountChange?: (n: number) => void
 }
 
 function fitBadgeClassName(fitLevel: MatchCandidate['fitLevel']): string {
@@ -39,9 +46,14 @@ function localizedFitLevel(
   return t.dashboard.matchFitExploratory
 }
 
-export function EmployerMatchingCandidates({ vacancies }: EmployerMatchingCandidatesProps) {
+export function EmployerMatchingCandidates({ vacancies, hideSelector, onCountChange }: EmployerMatchingCandidatesProps) {
   const { t } = useI18n()
-  const [selectedVacancyId, setSelectedVacancyId] = useState(vacancies[0]?.id ?? '')
+  const { vacancyId: sharedVacancyId, setVacancyId: setSharedVacancyId } = useEmployerDashboardNav()
+  const [selectedVacancyId, setSelectedVacancyId] = useState(
+    () => sharedVacancyId && vacancies.some((v) => v.id === sharedVacancyId)
+      ? sharedVacancyId
+      : vacancies[0]?.id ?? '',
+  )
   const [candidates, setCandidates] = useState<MatchCandidate[]>([])
   const [loading, setLoading] = useState(false)
   const [error, setError] = useState<string | null>(null)
@@ -81,17 +93,30 @@ export function EmployerMatchingCandidates({ vacancies }: EmployerMatchingCandid
       setCandidates([])
       return
     }
+    if (sharedVacancyId && vacancies.some((v) => v.id === sharedVacancyId) && sharedVacancyId !== selectedVacancyId) {
+      setSelectedVacancyId(sharedVacancyId)
+      return
+    }
     const exists = vacancies.some((v) => v.id === selectedVacancyId)
     const nextId = exists ? selectedVacancyId : vacancies[0].id
     if (nextId !== selectedVacancyId) {
       setSelectedVacancyId(nextId)
     }
-  }, [vacancies, selectedVacancyId])
+  }, [vacancies, selectedVacancyId, sharedVacancyId])
+
+  const handleVacancySelect = (vacancyId: string) => {
+    setSelectedVacancyId(vacancyId)
+    setSharedVacancyId(vacancyId)
+  }
 
   useEffect(() => {
     if (!selectedVacancyId) return
     fetchMatches(selectedVacancyId)
   }, [selectedVacancyId, fetchMatches])
+
+  useEffect(() => {
+    onCountChange?.(candidates.length)
+  }, [candidates.length, onCountChange])
 
   if (vacancies.length === 0) {
     return null
@@ -112,24 +137,26 @@ export function EmployerMatchingCandidates({ vacancies }: EmployerMatchingCandid
         </p>
       </CardHeader>
       <CardContent className="space-y-4">
-        <div className="flex flex-col gap-2 sm:flex-row sm:items-center">
-          <label htmlFor="match-vacancy-select" className="text-sm font-medium shrink-0">
-            {t.dashboard.matchVacancyLabel}
-          </label>
-          <select
-            id="match-vacancy-select"
-            value={selectedVacancyId}
-            onChange={(e) => setSelectedVacancyId(e.target.value)}
-            className="flex-1 rounded-lg border border-border bg-background px-3 py-2 text-sm focus:outline-none focus:ring-1 focus:ring-primary"
-            disabled={loading}
-          >
-            {vacancies.map((v) => (
-              <option key={v.id} value={v.id}>
-                {v.title}
-              </option>
-            ))}
-          </select>
-        </div>
+        {!hideSelector && (
+          <div className="flex flex-col gap-2 sm:flex-row sm:items-center">
+            <label htmlFor="match-vacancy-select" className="text-sm font-medium shrink-0">
+              {t.dashboard.matchVacancyLabel}
+            </label>
+            <select
+              id="match-vacancy-select"
+              value={selectedVacancyId}
+              onChange={(e) => handleVacancySelect(e.target.value)}
+              className="flex-1 rounded-lg border border-border bg-background px-3 py-2 text-sm focus:outline-none focus:ring-1 focus:ring-primary"
+              disabled={loading}
+            >
+              {vacancies.map((v) => (
+                <option key={v.id} value={v.id}>
+                  {v.title}
+                </option>
+              ))}
+            </select>
+          </div>
+        )}
 
         {loading && (
           <div className="flex items-center justify-center gap-2 py-8 text-muted-foreground">
@@ -162,23 +189,16 @@ export function EmployerMatchingCandidates({ vacancies }: EmployerMatchingCandid
                     <span className="truncate">{c.candidateName}</span>
                   </p>
 
-                  <div className="mb-2.5 rounded-md border border-border/50 bg-muted/35 px-2.5 py-2">
-                    <p className="text-xl font-bold leading-none tracking-tight text-primary tabular-nums">
-                      {c.matchScore}%
-                      <span className="ml-1.5 text-xs font-semibold tracking-wide text-primary/75">
-                        {t.chat.matchPercentLabel}
-                      </span>
-                    </p>
-                    <Badge
-                      variant="outline"
-                      className={cn('mt-2 text-[10px] font-medium', fitBadgeClassName(c.fitLevel))}
-                    >
+                  <p className="mb-2.5 text-sm font-semibold text-primary tabular-nums">
+                    {c.matchScore}% {t.chat.matchPercentLabel}
+                    <span className="text-muted-foreground"> · </span>
+                    <span className="text-xs font-medium text-foreground">
                       {localizedFitLevel(c.fitLevel, t)}
-                    </Badge>
-                  </div>
+                    </span>
+                  </p>
 
                   {matchingSkills.length > 0 ? (
-                    <div>
+                    <div className="mb-2">
                       <p className="mb-1 text-[11px] font-medium text-foreground">{t.chat.matchingSkills}</p>
                       <ul className="space-y-0.5 text-[11px] text-muted-foreground">
                         {matchingSkills.map((skill) => (
@@ -190,6 +210,14 @@ export function EmployerMatchingCandidates({ vacancies }: EmployerMatchingCandid
                       </ul>
                     </div>
                   ) : null}
+
+                  <EmployerCandidateCardActions
+                    resumeId={c.resumeId}
+                    viewResumeLabel={t.dashboard.viewResume}
+                    returnTo={selectedVacancyId
+                      ? `/dashboard/employer?tab=candidates&vacancy=${selectedVacancyId}&subtab=recommended`
+                      : '/dashboard/employer?tab=candidates'}
+                  />
                 </li>
               )
             })}

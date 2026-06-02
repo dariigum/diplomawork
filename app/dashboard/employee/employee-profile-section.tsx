@@ -258,7 +258,11 @@ export function EmployeeProfileSection({
                       </div>
                       {response.status !== 'PENDING' && (
                         <span className="rounded-full bg-secondary px-2 py-1 text-xs text-secondary-foreground">
-                          {response.status}
+                          {response.status === 'ACCEPTED'
+                            ? t.dashboard.accepted
+                            : response.status === 'REJECTED'
+                            ? t.dashboard.rejected
+                            : t.dashboard.pending}
                         </span>
                       )}
                     </div>

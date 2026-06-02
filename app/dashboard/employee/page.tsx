@@ -25,7 +25,7 @@ export default async function EmployeeDashboard() {
 
   const cookieStore = await cookies();
   const locale = cookieStore.get("NEXT_LOCALE")?.value || "en";
-  const t = getDictionary(locale as "en" | "ru" | "kz");
+  const t = getDictionary(locale as "en" | "ru" | "kk");
 
   const userData = await User.findById(session.user.id);
   const userResumes = await Resume.find({ userId: session.user.id }).sort({
@@ -99,8 +99,8 @@ export default async function EmployeeDashboard() {
 
   return (
     <ProfileChatDashboardShell
-      profileTitle={`${t.common.employee} Dashboard`}
-      subtitle={`${t.common.employer} / ${t.common.employee} Dashboard`}
+      profileTitle={t.common.employee}
+      subtitle={`${t.common.employer} / ${t.common.employee}`}
       profile={
         <div className="space-y-10">
           <section className="space-y-3" aria-labelledby="dash-ai-heading">
@@ -109,15 +109,15 @@ export default async function EmployeeDashboard() {
                 <div className="flex items-center gap-2 text-primary">
                   <Sparkles className="h-4 w-4 shrink-0" />
                   <span className="text-xs font-semibold uppercase tracking-wider text-muted-foreground">
-                    AI-powered workspace
+                    {t.employeeDashboard.aiWorkspace}
                   </span>
                 </div>
                 <h2 id="dash-ai-heading" className="text-lg font-semibold tracking-tight">
-                  Semantic matches
+                  {t.employeeDashboard.semanticMatches}
                 </h2>
               </div>
               <Button variant="outline" size="sm" asChild className="shrink-0 rounded-full">
-                <Link href="/dashboard/employee/recommendations">View all recommendations</Link>
+                <Link href="/dashboard/employee/recommendations">{t.employeeDashboard.viewAllRecommendations}</Link>
               </Button>
             </div>
             <EmployeeDashboardAiPreview serverHints={{ hasResume, embeddingIndexed }} />
@@ -128,9 +128,9 @@ export default async function EmployeeDashboard() {
               id="dash-behaviour-analytics-heading"
               className="text-xs font-semibold uppercase tracking-wider text-muted-foreground"
             >
-              Behaviour analytics
+              {t.employeeDashboard.behaviourAnalytics}
             </h2>
-            <EmployeeBehaviourAnalyticsDashboard snapshot={behaviourAnalytics} variant="full" />
+            <EmployeeBehaviourAnalyticsDashboard snapshot={behaviourAnalytics} variant="full" locale={locale} />
           </section>
 
           <section className="space-y-4 border-t border-border/60 pt-6">

@@ -4,6 +4,7 @@ import type { IAttachment } from '@/lib/db/schema';
 import { sanitizeChatMessageText } from '@/lib/chat/sanitize';
 import { decryptMessageTextFromStorage, encryptMessageTextForStorage } from '@/lib/chat/crypto-message';
 import { buildSignedAttachmentUrl } from '@/lib/chat/attachment-signing';
+import { resolveEmployerCvForApi } from '@/lib/employer-cv-url.server';
 
 export type SessionUser = { id: string; role: 'EMPLOYEE' | 'EMPLOYER'; email?: string };
 
@@ -374,7 +375,7 @@ export async function applicantsForVacancy(employerId: string, vacancyId: string
 
   const responses = (await Response.find({ vacancyId })
     .populate('userId', 'name logoUrl')
-    .populate('resumeId', 'title cvFile skills')
+    .populate('resumeId', 'title cvFile cvLink skills')
     .sort({ createdAt: -1 })
     .lean()) as any[];
 
@@ -410,7 +411,11 @@ export async function applicantsForVacancy(employerId: string, vacancyId: string
         ? {
             id: r.resumeId._id.toString(),
             title: r.resumeId.title,
-            cvFile: r.resumeId.cvFile,
+            ...resolveEmployerCvForApi(r.resumeId.cvFile, r.resumeId.cvLink),
+            cvLink:
+              typeof r.resumeId.cvLink === 'string' && r.resumeId.cvLink.trim()
+                ? r.resumeId.cvLink.trim()
+                : undefined,
             skillsPreview: (r.resumeId.skills || '').slice(0, 160),
           }
         : null,

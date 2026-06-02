@@ -8,6 +8,7 @@ import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
 import { Skeleton } from "@/components/ui/skeleton"
 import { Collapsible, CollapsibleContent, CollapsibleTrigger } from "@/components/ui/collapsible"
+import { useI18n } from "@/lib/i18n/provider"
 import {
   semanticOverlapTierLabel,
   semanticScoreBand,
@@ -55,13 +56,13 @@ const COLLAPSIBLE_TRIGGER =
 const CARD_EXPLANATION_TRIGGER =
   "flex w-full items-center justify-between gap-2 rounded-md text-left text-xs min-h-10 py-2 px-1 sm:min-h-8 sm:py-1.5 touch-manipulation font-medium text-muted-foreground hover:text-foreground underline-offset-2 hover:underline [&[data-state=open]>svg]:rotate-180"
 
-function tierShortLabel(score: number): string {
+function tierShortLabel(score: number, labels: { strong: string; solid: string; related: string; loose: string; semantic: string }): string {
   const band = semanticScoreBand(score)
-  if (band === "strong") return "Strong overlap"
-  if (band === "solid") return "Solid overlap"
-  if (band === "related") return "Related overlap"
-  if (band === "loose") return "Loose overlap"
-  return "Semantic overlap"
+  if (band === "strong") return labels.strong
+  if (band === "solid") return labels.solid
+  if (band === "related") return labels.related
+  if (band === "loose") return labels.loose
+  return labels.semantic
 }
 
 function SemanticScoreReadout({ score }: { score: number }) {
@@ -82,8 +83,10 @@ function buildSemanticResultMetaLine(params: {
   location: string
   employmentType: string
   workMode: "REMOTE" | "ONSITE"
+  remoteLabel?: string
+  onsiteLabel?: string
 }): string {
-  const modeLabel = params.workMode === "REMOTE" ? "Remote" : "On-site"
+  const modeLabel = params.workMode === "REMOTE" ? (params.remoteLabel ?? "Remote") : (params.onsiteLabel ?? "On-site")
   const parts: string[] = []
   const company = params.company.trim()
   const location = params.location.trim()
@@ -303,11 +306,12 @@ function SemanticEmptyState({
   hasFallback: boolean
   onShowFallback?: () => void
 }) {
+  const { t } = useI18n()
   return (
     <div className="rounded-md border border-dashed border-border/60 bg-muted/10 px-2.5 py-2 sm:px-2 sm:py-1.5 space-y-1.5">
       <p className={`${TEXT_SECONDARY_MUTED} leading-snug`}>
-        No strong semantic overlap found.
-        {hasFallback ? " Try broader wording or browse text matches below." : " Try broader wording."}
+        {t.semanticSearch.noStrongOverlap}
+        {hasFallback ? ` ${t.semanticSearch.tryBroaderWording}` : ` ${t.semanticSearch.tryBroaderWordingSimple}`}
       </p>
       {hasFallback && onShowFallback ? (
         <Button
@@ -318,7 +322,7 @@ function SemanticEmptyState({
           onClick={onShowFallback}
         >
           <FileText className="h-3.5 w-3.5" />
-          Text matches
+          {t.semanticSearch.textMatches}
         </Button>
       ) : null}
     </div>
@@ -347,6 +351,7 @@ function WeakSemanticMatchCard({ item }: { item: SemanticSearchApiWeakSemanticIt
 }
 
 function TextFallbackMatchCard({ item }: { item: SemanticSearchApiFallbackItem }) {
+  const { t } = useI18n()
   const explanation = item.explanation.trim()
 
   return (
@@ -361,20 +366,27 @@ function TextFallbackMatchCard({ item }: { item: SemanticSearchApiFallbackItem }
       </Link>
       <p className={`${TEXT_SECONDARY} line-clamp-1 break-words`}>
         {item.company} · {item.location}
-        <span className="text-muted-foreground/75 tabular-nums"> · text overlap {item.textScore}</span>
+        <span className="text-muted-foreground/75 tabular-nums"> · {t.semanticSearch.textOverlap} {item.textScore}</span>
       </p>
       {explanation ? (
-        <Collapsible defaultOpen={false}>
-          <CollapsibleTrigger className={CARD_EXPLANATION_TRIGGER}>
-            <span>Why matched</span>
-            <ChevronDown className="h-4 w-4 shrink-0 opacity-70 sm:h-3.5 sm:w-3.5" />
-          </CollapsibleTrigger>
-          <CollapsibleContent>
-            <p className={`mt-1 pb-0.5 ${TEXT_SECONDARY_MUTED}`}>{explanation}</p>
-          </CollapsibleContent>
-        </Collapsible>
+        <WhyMatchedCollapsible explanation={explanation} />
       ) : null}
     </article>
+  )
+}
+
+function WhyMatchedCollapsible({ explanation }: { explanation: string }) {
+  const { t } = useI18n()
+  return (
+    <Collapsible defaultOpen={false}>
+      <CollapsibleTrigger className={CARD_EXPLANATION_TRIGGER}>
+        <span>{t.semanticSearch.whyMatched}</span>
+        <ChevronDown className="h-4 w-4 shrink-0 opacity-70 sm:h-3.5 sm:w-3.5" />
+      </CollapsibleTrigger>
+      <CollapsibleContent>
+        <p className={`mt-1 pb-0.5 ${TEXT_SECONDARY_MUTED}`}>{explanation}</p>
+      </CollapsibleContent>
+    </Collapsible>
   )
 }
 
@@ -403,7 +415,7 @@ function KeywordFallbackSection({
     >
       <div className="space-y-0.5">
         <p className="text-xs font-medium text-foreground leading-snug">
-          Text matches <span className="font-normal text-muted-foreground">· Not embeddings</span>
+          <KeywordFallbackSectionHeader />
         </p>
         {reasonLine ? <p className={TEXT_SECONDARY_MUTED}>{reasonLine}</p> : null}
       </div>
@@ -415,6 +427,16 @@ function KeywordFallbackSection({
         ))}
       </ul>
     </section>
+  )
+}
+
+function KeywordFallbackSectionHeader() {
+  const { t } = useI18n()
+  const [textPart, notEmbeddings] = t.semanticSearch.textMatchesNotEmbeddings.split(' · ')
+  return (
+    <>
+      {textPart} <span className="font-normal text-muted-foreground">· {notEmbeddings}</span>
+    </>
   )
 }
 
@@ -467,6 +489,8 @@ function SemanticResultCard({
   r: SemanticSearchApiResultItem
   query: string
 }) {
+  const { t } = useI18n()
+  const tierLabels = { strong: t.semanticSearch.strongOverlap, solid: t.semanticSearch.solidOverlap, related: t.semanticSearch.relatedOverlap, loose: t.semanticSearch.looseOverlap, semantic: t.semanticSearch.semanticOverlap }
   const band = semanticScoreBand(r.semanticScore)
   const scoreFormatted = formatSemanticScore(r.semanticScore)
   const metaLine = buildSemanticResultMetaLine({
@@ -474,6 +498,8 @@ function SemanticResultCard({
     location: r.location,
     employmentType: r.employmentType,
     workMode: r.workMode,
+    remoteLabel: t.forms.remote,
+    onsiteLabel: t.forms.onsite,
   })
   const humanExplanation = buildHumanSemanticMatchExplanation({
     query,
@@ -508,7 +534,7 @@ function SemanticResultCard({
           className={`text-xs sm:text-[11px] leading-snug ${tierTextClassName(band)}`}
           title={semanticOverlapTierLabel(r.semanticScore)}
         >
-          {tierShortLabel(r.semanticScore)}
+          {tierShortLabel(r.semanticScore, tierLabels)}
         </p>
 
         {metaLine ? (
@@ -532,6 +558,7 @@ function StatusBanner({
   message: string
   onRetry: () => void
 }) {
+  const { t } = useI18n()
   const styles =
     tone === "warning"
       ? "border-amber-500/20 bg-amber-500/[0.04]"
@@ -544,13 +571,14 @@ function StatusBanner({
       </div>
       <Button type="button" variant="outline" size="sm" className="min-h-11 h-10 sm:min-h-8 sm:h-8 shrink-0 gap-1.5 text-xs" onClick={onRetry}>
         <RefreshCw className="h-3.5 w-3.5" />
-        Retry
+        {t.semanticSearch.retry}
       </Button>
     </div>
   )
 }
 
 export function SemanticJobSearchPanel() {
+  const { t } = useI18n()
   const [input, setInput] = useState("")
   const [panel, setPanel] = useState<PanelState>({ kind: "idle" })
   const debounceRef = useRef<ReturnType<typeof setTimeout> | null>(null)
@@ -682,7 +710,7 @@ export function SemanticJobSearchPanel() {
   const showError = panel.kind === "error"
 
   const retrievalStatusLine = useMemo(() => {
-    if (panel.kind === "loading") return "Searching…"
+    if (panel.kind === "loading") return t.semanticSearch.searching
     if (panel.kind !== "results") return null
     if (showEmptySemantic) return null
     return buildRetrievalStatusLine({
@@ -707,7 +735,7 @@ export function SemanticJobSearchPanel() {
   return (
     <section
       className="rounded-lg border border-border/70 bg-card/30 p-3 sm:p-2.5 space-y-2 sm:space-y-1.5 min-w-0 overflow-x-hidden"
-      aria-label="Semantic job search"
+      aria-label={t.semanticSearch.ariaLabel}
       aria-describedby={SCORE_SCALE_HINT_ID}
     >
       <p id={SCORE_SCALE_HINT_ID} className="sr-only">
@@ -715,8 +743,8 @@ export function SemanticJobSearchPanel() {
       </p>
       <div className="space-y-1.5 sm:space-y-1">
         <div className="space-y-0.5">
-          <h2 className="text-sm font-semibold text-foreground tracking-tight">Search by meaning</h2>
-          <p className={TEXT_SECONDARY_MUTED}>Independent from catalog · Not recommendations</p>
+          <h2 className="text-sm font-semibold text-foreground tracking-tight">{t.semanticSearch.searchByMeaning}</h2>
+          <p className={TEXT_SECONDARY_MUTED}>{t.semanticSearch.independent}</p>
         </div>
 
         <div className="flex gap-2">
@@ -726,8 +754,8 @@ export function SemanticJobSearchPanel() {
               value={input}
               onChange={(e) => setInput(e.target.value)}
               className="pl-9 h-10 sm:h-9 text-sm bg-background border-border/80"
-              placeholder='e.g. remote backend with Python'
-              aria-label="Semantic search query"
+              placeholder={t.semanticSearch.placeholder}
+              aria-label={t.semanticSearch.searchAriaLabel}
               autoComplete="off"
             />
           </div>
@@ -740,7 +768,7 @@ export function SemanticJobSearchPanel() {
             onClick={() => void runSearch(input)}
           >
             {showLoading ? <Loader2 className="h-3.5 w-3.5 animate-spin" /> : <Search className="h-3.5 w-3.5" />}
-            <span className="sr-only">Search</span>
+            <span className="sr-only">{t.semanticSearch.searchLabel}</span>
           </Button>
         </div>
 
@@ -773,7 +801,7 @@ export function SemanticJobSearchPanel() {
       {showUnavailable && panel.kind === "unavailable" ? (
         <StatusBanner
           tone="warning"
-          title="Semantic search unavailable"
+          title={t.semanticSearch.unavailable}
           message={panel.message}
           onRetry={() => void runSearch(panel.query)}
         />
@@ -782,7 +810,7 @@ export function SemanticJobSearchPanel() {
       {showError && panel.kind === "error" ? (
         <StatusBanner
           tone="error"
-          title="Could not load results"
+          title={t.semanticSearch.couldNotLoad}
           message={panel.message}
           onRetry={() => void runSearch(panel.query)}
         />

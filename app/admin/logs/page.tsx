@@ -18,8 +18,7 @@ const mockLogs = [
   { id: 2, type: 'WARN', message: 'High memory usage detected on Next.js container (85%)', source: 'System Monitor', timestamp: new Date(Date.now() - 1000 * 60 * 15) },
   { id: 3, type: 'INFO', message: 'Admin user logged in', source: 'Auth Service', timestamp: new Date(Date.now() - 1000 * 60 * 45) },
   { id: 4, type: 'SUCCESS', message: 'Database backup completed successfully', source: 'Backup Job', timestamp: new Date(Date.now() - 1000 * 60 * 60 * 2) },
-  { id: 5, type: 'INFO', message: 'Kafka topic "user-events" retention policy updated', source: 'Kafka Manager', timestamp: new Date(Date.now() - 1000 * 60 * 60 * 5) },
-  { id: 6, type: 'ERROR', message: 'Invalid JWT signature detected from IP 45.12.34.56', source: 'Auth Middleware', timestamp: new Date(Date.now() - 1000 * 60 * 60 * 12) },
+  { id: 5, type: 'ERROR', message: 'Invalid JWT signature detected from IP 45.12.34.56', source: 'Auth Middleware', timestamp: new Date(Date.now() - 1000 * 60 * 60 * 12) },
 ];
 
 export default function AdminLogsPage() {

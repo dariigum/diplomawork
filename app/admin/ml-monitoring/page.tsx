@@ -4,7 +4,7 @@ import { useEffect, useState } from 'react';
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
-import { Activity, Server, Database, RefreshCw, Cpu, Layers } from 'lucide-react';
+import { Activity, Server, Database, RefreshCw, Cpu } from 'lucide-react';
 import { formatDistanceToNow } from 'date-fns';
 import { ru, enUS, kk } from 'date-fns/locale';
 import { toast } from 'sonner';
@@ -42,6 +42,8 @@ export default function AdminMlMonitoringPage() {
   }
 
   const dateLocale = locale === 'ru' ? ru : locale === 'kk' ? kk : enUS;
+  const storage = status?.embeddingsStorage;
+  const hasEmbeddings = (storage?.totalEmbeddings ?? 0) > 0;
 
   return (
     <div className="flex flex-col gap-6">
@@ -56,7 +58,7 @@ export default function AdminMlMonitoringPage() {
         </Button>
       </div>
 
-      <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-3">
+      <div className="grid gap-4 md:grid-cols-2">
         {/* FastAPI ML Service */}
         <Card>
           <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
@@ -86,52 +88,42 @@ export default function AdminMlMonitoringPage() {
           </CardContent>
         </Card>
 
-        {/* Qdrant Vector DB */}
+        {/* MongoDB embeddings storage */}
         <Card>
           <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
             <CardTitle className="text-base font-medium flex items-center">
               <Database className="mr-2 h-4 w-4 text-chart-2" />
-              {t.admin.mlMonitoring.qdrant}
+              {t.admin.mlMonitoring.mongoEmbeddings}
             </CardTitle>
-            <Badge variant={status?.qdrant?.status === 'online' ? 'default' : 'destructive'} className={status?.qdrant?.status === 'online' ? 'bg-green-500/10 text-green-700 dark:text-green-400 border-green-500/20' : ''}>
-              {status?.qdrant?.status === 'online' ? t.admin.mlMonitoring.online : t.admin.mlMonitoring.offline}
+            <Badge variant="default" className="bg-green-500/10 text-green-700 dark:text-green-400 border-green-500/20">
+              {t.admin.mlMonitoring.active}
             </Badge>
           </CardHeader>
           <CardContent className="pt-4">
             <div className="space-y-2 text-sm">
               <div className="flex justify-between">
-                <span className="text-muted-foreground">{t.admin.mlMonitoring.collections}</span>
-                <span className="font-medium">{status?.qdrant?.collections?.join(', ')}</span>
+                <span className="text-muted-foreground">{t.admin.mlMonitoring.storageBackend}</span>
+                <span className="font-medium">{t.admin.mlMonitoring.storageBackendValue}</span>
               </div>
               <div className="flex justify-between">
-                <span className="text-muted-foreground">{t.admin.mlMonitoring.health}</span>
-                <span className="font-medium text-green-500">{t.admin.mlMonitoring.good}</span>
-              </div>
-            </div>
-          </CardContent>
-        </Card>
-
-        {/* Kafka Event Bus */}
-        <Card>
-          <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-            <CardTitle className="text-base font-medium flex items-center">
-              <Layers className="mr-2 h-4 w-4 text-chart-3" />
-              {t.admin.mlMonitoring.kafka}
-            </CardTitle>
-            <Badge variant={status?.kafka?.status === 'online' ? 'default' : 'destructive'} className={status?.kafka?.status === 'online' ? 'bg-green-500/10 text-green-700 dark:text-green-400 border-green-500/20' : ''}>
-              {status?.kafka?.status === 'online' ? t.admin.mlMonitoring.online : t.admin.mlMonitoring.offline}
-            </Badge>
-          </CardHeader>
-          <CardContent className="pt-4">
-            <div className="space-y-2 text-sm">
-              <div className="flex justify-between">
-                <span className="text-muted-foreground">{t.admin.mlMonitoring.activeTopics}</span>
-                <span className="font-medium">{status?.kafka?.topics?.length || 0}</span>
+                <span className="text-muted-foreground">{t.admin.mlMonitoring.resumeEmbeddings}</span>
+                <span className="font-medium">{storage?.resumeEmbeddings ?? 0}</span>
               </div>
               <div className="flex justify-between">
-                <span className="text-muted-foreground">{t.admin.mlMonitoring.unprocessedEvents}</span>
-                <span className="font-medium">0</span>
+                <span className="text-muted-foreground">{t.admin.mlMonitoring.vacancyEmbeddings}</span>
+                <span className="font-medium">{storage?.vacancyEmbeddings ?? 0}</span>
               </div>
+              <div className="flex justify-between">
+                <span className="text-muted-foreground">{t.admin.mlMonitoring.embeddedRecords}</span>
+                <span className="font-medium">{storage?.totalEmbeddings ?? 0}</span>
+              </div>
+              <div className="flex justify-between">
+                <span className="text-muted-foreground">{t.admin.mlMonitoring.searchMethod}</span>
+                <span className="font-medium text-right max-w-[55%]">{t.admin.mlMonitoring.searchMethodValue}</span>
+              </div>
+              {!hasEmbeddings && (
+                <p className="text-xs text-muted-foreground pt-1">{t.admin.mlMonitoring.noEmbeddingsYet}</p>
+              )}
             </div>
           </CardContent>
         </Card>

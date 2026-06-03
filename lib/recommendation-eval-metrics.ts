@@ -64,7 +64,7 @@ export function computeRecommendationRankMetrics(
     }
   }
 
-  const relevances = topK.map((id) => (holdout.has(id) ? 1 : 0));
+  const relevances: number[] = topK.map((id) => (holdout.has(id) ? 1 : 0));
   const dcg = relevances.reduce(
     (sum, rel, index) => sum + rel / Math.log2(index + 2),
     0,

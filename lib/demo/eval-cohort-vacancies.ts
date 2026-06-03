@@ -1,4 +1,9 @@
 import type { EvalTrack } from './eval-cohort-fixtures'
+import { EVAL_TRACKS } from './eval-cohort-fixtures'
+
+export const VACANCIES_PER_TRACK = 15
+
+export const TARGET_EVAL_VACANCY_COUNT = VACANCIES_PER_TRACK * EVAL_TRACKS.length
 
 export type EvalVacancySeed = {
   externalId: string
@@ -18,315 +23,356 @@ export type EvalVacancySeed = {
   responsibilities: string[]
 }
 
-const base = (
-  track: EvalTrack,
-  slug: string,
-  title: string,
-  description: string,
-  skillsRequired: string,
-  salaryMin: number,
-  salaryMax: number,
-): EvalVacancySeed => ({
-  externalId: `EVAL:${track}-${slug}`,
-  track,
-  title,
-  description,
-  skillsRequired,
-  salaryMin,
-  salaryMax,
-  experience: '2+ years',
-  employmentType: 'Full-time',
-  workMode: 'REMOTE',
-  country: '',
-  city: '',
-  address: 'Remote',
-  requirements: [`Strong ${skillsRequired.split(',')[0]?.trim() ?? 'domain'} fundamentals`],
-  responsibilities: ['Ship features with code review', 'Collaborate with product and QA', 'Document trade-offs'],
-})
+type VacancyTemplate = {
+  roleTitles: string[]
+  descriptionIntros: string[]
+  skillSets: string[]
+  salaryBands: Array<{ min: number; max: number }>
+}
 
-/** 30 EVAL vacancies (source EVAL, unique externalId) for evaluation corpus. */
-export const EVAL_COHORT_VACANCIES: EvalVacancySeed[] = [
-  base(
-    'frontend',
-    '001',
-    'Frontend Engineer — React Design System',
-    'Build accessible React components and job-discovery UX for a recruitment SaaS platform.',
-    'React, TypeScript, Next.js, TailwindCSS, Storybook',
-    2400,
-    5200,
-  ),
-  base(
-    'frontend',
-    '002',
-    'Senior React Developer — Dashboards',
-    'Own performance-sensitive dashboards, saved searches, and semantic job cards.',
-    'React, TypeScript, TanStack Query, Vitest, Web Vitals',
-    2800,
-    6000,
-  ),
-  base(
-    'frontend',
-    '003',
-    'UI Engineer — Next.js App Router',
-    'Implement SSR routes, forms, and i18n-ready layouts for candidate workflows.',
-    'Next.js, React, TypeScript, Zod, React Hook Form',
-    2600,
-    5500,
-  ),
-  base(
-    'frontend',
-    '004',
-    'Frontend Developer — Accessibility Focus',
-    'Improve keyboard navigation, ARIA patterns, and visual regression coverage.',
-    'React, HTML5, CSS, accessibility, axe-core, Playwright',
-    2200,
-    4800,
-  ),
-  base(
-    'frontend',
-    '005',
-    'Product Frontend Engineer',
-    'Cross-functional squad shipping filters, recommendations widgets, and employer views.',
-    'React, TypeScript, Figma, REST APIs, component testing',
-    2500,
-    5400,
-  ),
-  base(
-    'backend',
-    '001',
-    'Backend Engineer — Node.js APIs',
-    'Maintain REST APIs for auth, vacancies, applications, and recommendation integration.',
-    'Node.js, TypeScript, MongoDB, Express, OpenAPI, JWT',
-    2700,
-    5800,
-  ),
-  base(
-    'backend',
-    '002',
-    'Senior Backend Developer — Ingestion',
-    'Build idempotent vacancy ingestion and embedding pipeline hooks.',
-    'Node.js, TypeScript, Mongoose, async jobs, structured logging',
-    3000,
-    6200,
-  ),
-  base(
-    'backend',
-    '003',
-    'Go Backend Engineer — Microservices',
-    'Ship gRPC/REST microservices for search and provider adapters.',
-    'Go, gRPC, MongoDB, OpenAPI, Docker, observability',
-    3200,
-    6500,
-  ),
-  base(
-    'backend',
-    '004',
-    'Platform Backend Engineer',
-    'Focus on pagination, indexing, and secure multi-tenant employer APIs.',
-    'Node.js, PostgreSQL or MongoDB, API design, rate limiting',
-    2900,
-    6000,
-  ),
-  base(
-    'backend',
-    '005',
-    'Backend Engineer — Python Integrations',
-    'Python services connecting ML embedding endpoints to the web app.',
-    'Python, FastAPI, HTTP clients, pydantic, MongoDB',
-    2800,
-    5900,
-  ),
-  base(
-    'mobile',
-    '001',
-    'Flutter Mobile Engineer',
-    'Cross-platform candidate app: saved vacancies, push alerts, offline cards.',
-    'Flutter, Dart, Firebase, REST, deep links',
-    2600,
-    5400,
-  ),
-  base(
-    'mobile',
-    '002',
-    'Senior Mobile Developer — iOS/Android',
-    'Native modules, secure auth, and release automation for hiring apps.',
-    'Swift, Kotlin, mobile CI, REST, App Store processes',
-    3000,
-    6100,
-  ),
-  base(
-    'mobile',
-    '003',
-    'Mobile Engineer — React Native',
-    'Shared UI for job feeds and application tracking with strong typing.',
-    'React Native, TypeScript, Redux, mobile analytics',
-    2500,
-    5200,
-  ),
-  base(
-    'mobile',
-    '004',
-    'Mobile QA Partner Engineer',
-    'Mobile feature delivery with device lab coverage and crash analytics.',
-    'Flutter, Dart, XCTest basics, Firebase Crashlytics',
-    2400,
-    5000,
-  ),
-  base(
-    'qa',
-    '001',
-    'QA Engineer — Web Application',
-    'Regression testing for dashboards, search, and recommendation smoke paths.',
-    'Playwright, test plans, bug triage, Jira, API testing with Postman',
-    1800,
-    3800,
-  ),
-  base(
-    'qa',
-    '002',
-    'QA Automation Engineer',
-    'Automate critical hiring flows and CI gates for frontend and API.',
-    'Playwright, TypeScript, Cypress, GitHub Actions, Allure',
-    2200,
-    4500,
-  ),
-  base(
-    'qa',
-    '003',
-    'Senior QA — Release Quality',
-    'Own release checklists, exploratory testing, and contract tests for integrations.',
-    'Manual QA, API tests, regression suites, risk-based testing',
-    2400,
-    4800,
-  ),
-  base(
-    'qa',
-    '004',
-    'QA Engineer — ML Product Surfaces',
-    'Validate embedding coverage, recommendation ordering, and admin analytics.',
-    'QA methodology, SQL basics, Python scripts for fixtures, Jira',
-    2000,
-    4200,
-  ),
-  base(
-    'devops',
-    '001',
-    'DevOps Engineer — CI/CD',
-    'Maintain pipelines for Next.js and Python ML sidecar; improve deploy reliability.',
-    'Docker, GitHub Actions, Linux, secrets management, MongoDB backups',
-    2800,
-    5600,
-  ),
-  base(
-    'devops',
-    '002',
-    'Platform Engineer — Kubernetes',
-    'Operate K8s workloads, Helm charts, and progressive delivery for web stack.',
-    'Kubernetes, Helm, Terraform basics, Prometheus, Bash',
-    3000,
-    6200,
-  ),
-  base(
-    'devops',
-    '003',
-    'SRE — Reliability & Incidents',
-    'SLOs, on-call runbooks, and incident response for API and embedding services.',
-    'SRE, Grafana, incident management, Kubernetes, CI/CD',
-    3100,
-    6400,
-  ),
-  base(
-    'devops',
-    '004',
-    'DevOps Engineer — Observability',
-    'Logging, metrics, and tracing for recommendation and search endpoints.',
-    'Prometheus, Loki, OpenTelemetry basics, Docker, GitHub Actions',
-    2700,
-    5500,
-  ),
-  base(
-    'datascience',
-    '001',
-    'Data Scientist — Product Funnels',
-    'Analyze hiring funnel metrics and support ranking experiments.',
-    'Python, pandas, SQL, A/B testing, statistical inference, dashboards',
-    2400,
-    5000,
-  ),
-  base(
-    'datascience',
-    '002',
-    'Analytics Engineer — Search Quality',
-    'Define metrics for semantic search and recommendation offline eval.',
-    'SQL, Python, experiment design, data visualization, stakeholder communication',
-    2600,
-    5200,
-  ),
-  base(
-    'datascience',
-    '003',
-    'Data Analyst — BI & Reporting',
-    'Weekly snapshots for employers and candidates; KPI definitions with PM.',
-    'SQL, Excel, Python, BI tools, cohort analysis',
-    2000,
-    4200,
-  ),
-  base(
-    'datascience',
-    '004',
-    'Research Data Scientist — Matching',
-    'Prototype precision/recall harnesses and segment analyses for recommendations.',
-    'Python, scikit-learn, notebooks, precision recall, pandas',
-    2800,
-    5800,
-  ),
-  base(
-    'aiml',
-    '001',
-    'ML Engineer — Dense Retrieval',
-    'Maintain embedding endpoints and vector compatibility for vacancy/resume pairs.',
-    'Python, PyTorch, transformers, FastAPI, cosine similarity, MLflow',
-    3600,
-    7500,
-  ),
-  base(
-    'aiml',
-    '002',
-    'NLP Engineer — Vacancy Text',
-    'Improve embedding text builders and offline ranking benchmarks.',
-    'Python, NLP, sentence-transformers, evaluation metrics, REST services',
-    3400,
-    7200,
-  ),
-  base(
-    'aiml',
-    '003',
-    'Applied ML Engineer — Hybrid Ranking',
-    'Blend semantic and behaviour signals; document holdout methodology.',
-    'Python, recommendation systems, behaviour features, offline eval, MongoDB',
-    3500,
-    7400,
-  ),
-  base(
-    'aiml',
-    '004',
-    'ML Platform Engineer — Inference',
-    'Latency, batching, and error surfaces for real-time embedding inference.',
-    'Python, ONNX, FastAPI, Docker, monitoring, GPU basics',
-    3700,
-    7800,
-  ),
-  base(
-    'aiml',
-    '005',
-    'Research Engineer — LLM Guardrails',
-    'Prompt templates and regression suites for recruiter assistants.',
-    'Python, LLM APIs, pytest, JSON schema, safety evaluation',
-    3300,
-    7000,
-  ),
-]
+const TRACK_VACANCY_TEMPLATES: Record<EvalTrack, VacancyTemplate> = {
+  frontend: {
+    roleTitles: [
+      'React UI Engineer',
+      'Frontend Developer — Design System',
+      'Senior React Engineer — Dashboards',
+      'Next.js Product Engineer',
+      'Accessibility-focused UI Engineer',
+      'Frontend Engineer — Job Discovery',
+      'Web Performance Engineer',
+      'TypeScript Frontend Developer',
+      'Component Library Engineer',
+      'SSR/SSG Frontend Specialist',
+      'Frontend Engineer — Forms & Validation',
+      'Product Frontend Engineer',
+      'React Native Web Hybrid Engineer',
+      'Frontend Engineer — Analytics Widgets',
+      'Staff Frontend Engineer',
+    ],
+    descriptionIntros: [
+      'Build accessible, responsive interfaces for a recruitment SaaS platform.',
+      'Own job-search filters, saved vacancies, and recommendation surfaces.',
+      'Collaborate with UX on design tokens and Storybook documentation.',
+      'Improve Core Web Vitals and bundle budgets on candidate dashboards.',
+    ],
+    skillSets: [
+      'React, TypeScript, Next.js, TailwindCSS, Storybook',
+      'React, TypeScript, TanStack Query, Vitest, Web Vitals',
+      'Next.js, React, TypeScript, Zod, React Hook Form',
+      'React, HTML5, CSS, accessibility, axe-core, Playwright',
+      'React, TypeScript, Figma handoff, REST APIs, Jest',
+      'React, Redux Toolkit, CSS Modules, RTL testing, i18n',
+    ],
+    salaryBands: [
+      { min: 2200, max: 4800 },
+      { min: 2500, max: 5400 },
+      { min: 2800, max: 6000 },
+      { min: 3000, max: 6200 },
+    ],
+  },
+  backend: {
+    roleTitles: [
+      'Node.js Backend Engineer',
+      'API Engineer — Vacancy Platform',
+      'Senior Backend Developer — Ingestion',
+      'Go Microservices Engineer',
+      'Platform Backend Engineer',
+      'Python Integration Engineer',
+      'Backend Engineer — Auth & Sessions',
+      'REST API Engineer',
+      'Backend Engineer — Search Services',
+      'Data Layer Engineer — MongoDB',
+      'Backend Engineer — Webhooks',
+      'Contract-first API Developer',
+      'Backend Engineer — Rate Limiting',
+      'Observability-focused Backend Engineer',
+      'Staff Backend Engineer',
+    ],
+    descriptionIntros: [
+      'Maintain and evolve REST APIs for auth, vacancies, and recommendations.',
+      'Build idempotent ingestion adapters with structured logging and retries.',
+      'Ship secure multi-tenant employer APIs with pagination and indexing.',
+      'Integrate ML embedding endpoints with defensive timeouts and fallbacks.',
+    ],
+    skillSets: [
+      'Node.js, TypeScript, MongoDB, Express, OpenAPI, JWT',
+      'Node.js, TypeScript, Mongoose, async jobs, structured logging',
+      'Go, gRPC, MongoDB, OpenAPI, Docker, observability',
+      'Python, FastAPI, pydantic, HTTP clients, MongoDB',
+      'Node.js, PostgreSQL or MongoDB, API design, rate limiting',
+      'Node.js, Redis, JWT, integration tests, OpenAPI',
+    ],
+    salaryBands: [
+      { min: 2700, max: 5800 },
+      { min: 2900, max: 6000 },
+      { min: 3200, max: 6500 },
+      { min: 3500, max: 7200 },
+    ],
+  },
+  mobile: {
+    roleTitles: [
+      'Flutter Mobile Engineer',
+      'Senior Mobile Developer',
+      'React Native Engineer',
+      'iOS Engineer — Candidate App',
+      'Android Engineer — Job Alerts',
+      'Mobile Engineer — Offline Mode',
+      'Cross-platform Mobile Developer',
+      'Mobile Engineer — Push Notifications',
+      'Mobile QA Partner Engineer',
+      'Mobile Engineer — Deep Links',
+      'Kotlin/Swift Product Engineer',
+      'Mobile Performance Engineer',
+      'Mobile Engineer — Secure Auth',
+      'Mobile Release Engineer',
+      'Staff Mobile Engineer',
+    ],
+    descriptionIntros: [
+      'Ship cross-platform apps for saved vacancies and application tracking.',
+      'Integrate secure auth, push notifications, and marketing deep links.',
+      'Collaborate with backend on REST contracts and resilient offline caches.',
+      'Maintain CI for iOS/Android stores with crash analytics dashboards.',
+    ],
+    skillSets: [
+      'Flutter, Dart, Firebase, REST, deep links',
+      'Swift, Kotlin, mobile CI, REST, App Store processes',
+      'React Native, TypeScript, Redux, mobile analytics',
+      'Flutter, Dart, XCTest basics, Firebase Crashlytics',
+      'Kotlin, Jetpack Compose, REST, Material Design',
+      'Swift, SwiftUI, REST, push notifications',
+    ],
+    salaryBands: [
+      { min: 2400, max: 5000 },
+      { min: 2600, max: 5400 },
+      { min: 3000, max: 6100 },
+      { min: 2800, max: 5600 },
+    ],
+  },
+  qa: {
+    roleTitles: [
+      'QA Engineer — Web Application',
+      'QA Automation Engineer',
+      'Senior QA — Release Quality',
+      'QA Engineer — ML Product Surfaces',
+      'SDET — API Contracts',
+      'QA Engineer — Search & Ranking',
+      'Manual QA — Hiring Funnels',
+      'Playwright Automation Lead',
+      'QA Engineer — Mobile Web',
+      'Regression Test Engineer',
+      'QA Analyst — Experimentation',
+      'Quality Engineer — CI Gates',
+      'QA Engineer — Accessibility',
+      'Performance Test Engineer',
+      'Staff QA Engineer',
+    ],
+    descriptionIntros: [
+      'Validate hiring workflows, application forms, and recommendation ordering.',
+      'Automate critical dashboard paths with Playwright and API contract tests.',
+      'Own release checklists and exploratory testing for ingestion integrations.',
+      'Partner with data team on offline metric fixtures and smoke harnesses.',
+    ],
+    skillSets: [
+      'Playwright, test plans, bug triage, Jira, API testing with Postman',
+      'Playwright, TypeScript, Cypress, GitHub Actions, Allure',
+      'Manual QA, API tests, regression suites, risk-based testing',
+      'QA methodology, SQL basics, Python scripts for fixtures, Jira',
+      'Playwright, contract tests, CI pipelines, load testing basics',
+      'Cypress, Postman, test documentation, agile ceremonies',
+    ],
+    salaryBands: [
+      { min: 1800, max: 3800 },
+      { min: 2000, max: 4200 },
+      { min: 2200, max: 4500 },
+      { min: 2400, max: 4800 },
+    ],
+  },
+  devops: {
+    roleTitles: [
+      'DevOps Engineer — CI/CD',
+      'Platform Engineer — Kubernetes',
+      'SRE — Reliability & Incidents',
+      'DevOps Engineer — Observability',
+      'Infrastructure Engineer — Terraform',
+      'Release Engineer — GitHub Actions',
+      'DevOps Engineer — MongoDB Ops',
+      'Container Platform Engineer',
+      'DevOps Engineer — Secrets & IAM',
+      'On-call SRE — API Gateway',
+      'DevOps Engineer — Cost Optimization',
+      'Build Engineer — Monorepo',
+      'DevOps Engineer — ML Sidecar Deploy',
+      'Backup & Restore Engineer',
+      'Staff Platform Engineer',
+    ],
+    descriptionIntros: [
+      'Harden multi-environment deploys for the web app and Python ML sidecar.',
+      'Implement observability, runbooks, and incident drills for embedding services.',
+      'Maintain Helm charts, progressive delivery, and secrets rotation patterns.',
+      'Improve pipeline reliability with test splitting and cache hygiene.',
+    ],
+    skillSets: [
+      'Docker, GitHub Actions, Linux, secrets management, MongoDB backups',
+      'Kubernetes, Helm, Terraform basics, Prometheus, Bash',
+      'SRE, Grafana, incident management, Kubernetes, CI/CD',
+      'Prometheus, Loki, OpenTelemetry basics, Docker, GitHub Actions',
+      'Kubernetes, Helm, Linux, Bash automation, runbooks',
+      'Docker, CI/CD, MongoDB backups, monitoring, on-call',
+    ],
+    salaryBands: [
+      { min: 2700, max: 5500 },
+      { min: 3000, max: 6200 },
+      { min: 3100, max: 6400 },
+      { min: 2800, max: 5600 },
+    ],
+  },
+  datascience: {
+    roleTitles: [
+      'Data Scientist — Product Funnels',
+      'Analytics Engineer — Search Quality',
+      'Data Analyst — BI & Reporting',
+      'Research Data Scientist — Matching',
+      'Experimentation Analyst',
+      'Product Data Scientist',
+      'SQL Analytics Engineer',
+      'Cohort Analyst — Hiring',
+      'Data Scientist — Embedding Coverage',
+      'Metrics Engineer — KPIs',
+      'Visualization Specialist',
+      'Statistical Analyst — A/B Tests',
+      'Data Scientist — Retention',
+      'Forecasting Analyst',
+      'Staff Data Scientist',
+    ],
+    descriptionIntros: [
+      'Analyze hiring funnel metrics and support ranking experiments with clear reports.',
+      'Define KPIs for semantic search and recommendation offline evaluation.',
+      'Build weekly snapshots for stakeholders with reproducible notebooks.',
+      'Prototype precision/recall harnesses and segment analyses for matching quality.',
+    ],
+    skillSets: [
+      'Python, pandas, SQL, A/B testing, statistical inference, dashboards',
+      'SQL, Python, experiment design, data visualization, stakeholder communication',
+      'SQL, Excel, Python, BI tools, cohort analysis',
+      'Python, scikit-learn, notebooks, precision recall, pandas',
+      'Python, SQL, pandas, hypothesis testing, matplotlib',
+      'SQL, dbt mindset, Python, metric definitions, dashboards',
+    ],
+    salaryBands: [
+      { min: 2000, max: 4200 },
+      { min: 2400, max: 5000 },
+      { min: 2600, max: 5200 },
+      { min: 2800, max: 5800 },
+    ],
+  },
+  aiml: {
+    roleTitles: [
+      'ML Engineer — Dense Retrieval',
+      'NLP Engineer — Vacancy Text',
+      'Applied ML Engineer — Hybrid Ranking',
+      'ML Platform Engineer — Inference',
+      'Research Engineer — LLM Guardrails',
+      'Embedding Service Engineer',
+      'ML Engineer — Recommender Systems',
+      'Scientist — Offline Evaluation',
+      'ML Engineer — Vector Index Maintenance',
+      'NLP Engineer — Multilingual Embeddings',
+      'Applied Scientist — Behaviour Signals',
+      'ML Engineer — Model Compression',
+      'Data/ML Engineer — Feature Pipelines',
+      'ML Engineer — Batch Inference',
+      'Staff ML Engineer',
+    ],
+    descriptionIntros: [
+      'Maintain embedding endpoints and vector compatibility for vacancy/resume pairs.',
+      'Improve embedding text builders and offline ranking benchmarks.',
+      'Blend semantic and behaviour signals with documented holdout methodology.',
+      'Tune latency, batching, and error surfaces for real-time inference.',
+    ],
+    skillSets: [
+      'Python, PyTorch, transformers, FastAPI, cosine similarity, MLflow',
+      'Python, NLP, sentence-transformers, evaluation metrics, REST services',
+      'Python, recommendation systems, behaviour features, offline eval, MongoDB',
+      'Python, ONNX, FastAPI, Docker, monitoring, GPU basics',
+      'Python, LLM APIs, pytest, JSON schema, safety evaluation',
+      'Python, PyTorch, vector search, REST microservices, notebooks',
+    ],
+    salaryBands: [
+      { min: 3300, max: 7000 },
+      { min: 3500, max: 7400 },
+      { min: 3600, max: 7500 },
+      { min: 3700, max: 7800 },
+    ],
+  },
+}
+
+function padSlug(n: number): string {
+  return String(n).padStart(3, '0')
+}
+
+function pick<T>(arr: T[], i: number): T {
+  return arr[i % arr.length]!
+}
+
+function buildVacancy(track: EvalTrack, index1Based: number): EvalVacancySeed {
+  const tpl = TRACK_VACANCY_TEMPLATES[track]
+  const slug = padSlug(index1Based)
+  const i = index1Based - 1
+  const title = tpl.roleTitles[i] ?? `${track} Specialist ${slug}`
+  const intro = pick(tpl.descriptionIntros, i)
+  const squad = pick(
+    ['Product Squad', 'Platform Team', 'Search & Recommendations', 'Candidate Experience'],
+    i + track.length,
+  )
+  const skillsRequired = pick(tpl.skillSets, i + index1Based)
+  const band = pick(tpl.salaryBands, i)
+  const workMode: 'REMOTE' | 'ONSITE' = i % 4 === 2 ? 'ONSITE' : 'REMOTE'
+  const primarySkill = skillsRequired.split(',')[0]?.trim() ?? track
+
+  return {
+    externalId: `EVAL:${track}-${slug}`,
+    track,
+    title: `${title} (${squad})`,
+    description: `${intro} Work with engineering and product in the ${squad} to deliver measurable outcomes for candidates and employers.`,
+    skillsRequired,
+    salaryMin: band.min + (i % 3) * 50,
+    salaryMax: band.max + (i % 4) * 80,
+    experience: i < 5 ? '1+ years' : i < 10 ? '2+ years' : '3+ years',
+    employmentType: 'Full-time',
+    workMode,
+    country: workMode === 'ONSITE' ? 'Kazakhstan' : '',
+    city: workMode === 'ONSITE' ? (i % 2 === 0 ? 'Almaty' : 'Astana') : '',
+    address: workMode === 'ONSITE' ? 'Hybrid 2 days on-site' : 'Remote',
+    requirements: [
+      `Strong ${primarySkill} fundamentals`,
+      'Clear communication in cross-functional teams',
+      'Comfortable with code review and iterative delivery',
+    ],
+    responsibilities: [
+      'Ship features with maintainable tests',
+      'Participate in design and incident retrospectives',
+      'Document trade-offs and operational notes',
+    ],
+  }
+}
+
+/** Deterministic 105 EVAL vacancies (15 per track). */
+export function generateEvalVacancies(): EvalVacancySeed[] {
+  const out: EvalVacancySeed[] = []
+  for (const track of EVAL_TRACKS) {
+    for (let n = 1; n <= VACANCIES_PER_TRACK; n++) {
+      out.push(buildVacancy(track, n))
+    }
+  }
+  return out
+}
+
+export const EVAL_COHORT_VACANCIES: EvalVacancySeed[] = generateEvalVacancies()
+
+export function evalVacancyExternalId(track: EvalTrack, index1Based: number): string {
+  return `EVAL:${track}-${padSlug(index1Based)}`
+}
 
 export function evalVacancyExternalIdsForTrack(track: EvalTrack): string[] {
-  return EVAL_COHORT_VACANCIES.filter((v) => v.track === track).map((v) => v.externalId)
+  return Array.from({ length: VACANCIES_PER_TRACK }, (_, i) => evalVacancyExternalId(track, i + 1))
 }

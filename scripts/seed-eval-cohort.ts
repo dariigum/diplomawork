@@ -1,5 +1,5 @@
 /**
- * Evaluation cohort seed — 14 EMPLOYEE users @eval.jobflow.local + EVAL vacancies + interactions.
+ * Evaluation cohort seed — 50 EMPLOYEE users @eval.jobflow.local, 105 EVAL vacancies, interactions.
  *
  * Prerequisites (recommended):
  *   npm run seed:demo
@@ -23,13 +23,17 @@ import {
   EVAL_EMAIL_DOMAIN,
   EVAL_EMPLOYER_EMAIL,
   EVAL_EMPLOYEE_FIXTURES,
+  TARGET_EVAL_USER_COUNT,
 } from '../lib/demo/eval-cohort-fixtures'
 import {
   countGroundTruthVacancies,
   getEvalCohortInteractionPlans,
   summarizeEvalCohortInteractionPlans,
 } from '../lib/demo/eval-cohort-interactions'
-import { EVAL_COHORT_VACANCIES } from '../lib/demo/eval-cohort-vacancies'
+import {
+  EVAL_COHORT_VACANCIES,
+  TARGET_EVAL_VACANCY_COUNT,
+} from '../lib/demo/eval-cohort-vacancies'
 import { getEmbedding } from '../lib/ml'
 import { getTopRecommendations } from '../lib/recommendation'
 import {
@@ -42,7 +46,7 @@ import {
 } from '../lib/db/schema'
 
 const SKIP_CLEAR = process.argv.includes('--skip-clear')
-const MIN_CORPUS_EMBEDDINGS = 25
+const MIN_CORPUS_EMBEDDINGS = 80
 
 function evalEmailRegex(): RegExp {
   return new RegExp(`@${EVAL_EMAIL_DOMAIN.replace(/\./g, '\\.')}$`)
@@ -257,8 +261,19 @@ async function main(): Promise<void> {
   const plans = getEvalCohortInteractionPlans()
   const gtSummary = summarizeEvalCohortInteractionPlans()
   console.log(
-    `[seed:eval-cohort] Interaction plans: users=${gtSummary.users}, GT vacancies/user min=${gtSummary.minGt} max=${gtSummary.maxGt}`,
+    `[seed:eval-cohort] Interaction plans: users=${gtSummary.users}, GT/user min=${gtSummary.minGt} max=${gtSummary.maxGt}, planned behaviour events=${gtSummary.behaviourEvents}`,
   )
+
+  if (EVAL_EMPLOYEE_FIXTURES.length !== TARGET_EVAL_USER_COUNT) {
+    console.warn(
+      `[seed:eval-cohort] Expected ${TARGET_EVAL_USER_COUNT} fixtures, got ${EVAL_EMPLOYEE_FIXTURES.length}.`,
+    )
+  }
+  if (EVAL_COHORT_VACANCIES.length !== TARGET_EVAL_VACANCY_COUNT) {
+    console.warn(
+      `[seed:eval-cohort] Expected ${TARGET_EVAL_VACANCY_COUNT} EVAL vacancies, got ${EVAL_COHORT_VACANCIES.length}.`,
+    )
+  }
 
   let savedCount = 0
   let responseCount = 0
@@ -382,7 +397,11 @@ async function main(): Promise<void> {
     })}`,
   )
 
-  const smokeKeys = [EVAL_EMPLOYEE_FIXTURES[0]!.key, EVAL_EMPLOYEE_FIXTURES[7]!.key]
+  const smokeKeys = [
+    EVAL_EMPLOYEE_FIXTURES[0]!.key,
+    EVAL_EMPLOYEE_FIXTURES[Math.floor(EVAL_EMPLOYEE_FIXTURES.length / 2)]!.key,
+    EVAL_EMPLOYEE_FIXTURES[EVAL_EMPLOYEE_FIXTURES.length - 1]!.key,
+  ]
   for (const key of smokeKeys) {
     const userId = userIdByKey.get(key)
     if (!userId) continue

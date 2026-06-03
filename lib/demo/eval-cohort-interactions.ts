@@ -2,10 +2,15 @@ import type { VacancyBehaviourEventType } from '@/lib/db/schema'
 
 import {
   EVAL_EMPLOYEE_FIXTURES,
+  EVAL_TRACKS,
   type EvalEmployeeFixture,
   type EvalTrack,
 } from './eval-cohort-fixtures'
-import { evalVacancyExternalIdsForTrack } from './eval-cohort-vacancies'
+import {
+  VACANCIES_PER_TRACK,
+  evalVacancyExternalId,
+  evalVacancyExternalIdsForTrack,
+} from './eval-cohort-vacancies'
 
 /** SEED ingestion rows aligned with track (requires npm run ingestion:demo). */
 export const SEED_EXTERNAL_IDS_BY_TRACK: Partial<Record<EvalTrack, string[]>> = {
@@ -16,17 +21,6 @@ export const SEED_EXTERNAL_IDS_BY_TRACK: Partial<Record<EvalTrack, string[]>> = 
   devops: ['SEED:devops-k8s-005', 'SEED:sre-reliability-008'],
   datascience: ['SEED:data-engineer-007', 'SEED:ml-platform-001'],
   aiml: ['SEED:ml-platform-001', 'SEED:nlp-llm-002'],
-}
-
-/** Cross-track noise for VIEW events (not ground truth). */
-const NOISE_EXTERNAL_IDS_BY_TRACK: Partial<Record<EvalTrack, string[]>> = {
-  frontend: ['EVAL:backend-001', 'EVAL:qa-001', 'EVAL:aiml-001'],
-  backend: ['EVAL:frontend-001', 'EVAL:devops-001', 'EVAL:datascience-001'],
-  mobile: ['EVAL:frontend-002', 'EVAL:backend-002', 'EVAL:qa-002'],
-  qa: ['EVAL:frontend-003', 'EVAL:backend-003', 'EVAL:mobile-001'],
-  devops: ['EVAL:backend-004', 'EVAL:aiml-002', 'EVAL:qa-003'],
-  datascience: ['EVAL:aiml-003', 'EVAL:backend-001', 'EVAL:frontend-004'],
-  aiml: ['EVAL:datascience-002', 'EVAL:backend-005', 'EVAL:frontend-005'],
 }
 
 export type EvalPlannedResponse = {
@@ -43,11 +37,11 @@ export type EvalPlannedEvent = {
 
 export type EvalUserInteractionPlan = {
   userKey: string
-  /** 3–5 SavedVacancy rows (ground truth; occurredAt fixed at epoch in eval script). */
+  /** 4–5 SavedVacancy rows (ground truth; occurredAt fixed at epoch in eval script). */
   savedVacancyKeys: string[]
-  /** 1–3 apply rows with createdAt for holdout split. */
+  /** 3 apply rows with createdAt for holdout split. */
   responses: EvalPlannedResponse[]
-  /** 5–10 behaviour events (train + holdout timestamps). */
+  /** 8–10 behaviour events (train + holdout timestamps). */
   events: EvalPlannedEvent[]
 }
 
@@ -62,10 +56,22 @@ function uniqueKeys(keys: string[]): string[] {
   return out
 }
 
-function gtVacancyPool(employee: EvalEmployeeFixture): string[] {
+/** Rotate track EVAL ids per user slot to reduce GT collision across cohort. */
+function gtVacancyPoolForEmployee(employee: EvalEmployeeFixture): string[] {
   const trackEval = evalVacancyExternalIdsForTrack(employee.track)
+  const offset = ((employee.slot - 1) * 2) % Math.max(1, trackEval.length - 6)
+  const rotated = [...trackEval.slice(offset), ...trackEval.slice(0, offset)]
   const seeds = SEED_EXTERNAL_IDS_BY_TRACK[employee.track] ?? []
-  return uniqueKeys([...trackEval, ...seeds])
+  return uniqueKeys([...rotated, ...seeds])
+}
+
+/** Cross-track VIEW noise (not ground truth). */
+function noiseKeysForTrack(track: EvalTrack, slot: number): string[] {
+  const others = EVAL_TRACKS.filter((t) => t !== track)
+  return others.slice(0, 3).map((t, i) => {
+    const idx = ((slot + i * 3) % VACANCIES_PER_TRACK) + 1
+    return evalVacancyExternalId(t, idx)
+  })
 }
 
 function pickTrainDays(count: number, offset: number): number[] {
@@ -87,21 +93,22 @@ function pickHoldoutDays(count: number, offset: number): number[] {
 }
 
 function buildPlanForEmployee(employee: EvalEmployeeFixture, index: number): EvalUserInteractionPlan {
-  const pool = gtVacancyPool(employee)
-  if (pool.length < 5) {
+  const pool = gtVacancyPoolForEmployee(employee)
+  if (pool.length < 8) {
     throw new Error(`[eval-cohort] Insufficient GT pool for ${employee.key}: ${pool.length}`)
   }
 
-  const gt = pool.slice(0, Math.min(10, pool.length))
-  const holdoutCount = Math.min(3, Math.max(1, Math.ceil(gt.length * 0.2)))
+  const gt = pool.slice(0, Math.min(12, pool.length))
+  const holdoutCount = Math.min(3, Math.max(2, Math.ceil(gt.length * 0.2)))
   const holdoutKeys = gt.slice(-holdoutCount)
-  const trainKeys = gt.slice(0, Math.max(4, gt.length - holdoutCount))
+  const trainKeys = gt.slice(0, gt.length - holdoutCount)
   const saveKeys = gt.slice(0, Math.min(5, gt.length))
 
-  const trainDays = pickTrainDays(4, index)
-  const holdoutDays = pickHoldoutDays(3, index)
+  const trainDays = pickTrainDays(5, index + employee.slot)
+  const holdoutDays = pickHoldoutDays(holdoutCount, index)
   const tk = (i: number) => trainKeys[Math.min(i, trainKeys.length - 1)]!
   const hk = (i: number) => holdoutKeys[Math.min(i, holdoutKeys.length - 1)]!
+  const noise = noiseKeysForTrack(employee.track, employee.slot)
 
   const responses: EvalPlannedResponse[] = [
     { vacancyKey: tk(0), daysAgo: trainDays[0]! },
@@ -109,24 +116,30 @@ function buildPlanForEmployee(employee: EvalEmployeeFixture, index: number): Eva
     { vacancyKey: hk(0), daysAgo: holdoutDays[0]! },
   ]
 
-  const noise = NOISE_EXTERNAL_IDS_BY_TRACK[employee.track] ?? ['EVAL:qa-001']
-
   const events: EvalPlannedEvent[] = [
     { vacancyKey: noise[0]!, eventType: 'VACANCY_VIEWED', daysAgo: 29 - (index % 3) },
-    { vacancyKey: noise[1]!, eventType: 'VACANCY_VIEWED', daysAgo: 21 - (index % 2) },
+    { vacancyKey: noise[1]!, eventType: 'VACANCY_VIEWED', daysAgo: 22 - (index % 2) },
     { vacancyKey: tk(2), eventType: 'VACANCY_VIEWED', daysAgo: trainDays[2]! },
     { vacancyKey: tk(3), eventType: 'VACANCY_SAVED', daysAgo: trainDays[3]! },
-    { vacancyKey: tk(4), eventType: 'VACANCY_APPLIED', daysAgo: 12 - (index % 2) },
+    { vacancyKey: tk(4), eventType: 'VACANCY_APPLIED', daysAgo: trainDays[4]! },
     { vacancyKey: hk(0), eventType: 'VACANCY_APPLIED', daysAgo: holdoutDays[0]! },
     { vacancyKey: hk(1), eventType: 'VACANCY_SAVED', daysAgo: holdoutDays[1]! },
-    { vacancyKey: hk(2), eventType: 'VACANCY_APPLIED', daysAgo: holdoutDays[2]! },
+    { vacancyKey: hk(2), eventType: 'VACANCY_APPLIED', daysAgo: holdoutDays[2] ?? holdoutDays[0]! },
   ]
 
-  if (index % 2 === 0 && gt.length > 5) {
+  if (trainKeys.length > 5) {
     events.push({
       vacancyKey: tk(5),
       eventType: 'VACANCY_VIEWED',
-      daysAgo: 9,
+      daysAgo: 9 + (employee.slot % 3),
+    })
+  }
+
+  if (holdoutCount >= 3 && holdoutKeys[2]) {
+    events.push({
+      vacancyKey: hk(2),
+      eventType: 'VACANCY_VIEWED',
+      daysAgo: 2,
     })
   }
 
@@ -156,10 +169,15 @@ export function countGroundTruthVacancies(plan: EvalUserInteractionPlan): number
   return keys.size
 }
 
+export function countPlannedBehaviourEvents(plans: EvalUserInteractionPlan[]): number {
+  return plans.reduce((sum, p) => sum + p.events.length, 0)
+}
+
 export function summarizeEvalCohortInteractionPlans(): {
   users: number
   minGt: number
   maxGt: number
+  behaviourEvents: number
 } {
   const plans = getEvalCohortInteractionPlans()
   const counts = plans.map(countGroundTruthVacancies)
@@ -167,5 +185,6 @@ export function summarizeEvalCohortInteractionPlans(): {
     users: plans.length,
     minGt: Math.min(...counts),
     maxGt: Math.max(...counts),
+    behaviourEvents: countPlannedBehaviourEvents(plans),
   }
 }

@@ -10,6 +10,7 @@
     "seed:demo": "tsx scripts/seed-demo-data.ts",
     "backfill:embeddings": "tsx scripts/backfill-vacancy-embeddings.ts",
     "ingestion:demo": "tsx scripts/seed-ingestion-demo.ts",
+    "seed:eval-cohort": "tsx scripts/seed-eval-cohort.ts",
     "seed:articles": "tsx scripts/seed-articles.ts",
     "eval:recommendations": "tsx scripts/eval-recommendations.ts",
     "test": "vitest run",

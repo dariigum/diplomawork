@@ -1,7 +1,7 @@
 {
-  "precisionAt10": 0.1,
-  "recallAt10": 1,
-  "evaluatedUsers": 1,
-  "generatedAt": "2026-05-26T13:27:48.438Z",
-  "methodology": "Offline evaluation on EMPLOYEE users with an active resume embedding and at least one holdout relevant vacancy. Ground-truth relevance: union of saved vacancies (SavedVacancy), job applications (Response), and behaviour events VACANCY_SAVED / VACANCY_APPLIED. Holdout: most recent 20% of relevant vacancies per user (minimum 1) excluded from behaviour profile when ranking; metrics computed on holdout only. Recommendations: production getTopRecommendations hybrid rank (semantic cosine + behaviour), top 10. Per user: Precision@10 = |recommended∩holdout|/10; Recall@10 = |recommended∩holdout|/|holdout|. Reported values: arithmetic mean across evaluated users."
+  "precisionAt10": null,
+  "recallAt10": null,
+  "evaluatedUsers": 0,
+  "generatedAt": "2026-06-03T09:15:34.486Z",
+  "methodology": "Evaluation could not be computed: no eligible EMPLOYEE users met all requirements (active resume embedding, ≥1 holdout relevant vacancy, recommendable vacancy corpus). Populate real interactions (save/apply) and embeddings, then re-run npm run eval:recommendations."
 }

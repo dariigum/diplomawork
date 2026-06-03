@@ -1,5 +1,7 @@
 import { NextResponse } from 'next/server';
 import { getSession } from '@/lib/auth';
+import dbConnect from '@/lib/db/mongoose';
+import { Resume, Vacancy } from '@/lib/db/schema';
 
 export async function GET() {
   try {
@@ -35,6 +37,13 @@ export async function GET() {
       }
     }
 
+    await dbConnect();
+    const embeddingFilter = { embedding: { $exists: true, $not: { $size: 0 } } };
+    const [resumeEmbeddings, vacancyEmbeddings] = await Promise.all([
+      Resume.countDocuments(embeddingFilter),
+      Vacancy.countDocuments(embeddingFilter),
+    ]);
+
     return NextResponse.json({
       status: mlStatus,
       latency: mlLatency,
@@ -44,13 +53,12 @@ export async function GET() {
         embeddings: 0,
         recommendations: 0,
       },
-      qdrant: {
-        status: mlStatus === 'online' ? 'online' : 'unknown',
-        collections: [],
-      },
-      kafka: {
-        status: 'online',
-        topics: [],
+      embeddingsStorage: {
+        backend: 'mongodb',
+        resumeEmbeddings,
+        vacancyEmbeddings,
+        totalEmbeddings: resumeEmbeddings + vacancyEmbeddings,
+        searchMethod: 'cosine_similarity',
       },
     });
   } catch (error) {

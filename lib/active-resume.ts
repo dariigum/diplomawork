@@ -2,6 +2,17 @@ import mongoose from 'mongoose'
 import dbConnect from '@/lib/db/mongoose'
 import { Resume } from '@/lib/db/schema'
 
+/** Lean active resume fields used by AI routes and dashboards. */
+export type ActiveResumeLean = {
+  _id: mongoose.Types.ObjectId
+  title?: string
+  skills?: string
+  experience?: string
+  education?: string
+  embedding?: number[]
+  activeForAi?: boolean
+}
+
 /**
  * Ensures the employee has at most one `activeForAi` resume, and exactly one when they have any resumes.
  * Migrates legacy data (no flag / all false) by activating the latest resume by `createdAt`.
@@ -30,7 +41,8 @@ export async function ensureActiveResumeForUser(userId: string): Promise<void> {
 }
 
 /** Active resume for AI / semantic ranking (lean). Runs `ensureActiveResumeForUser` first. */
-export async function getActiveResumeLeanForUser(userId: string) {
+export async function getActiveResumeLeanForUser(userId: string): Promise<ActiveResumeLean | null> {
   await ensureActiveResumeForUser(userId)
-  return Resume.findOne({ userId, activeForAi: true }).lean() as Promise<Record<string, unknown> | null>
+  const uid = new mongoose.Types.ObjectId(userId)
+  return Resume.findOne({ userId: uid, activeForAi: true }).lean<ActiveResumeLean>()
 }

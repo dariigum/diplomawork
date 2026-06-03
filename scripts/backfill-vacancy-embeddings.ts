@@ -73,7 +73,7 @@ async function main() {
 
   const conn = Vacancy.db;
   const dbLabel = conn.name || '(unknown)';
-  const hostLabel = conn.host || conn.client?.options?.hosts?.[0]?.host || 'unknown';
+  const hostLabel = conn.host || 'unknown';
   console.log(`[backfill:embeddings] MongoDB · db=${dbLabel} · host=${hostLabel}`);
 
   const all = await Vacancy.find({})

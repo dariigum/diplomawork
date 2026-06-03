@@ -20,11 +20,11 @@ export default async function ResourcesPage() {
   const t = getDictionary(locale)
 
   const rawArticles = await Article.find({}).sort({ createdAt: -1 }).lean()
-  const articles = rawArticles.map((a: Record<string, unknown>) => {
+  const articles = rawArticles.map((a) => {
     const external = parseSafeExternalUrl(a.sourceUrl)
     const sourceSite = external ? new URL(external.href).hostname.replace(/^www\./i, "") : null
     return {
-      id: String((a as { _id?: unknown })._id),
+      id: String(a._id),
       title: typeof a.title === "string" ? a.title : t.resources.untitledArticle,
       summary: typeof a.summary === "string" ? a.summary : "",
       content: typeof a.content === "string" ? a.content : "",

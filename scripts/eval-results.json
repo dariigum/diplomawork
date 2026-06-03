@@ -1,7 +1,116 @@
 {
-  "precisionAt10": 0.1,
-  "recallAt10": 1,
-  "evaluatedUsers": 1,
-  "generatedAt": "2026-05-26T13:27:48.438Z",
-  "methodology": "Offline evaluation on EMPLOYEE users with an active resume embedding and at least one holdout relevant vacancy. Ground-truth relevance: union of saved vacancies (SavedVacancy), job applications (Response), and behaviour events VACANCY_SAVED / VACANCY_APPLIED. Holdout: most recent 20% of relevant vacancies per user (minimum 1) excluded from behaviour profile when ranking; metrics computed on holdout only. Recommendations: production getTopRecommendations hybrid rank (semantic cosine + behaviour), top 10. Per user: Precision@10 = |recommended∩holdout|/10; Recall@10 = |recommended∩holdout|/|holdout|. Reported values: arithmetic mean across evaluated users."
+  "precisionAt10": 0.090566,
+  "recallAt10": 0.45283,
+  "evaluatedUsers": 53,
+  "generatedAt": "2026-06-03T18:56:46.645Z",
+  "methodology": "Offline evaluation on EMPLOYEE users with an active resume embedding and at least one holdout relevant vacancy. Ground-truth relevance: union of saved vacancies (SavedVacancy), job applications (Response), and behaviour events VACANCY_SAVED / VACANCY_APPLIED. Holdout: most recent 20% of relevant vacancies per user (minimum 1) excluded from behaviour profile when ranking hybrid; same holdout set for all variants. Corpus: all vacancies with embeddings; semantic cosine > 0 (identical candidate pool per user for keyword, semantic-only, and hybrid eval ranking). Variant keyword: skill-token Jaccard overlap between resume and vacancy structured/text fields; no embeddings. Variant semanticOnly: finalScore = semanticScore; behaviour ignored. Variant hybrid: production getTopRecommendations (semantic×0.85 + behaviour×0.15), top 10. Metrics per user at K=10: Precision@10 = |recommended∩holdout|/K; Recall@10 = |recommended∩holdout|/|holdout|; MRR = 1/rank of first relevant (0 if none); nDCG@10 = DCG/IDCG with binary relevance. Reported values: arithmetic mean across evaluated users per variant.",
+  "variants": {
+    "keyword": {
+      "precisionAt10": 0.088679,
+      "recallAt10": 0.443396,
+      "mrr": 0.256439,
+      "ndcgAt10": 0.254395
+    },
+    "semanticOnly": {
+      "precisionAt10": 0.092453,
+      "recallAt10": 0.471698,
+      "mrr": 0.305608,
+      "ndcgAt10": 0.298683
+    },
+    "hybrid": {
+      "precisionAt10": 0.090566,
+      "recallAt10": 0.45283,
+      "mrr": 0.312706,
+      "ndcgAt10": 0.297731
+    }
+  },
+  "analysis": {
+    "bestMethodByNdcg": {
+      "keyword": 17,
+      "semanticOnly": 1,
+      "hybrid": 35
+    },
+    "metricDistributions": {
+      "keyword": {
+        "precisionAt10": {
+          "min": 0,
+          "median": 0.1,
+          "max": 0.2
+        },
+        "recallAt10": {
+          "min": 0,
+          "median": 0.5,
+          "max": 1
+        },
+        "mrr": {
+          "min": 0,
+          "median": 0.2,
+          "max": 1
+        },
+        "ndcgAt10": {
+          "min": 0,
+          "median": 0.23719771276929622,
+          "max": 0.8315546295836225
+        }
+      },
+      "semanticOnly": {
+        "precisionAt10": {
+          "min": 0,
+          "median": 0.1,
+          "max": 0.2
+        },
+        "recallAt10": {
+          "min": 0,
+          "median": 0.5,
+          "max": 1
+        },
+        "mrr": {
+          "min": 0,
+          "median": 0.2,
+          "max": 1
+        },
+        "ndcgAt10": {
+          "min": 0,
+          "median": 0.23719771276929622,
+          "max": 1
+        }
+      },
+      "hybrid": {
+        "precisionAt10": {
+          "min": 0,
+          "median": 0.1,
+          "max": 0.2
+        },
+        "recallAt10": {
+          "min": 0,
+          "median": 0.5,
+          "max": 1
+        },
+        "mrr": {
+          "min": 0,
+          "median": 0.2,
+          "max": 1
+        },
+        "ndcgAt10": {
+          "min": 0,
+          "median": 0.23719771276929622,
+          "max": 1
+        }
+      }
+    },
+    "pairedMeanDeltas": {
+      "semanticOnlyMinusKeyword": {
+        "precisionAt10": 0.003774,
+        "recallAt10": 0.028302,
+        "mrr": 0.049169,
+        "ndcgAt10": 0.044288
+      },
+      "hybridMinusSemanticOnly": {
+        "precisionAt10": -0.001887,
+        "recallAt10": -0.018868,
+        "mrr": 0.007098,
+        "ndcgAt10": -0.000951
+      }
+    }
+  }
 }

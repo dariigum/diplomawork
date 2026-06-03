@@ -616,7 +616,7 @@ ${appliedVacanciesInfo || 'Нет откликов'}
         const translated = await translateReport(
           { individualProgram, topRecommendations, careerDirections, learningPath, nextSteps },
           targetLangName,
-          apiKey
+          gemini.apiKey
         )
         if (translated) {
           translationsObj[locale] = translated

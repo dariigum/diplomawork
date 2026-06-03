@@ -53,12 +53,12 @@ export default async function EmployerResumePage({ params, searchParams }: Emplo
     notFound()
   }
 
-  const employee = await User.findById(resume.userId).select('name').lean() as { name?: string } | null
-  const candidateName = employee?.name?.trim() || t.dashboard.unknownCandidate
-
   const cookieStore = await cookies()
   const locale = (cookieStore.get('NEXT_LOCALE')?.value || 'en') as 'en' | 'ru' | 'kk'
   const t = getDictionary(locale)
+
+  const employee = await User.findById(resume.userId).select('name').lean() as { name?: string } | null
+  const candidateName = employee?.name?.trim() || t.dashboard.unknownCandidate
 
   return (
     <div className="mx-auto max-w-2xl space-y-6 p-4 md:p-6">

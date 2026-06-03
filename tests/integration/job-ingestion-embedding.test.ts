@@ -82,7 +82,9 @@ describe('job ingestion embeddings (MongoMemoryServer)', () => {
     getEmbedding.mockClear()
     const second = await persistIngestionVacancyWithEmbedding(input, passwordHash, { getEmbedding })
     expect(second.ok && second.embedding.status).toBe('skipped')
-    expect(second.ok && second.embedding.reason).toBe('already_present')
+    if (second.ok && second.embedding.status === 'skipped') {
+      expect(second.embedding.reason).toBe('already_present')
+    }
     expect(getEmbedding).not.toHaveBeenCalled()
     const third = await persistIngestionVacancyWithEmbedding(input, passwordHash, { getEmbedding, forceRefresh: true })
     expect(third.ok && third.embedding.status).toBe('embedded')

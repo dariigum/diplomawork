@@ -9,16 +9,26 @@ if (!MONGODB_URI) {
   throw new Error('Please define the MONGODB_URI environment variable');
 }
 
+type MemoryServerHandle = {
+  getUri(): string;
+  stop(): Promise<boolean>;
+};
+
 type MongooseGlobalCache = {
   conn: typeof mongoose | null;
   promise: Promise<typeof mongoose> | null;
-  memoryServerPromise?: Promise<{ getUri(): string; stop(): Promise<void> }>;
+  memoryServerPromise?: Promise<MemoryServerHandle>;
 };
 
-let cached = (global as any).mongoose as MongooseGlobalCache | undefined;
+type GlobalWithMongoose = typeof globalThis & {
+  mongoose?: MongooseGlobalCache;
+};
 
-if (!cached) {
-  cached = (global as any).mongoose = { conn: null, promise: null };
+const globalStore = global as GlobalWithMongoose;
+const cached: MongooseGlobalCache = globalStore.mongoose ?? { conn: null, promise: null };
+
+if (!globalStore.mongoose) {
+  globalStore.mongoose = cached;
 }
 
 async function connectWithUri(uri: string) {
@@ -32,8 +42,8 @@ async function connectWithUri(uri: string) {
 }
 
 async function ensureMemoryServer() {
-  if (!cached!.memoryServerPromise) {
-    cached!.memoryServerPromise = (async () => {
+  if (!cached.memoryServerPromise) {
+    cached.memoryServerPromise = (async () => {
       const mod = await import('mongodb-memory-server');
       const MongoMemoryServer = mod.MongoMemoryServer;
       return await MongoMemoryServer.create({
@@ -41,7 +51,7 @@ async function ensureMemoryServer() {
       });
     })();
   }
-  return cached!.memoryServerPromise;
+  return cached.memoryServerPromise;
 }
 
 async function dbConnect() {

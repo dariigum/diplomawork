@@ -95,6 +95,8 @@ type ResumeLean = {
   experience?: string
   education?: string
   embedding?: number[]
+  cvFile?: string
+  cvLink?: string
 }
 
 /**

@@ -2,7 +2,7 @@
 
 import { useState } from "react"
 import Link from "next/link"
-import { ArrowLeft, Mail, Phone, MapPin, Send } from "lucide-react"
+import { Mail, Phone, MapPin, Send, ChevronLeft } from "lucide-react"
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
 import { Textarea } from "@/components/ui/textarea"
@@ -11,8 +11,10 @@ import { Header } from "@/components/jobs/header"
 import { useI18n } from "@/lib/i18n/provider"
 import { sendContactMessageAction } from "@/app/actions/contact"
 import { toast } from "sonner"
+import { useRouter } from "next/navigation"
 
 export default function ContactPage() {
+  const router = useRouter()
   const { t } = useI18n()
   const [isPending, setIsPending] = useState(false)
   const [isSuccess, setIsSuccess] = useState(false)
@@ -59,10 +61,12 @@ export default function ContactPage() {
       <Header savedJobsCount={0} />
 
       <main className="container mx-auto px-4 py-8">
-        <Link href="/" className="inline-flex items-center gap-2 text-muted-foreground hover:text-foreground mb-6 transition-colors">
-          <ArrowLeft className="h-4 w-4" />
-          {t.contact.backToJobs}
-        </Link>
+        <div className="flex items-center gap-2 mb-6">
+          <Button variant="ghost" size="icon" className="shrink-0" onClick={() => router.back()} aria-label={t.forms.back}>
+            <ChevronLeft className="size-6" />
+          </Button>
+          <span className="text-sm font-medium text-muted-foreground">{t.forms.back}</span>
+        </div>
 
         <div className="max-w-4xl mx-auto">
           <h1 className="text-3xl font-bold text-foreground mb-2">{t.contact.title}</h1>
@@ -145,7 +149,7 @@ export default function ContactPage() {
                     </div>
                     <div>
                       <h3 className="font-medium text-foreground">{t.contact.email}</h3>
-                      <p className="text-sm text-muted-foreground">support@jobflow.com</p>
+                      <p className="text-sm text-muted-foreground">alimzhan.gabit@gmail.com</p>
                     </div>
                   </div>
 
@@ -155,7 +159,7 @@ export default function ContactPage() {
                     </div>
                     <div>
                       <h3 className="font-medium text-foreground">{t.contact.phone}</h3>
-                      <p className="text-sm text-muted-foreground">+7 (700) 123-4567</p>
+                      <p className="text-sm text-muted-foreground">+77783255904</p>
                     </div>
                   </div>
 

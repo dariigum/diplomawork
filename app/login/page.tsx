@@ -1,8 +1,8 @@
 "use client"
 
-import { useState, useTransition } from "react"
+import { useEffect, useState, useTransition } from "react"
 import Link from "next/link"
-import { useRouter } from "next/navigation"
+import { useRouter, useSearchParams } from "next/navigation"
 import { Briefcase, Eye, EyeOff, Mail, Lock } from "lucide-react"
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
@@ -16,10 +16,30 @@ import { useI18n } from "@/lib/i18n/provider"
 export default function LoginPage() {
   const { t } = useI18n()
   const router = useRouter()
+  const searchParams = useSearchParams()
   const [showPassword, setShowPassword] = useState(false)
   const [isPending, startTransition] = useTransition()
   const [email, setEmail] = useState("")
   const [password, setPassword] = useState("")
+
+  useEffect(() => {
+    const error = searchParams.get('error')
+    if (!error) return
+
+    const messages: Record<string, string> = {
+      google_network_error: t.auth.googleNetworkError,
+      google_auth_failed: t.auth.googleAuthFailed,
+      google_not_configured: t.auth.googleNotConfigured,
+      google_signup_expired: t.auth.googleSignupExpired,
+    }
+
+    toast.error(messages[error] || t.auth.googleAuthFailed)
+
+    const params = new URLSearchParams(searchParams.toString())
+    params.delete('error')
+    const next = params.toString()
+    router.replace(next ? `/login?${next}` : '/login', { scroll: false })
+  }, [router, searchParams, t])
 
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault()

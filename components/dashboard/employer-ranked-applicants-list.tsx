@@ -15,6 +15,11 @@ import {
   type PendingApplicant,
 } from '@/components/dashboard/employer-dashboard-nav';
 import { EmployerCandidateCardActions } from '@/components/dashboard/employer-candidate-card-actions';
+import {
+  CHAT_UNREAD_UPDATED_EVENT,
+  type ChatUnreadUpdatedDetail,
+} from '@/lib/chat/chat-events';
+import { useChatSocket } from '@/hooks/use-chat-socket';
 
 const MAX_MATCHING_SKILLS = 5;
 const RANKED_FETCH_LIMIT = 80;
@@ -35,6 +40,7 @@ type EmployerRankedApplicantsListProps = {
 export function EmployerRankedApplicantsList({ vacancies, onCountChange }: EmployerRankedApplicantsListProps) {
   const { t } = useI18n();
   const { vacancyId, setPendingApplicant, goToTab } = useEmployerDashboardNav();
+  const { socket, connected } = useChatSocket();
 
   const [applicants, setApplicants] = React.useState<PendingApplicant[]>([]);
   const [loading, setLoading] = React.useState(false);
@@ -142,6 +148,32 @@ export function EmployerRankedApplicantsList({ vacancies, onCountChange }: Emplo
   React.useEffect(() => {
     onCountChange?.(applicants.length);
   }, [applicants.length, onCountChange]);
+
+  React.useEffect(() => {
+    const onUnreadUpdated = (event: Event) => {
+      const chatId = (event as CustomEvent<ChatUnreadUpdatedDetail>).detail?.chatId;
+      if (chatId) {
+        setApplicants((prev) =>
+          prev.map((a) => (a.chatId === chatId ? { ...a, unreadCount: 0 } : a)),
+        );
+        return;
+      }
+      if (vacancyId) void loadApplicants(vacancyId);
+    };
+    window.addEventListener(CHAT_UNREAD_UPDATED_EVENT, onUnreadUpdated);
+    return () => window.removeEventListener(CHAT_UNREAD_UPDATED_EVENT, onUnreadUpdated);
+  }, [vacancyId, loadApplicants]);
+
+  React.useEffect(() => {
+    if (!socket || !connected || !vacancyId) return;
+    const refresh = () => void loadApplicants(vacancyId);
+    socket.on('chat:new_message', refresh);
+    socket.on('chat:read', refresh);
+    return () => {
+      socket.off('chat:new_message', refresh);
+      socket.off('chat:read', refresh);
+    };
+  }, [socket, connected, vacancyId, loadApplicants]);
 
   const handleOpenChat = React.useCallback(
     (applicant: PendingApplicant) => {

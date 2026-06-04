@@ -1,4 +1,5 @@
 import { Header } from "@/components/jobs/header"
+import { Footer } from "@/components/jobs/footer"
 import { CompaniesClient, type CompanyListItem } from "@/components/companies/companies-client"
 import { formatEmployerName } from "@/lib/format-employer-name"
 import dbConnect from "@/lib/db/mongoose"
@@ -45,9 +46,12 @@ export default async function CompaniesPage() {
   }
 
   return (
-    <div className="min-h-screen bg-background">
+    <div className="flex flex-col min-h-screen bg-background">
       <Header savedJobsCount={savedJobsCount} />
-      <CompaniesClient companies={companyStats} />
+      <div className="flex-grow">
+        <CompaniesClient companies={companyStats} />
+      </div>
+      <Footer />
     </div>
   )
 }

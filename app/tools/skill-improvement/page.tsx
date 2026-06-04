@@ -19,9 +19,11 @@ export default async function SkillImprovementPage() {
   const savedJobsCount = await SavedVacancy.countDocuments({ userId: session.user.id })
 
   return (
-    <div className="min-h-screen bg-background">
+    <div className="flex flex-col min-h-screen bg-background">
       <Header savedJobsCount={savedJobsCount} />
-      <SkillImprovementClient />
+      <main className="flex-grow">
+        <SkillImprovementClient />
+      </main>
       <Footer />
     </div>
   )

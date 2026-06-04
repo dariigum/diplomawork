@@ -23,12 +23,14 @@ export function ProfileChatDashboardShell({
   profile,
   candidates,
   chat,
+  candidatesTabLabel,
 }: {
   profileTitle: string;
   subtitle?: string;
   profile: React.ReactNode;
   candidates: React.ReactNode;
   chat: React.ReactNode;
+  candidatesTabLabel?: string;
 }) {
   const { t } = useI18n();
   const router = useRouter();
@@ -110,7 +112,7 @@ export function ProfileChatDashboardShell({
           <Tabs value={tab} onValueChange={handleTabChange} className="w-full shrink-0 sm:w-auto">
             <TabsList className="grid w-full grid-cols-3 sm:w-[360px]">
               <TabsTrigger value="profile">{t.dashboard.myProfile}</TabsTrigger>
-              <TabsTrigger value="candidates">{t.dashboard.candidatesTab}</TabsTrigger>
+              <TabsTrigger value="candidates">{candidatesTabLabel || t.dashboard.candidatesTab}</TabsTrigger>
               <TabsTrigger value="chat">{t.chat.chat}</TabsTrigger>
             </TabsList>
           </Tabs>

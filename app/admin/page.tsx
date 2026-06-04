@@ -15,7 +15,7 @@ export default function AdminDashboard() {
   useEffect(() => {
     async function fetchStats() {
       try {
-        const res = await fetch('/api/admin/stats');
+        const res = await fetch('/api/admin/stats', { cache: 'no-store' });
         if (res.ok) {
           const data = await res.json();
           setStats(data);
@@ -52,6 +52,23 @@ export default function AdminDashboard() {
   }
 
   if (!stats) return <div>{t.admin.overview.failedToLoad}</div>;
+
+  const performanceRows = [
+    {
+      label: t.admin.overview.googlePingLatency,
+      value:
+        typeof stats.performance?.googleLatencyMs === 'number'
+          ? `${stats.performance.googleLatencyMs} ms`
+          : null,
+    },
+    {
+      label: t.admin.overview.recommendationProbeTime,
+      value:
+        typeof stats.performance?.recommendationResponseTimeMs === 'number'
+          ? `${stats.performance.recommendationResponseTimeMs} ms`
+          : null,
+    },
+  ].filter((row) => row.value !== null);
 
   return (
     <div className="flex flex-col gap-6">
@@ -148,26 +165,18 @@ export default function AdminDashboard() {
           </CardHeader>
           <CardContent>
             <div className="space-y-4">
-              <div className="flex items-center justify-between">
-                <span className="text-sm font-medium">{t.admin.overview.apiLatency}</span>
-                <span className="text-sm text-muted-foreground">{stats.performance?.apiLatency || 0} ms</span>
-              </div>
-              <div className="flex items-center justify-between">
-                <span className="text-sm font-medium">{t.admin.overview.recommendationTime}</span>
-                <span className="text-sm text-muted-foreground">{stats.performance?.recommendationResponseTime || 0} ms</span>
-              </div>
-              <div className="flex items-center justify-between">
-                <span className="text-sm font-medium">{t.admin.overview.cacheHitRate}</span>
-                <span className="text-sm text-muted-foreground">{stats.performance?.cacheHitRate || 0}%</span>
-              </div>
-              <div className="flex items-center justify-between">
-                <span className="text-sm font-medium">{t.admin.overview.activeUsersNow}</span>
-                <span className="text-sm text-muted-foreground">{stats.performance?.activeUsers || 0}</span>
-              </div>
-              <div className="flex items-center justify-between">
-                <span className="text-sm font-medium">{t.admin.overview.concurrentSessions}</span>
-                <span className="text-sm text-muted-foreground">{stats.performance?.concurrentSessions || 0}</span>
-              </div>
+              {performanceRows.length > 0 ? (
+                performanceRows.map((row) => (
+                  <div key={row.label} className="flex items-center justify-between">
+                    <span className="text-sm font-medium">{row.label}</span>
+                    <span className="text-sm text-muted-foreground">{row.value}</span>
+                  </div>
+                ))
+              ) : (
+                <p className="text-sm text-muted-foreground">
+                  {t.admin.overview.noMeasuredPerformanceMetrics}
+                </p>
+              )}
             </div>
           </CardContent>
         </Card>

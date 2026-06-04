@@ -100,25 +100,30 @@ export default async function EmployeeDashboard() {
   return (
     <ProfileChatDashboardShell
       profileTitle={t.common.employee}
-      subtitle={`${t.common.employer} / ${t.common.employee}`}
+      candidatesTabLabel={t.dashboard.recommendedTab}
       profile={
+        <EmployeeProfileSection
+          userName={userData?.name || ""}
+          userEmail={userData?.email || ""}
+          userLocation={userData?.location || ""}
+          resumes={resumes}
+          savedVacancies={savedVacancies}
+          responses={responses}
+        />
+      }
+      candidates={
         <div className="space-y-10">
           <section className="space-y-3" aria-labelledby="dash-ai-heading">
-            <div className="flex flex-col gap-3 sm:flex-row sm:items-end sm:justify-between">
-              <div className="space-y-1">
-                <div className="flex items-center gap-2 text-primary">
-                  <Sparkles className="h-4 w-4 shrink-0" />
-                  <span className="text-xs font-semibold uppercase tracking-wider text-muted-foreground">
-                    {t.employeeDashboard.aiWorkspace}
-                  </span>
-                </div>
-                <h2 id="dash-ai-heading" className="text-lg font-semibold tracking-tight">
-                  {t.employeeDashboard.semanticMatches}
-                </h2>
+            <div className="space-y-1">
+              <div className="flex items-center gap-2 text-primary">
+                <Sparkles className="h-4 w-4 shrink-0" />
+                <span className="text-xs font-semibold uppercase tracking-wider text-muted-foreground">
+                  {t.employeeDashboard.aiWorkspace}
+                </span>
               </div>
-              <Button variant="outline" size="sm" asChild className="shrink-0 rounded-full">
-                <Link href="/dashboard/employee/recommendations">{t.employeeDashboard.viewAllRecommendations}</Link>
-              </Button>
+              <h2 id="dash-ai-heading" className="text-lg font-semibold tracking-tight">
+                {t.employeeDashboard.semanticMatches}
+              </h2>
             </div>
             <EmployeeDashboardAiPreview serverHints={{ hasResume, embeddingIndexed }} />
           </section>
@@ -131,17 +136,6 @@ export default async function EmployeeDashboard() {
               {t.employeeDashboard.behaviourAnalytics}
             </h2>
             <EmployeeBehaviourAnalyticsDashboard snapshot={behaviourAnalytics} variant="full" locale={locale} />
-          </section>
-
-          <section className="space-y-4 border-t border-border/60 pt-6">
-            <EmployeeProfileSection
-              userName={userData?.name || ""}
-              userEmail={userData?.email || ""}
-              userLocation={userData?.location || ""}
-              resumes={resumes}
-              savedVacancies={savedVacancies}
-              responses={responses}
-            />
           </section>
         </div>
       }

@@ -77,7 +77,7 @@ export function EmployeeBehaviourAnalyticsDashboard({ snapshot, variant = 'full'
       </div>
 
       <div className={cn('grid gap-4', isCompact ? 'md:grid-cols-2' : 'md:grid-cols-2 lg:grid-cols-4')}>
-        <Card className="border-border/65 shadow-sm bg-gradient-to-br from-primary/[0.06] to-background">
+        <Card className="border-border/65 shadow-sm bg-card/80">
           <CardHeader className="pb-2">
             <CardTitle className="text-sm flex items-center gap-2">
               <TrendingUp className="h-4 w-4 text-primary" />
@@ -108,10 +108,10 @@ export function EmployeeBehaviourAnalyticsDashboard({ snapshot, variant = 'full'
           </CardContent>
         </Card>
 
-        <Card className="border-border/65 shadow-sm bg-gradient-to-br from-emerald-500/[0.07] to-background">
+        <Card className="border-border/65 shadow-sm bg-card/80">
           <CardHeader className="pb-2">
             <CardTitle className="text-sm flex items-center gap-2">
-              <Activity className="h-4 w-4 text-emerald-600" />
+              <Activity className="h-4 w-4 text-muted-foreground" />
               {t.employeeDashboard.allTimeTotals}
             </CardTitle>
           </CardHeader>
@@ -135,10 +135,10 @@ export function EmployeeBehaviourAnalyticsDashboard({ snapshot, variant = 'full'
           </CardContent>
         </Card>
 
-        <Card className="border-border/65 shadow-sm md:col-span-2 lg:col-span-2 bg-gradient-to-br from-violet-500/[0.06] to-background">
+        <Card className="border-border/65 shadow-sm md:col-span-2 lg:col-span-2 bg-card/80">
           <CardHeader className="pb-2">
             <CardTitle className="text-sm flex items-center gap-2">
-              <Layers className="h-4 w-4 text-violet-600" />
+              <Layers className="h-4 w-4 text-muted-foreground" />
               {t.employeeDashboard.favouriteCategories}
             </CardTitle>
             <p className="text-[0.65rem] text-muted-foreground font-normal leading-snug">
@@ -161,7 +161,7 @@ export function EmployeeBehaviourAnalyticsDashboard({ snapshot, variant = 'full'
                       </Badge>
                       <span className="text-[0.65rem] tabular-nums text-muted-foreground">{c.weight}</span>
                     </div>
-                    <Progress value={trendBarPct(c.weight, maxCat)} className="h-1 bg-violet-500/15" />
+                    <Progress value={trendBarPct(c.weight, maxCat)} className="h-1 bg-muted" />
                   </div>
                 ))}
               </div>
@@ -227,7 +227,7 @@ export function EmployeeBehaviourAnalyticsDashboard({ snapshot, variant = 'full'
       </div>
 
       {!isCompact ? (
-        <Card className="border-primary/15 bg-gradient-to-r from-background to-primary/[0.04]">
+        <Card className="border-border/65 bg-card/80">
           <CardHeader className="pb-2">
             <CardTitle className="text-sm">{t.employeeDashboard.activitySummary}</CardTitle>
           </CardHeader>

@@ -32,6 +32,7 @@ export const metadata: Metadata = {
 
 import { cookies } from 'next/headers'
 import { I18nProvider } from '@/lib/i18n/provider'
+import { ChatSocketRoot } from '@/components/chat/chat-socket-root'
 
 export default async function RootLayout({
   children,
@@ -51,8 +52,10 @@ export default async function RootLayout({
             enableSystem
             disableTransitionOnChange
           >
-            {children}
-            <Analytics />
+            <ChatSocketRoot>
+              {children}
+              <Analytics />
+            </ChatSocketRoot>
           </ThemeProvider>
         </I18nProvider>
       </body>

@@ -10,7 +10,9 @@ import { MessageSquareText } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
 import { Card } from '@/components/ui/card';
-import { useChatSocket } from '@/hooks/use-chat-socket';
+import { useChatLiveSync } from '@/hooks/use-chat-live-sync';
+import { useChatSocket, useChatSocketEvent } from '@/hooks/use-chat-socket';
+import { isSameChatId } from '@/lib/chat/merge-messages';
 import { MessageBubble, type ChatMessageDTO } from '@/components/chat/message-bubble';
 import { MessageInput } from '@/components/chat/message-input';
 import { TypingIndicator } from '@/components/chat/typing-indicator';
@@ -20,6 +22,7 @@ import {
   type PendingApplicant,
 } from '@/components/dashboard/employer-dashboard-nav';
 import { EmployerCandidateCardActions } from '@/components/dashboard/employer-candidate-card-actions';
+import { dispatchChatUnreadUpdated } from '@/lib/chat/chat-events';
 
 type ChatDetail = {
   id: string;
@@ -49,6 +52,91 @@ export function EmployerChatView({ currentUserId }: { currentUserId: string }) {
   const [typing, setTyping] = useState(false);
   const scrollRef = useRef<HTMLDivElement>(null);
   const hasRestoredRef = useRef(false);
+
+  const containerRef = useRef<HTMLDivElement>(null);
+  const [height, setHeight] = useState<number>(0);
+  const [chatHeight, setChatHeight] = useState<number>(500);
+
+  useEffect(() => {
+    setHeight(window.innerHeight);
+    const handleResize = () => {
+      setHeight(window.innerHeight);
+    };
+    window.addEventListener('resize', handleResize);
+    return () => window.removeEventListener('resize', handleResize);
+  }, []);
+
+  useEffect(() => {
+    if (!height) return;
+    if (containerRef.current) {
+      const rect = containerRef.current.getBoundingClientRect();
+      const bottomSafe = 24;
+      const computedHeight = height - rect.top - bottomSafe;
+      setChatHeight(Math.max(computedHeight, 350));
+    }
+  }, [height, detail, activeApplicant]);
+
+  const scrollToBottom = useCallback(() => {
+    requestAnimationFrame(() => {
+      scrollRef.current?.scrollTo({ top: scrollRef.current.scrollHeight, behavior: 'smooth' });
+    });
+  }, []);
+
+  const clearUnreadForChat = useCallback((chatId: string) => {
+    setActiveApplicant((prev) =>
+      prev && prev.chatId === chatId ? { ...prev, unreadCount: 0 } : prev,
+    );
+    dispatchChatUnreadUpdated(chatId);
+  }, []);
+
+  const markChatAsRead = useCallback(
+    async (chatId: string) => {
+      clearUnreadForChat(chatId);
+      try {
+        await fetch(`/api/chats/${chatId}/read`, { method: 'POST', credentials: 'include' });
+        socketRef.current?.emit('chat:read', { chatId });
+      } catch {
+        /* ignore network errors; local badge already cleared */
+      }
+    },
+    [clearUnreadForChat, socketRef],
+  );
+
+  const appendMessage = useCallback(
+    (message: ChatMessageDTO) => {
+      setMessages((prev) => {
+        if (prev.some((x) => x.id === message.id)) return prev;
+        return [...prev, message];
+      });
+      scrollToBottom();
+    },
+    [scrollToBottom],
+  );
+
+  const handleIncomingMessage = useCallback(
+    (payload: { chatId: string; message: ChatMessageDTO }) => {
+      if (isSameChatId(payload.chatId, selectedChatId)) {
+        appendMessage(payload.message);
+        if (String(payload.message.senderId) !== String(currentUserId)) {
+          void markChatAsRead(payload.chatId);
+        }
+        return;
+      }
+      if (String(payload.message.senderId) !== String(currentUserId)) {
+        dispatchChatUnreadUpdated();
+      }
+    },
+    [appendMessage, currentUserId, markChatAsRead, selectedChatId],
+  );
+
+  const handleMessageSent = useCallback(
+    (message: ChatMessageDTO) => {
+      const chatId = message.chatId ?? selectedChatId;
+      if (!chatId) return;
+      if (chatId === selectedChatId) appendMessage(message);
+    },
+    [appendMessage, selectedChatId],
+  );
 
   const loadMessages = useCallback(async (chatId: string, before?: string) => {
     const qs = before ? `?before=${encodeURIComponent(before)}` : '';
@@ -82,6 +170,7 @@ export function EmployerChatView({ currentUserId }: { currentUserId: string }) {
       if (selectedChatId && selectedChatId !== chatId) leaveChat(selectedChatId);
       setSelectedChatId(chatId);
       joinChat(chatId);
+      clearUnreadForChat(chatId);
 
       const [dRes, mRes] = await Promise.all([
         fetch(`/api/chats/${chatId}`, { credentials: 'include' }),
@@ -94,14 +183,11 @@ export function EmployerChatView({ currentUserId }: { currentUserId: string }) {
       setHasMore(!!m.hasMore);
       setOldestId(m.oldestId || null);
 
-      void fetch(`/api/chats/${chatId}/read`, { method: 'POST', credentials: 'include' });
-      socketRef.current?.emit('chat:read', { chatId });
-
-      requestAnimationFrame(() => {
-        scrollRef.current?.scrollTo({ top: scrollRef.current.scrollHeight, behavior: 'smooth' });
-      });
+      setActiveApplicant({ ...app, chatId, unreadCount: 0 });
+      void markChatAsRead(chatId);
+      scrollToBottom();
     },
-    [selectedChatId, joinChat, leaveChat, socketRef],
+    [clearUnreadForChat, joinChat, leaveChat, markChatAsRead, scrollToBottom, selectedChatId],
   );
 
   // Keep a stable ref to openThread to avoid stale closures in the pendingApplicant effect
@@ -125,6 +211,7 @@ export function EmployerChatView({ currentUserId }: { currentUserId: string }) {
 
         setSelectedChatId(chatId);
         joinChat(chatId);
+        clearUnreadForChat(chatId);
         setDetail(d);
         setMessages(m.messages || []);
         setHasMore(!!m.hasMore);
@@ -155,17 +242,13 @@ export function EmployerChatView({ currentUserId }: { currentUserId: string }) {
           overlapSkills: [],
         });
 
-        void fetch(`/api/chats/${chatId}/read`, { method: 'POST', credentials: 'include' });
-        socketRef.current?.emit('chat:read', { chatId });
-
-        requestAnimationFrame(() => {
-          scrollRef.current?.scrollTo({ top: scrollRef.current.scrollHeight, behavior: 'smooth' });
-        });
+        void markChatAsRead(chatId);
+        scrollToBottom();
       } catch {
         // Silently fail — show empty chat state
       }
     },
-    [joinChat, socketRef],
+    [clearUnreadForChat, joinChat, markChatAsRead, scrollToBottom],
   );
 
   // On mount: if URL contains ?chatId=, restore that conversation
@@ -185,53 +268,48 @@ export function EmployerChatView({ currentUserId }: { currentUserId: string }) {
     void openThreadRef.current(app);
   }, [pendingApplicant, setPendingApplicant]);
 
-  // Cleanup socket on unmount
   useEffect(() => {
     return () => {
       if (selectedChatId) leaveChat(selectedChatId);
     };
   }, [leaveChat, selectedChatId]);
 
-  // Socket event handlers
   useEffect(() => {
-    const s = socketRef.current;
-    if (!s || !connected) return;
+    if (!connected || !selectedChatId) return;
+    joinChat(selectedChatId);
+  }, [connected, selectedChatId, joinChat]);
 
-    const onNew = (payload: { chatId: string; message: ChatMessageDTO }) => {
-      if (payload.chatId !== selectedChatId) return;
-      setMessages((prev) => {
-        if (prev.some((x) => x.id === payload.message.id)) return prev;
-        return [...prev, payload.message];
-      });
-      requestAnimationFrame(() => {
-        scrollRef.current?.scrollTo({ top: scrollRef.current.scrollHeight, behavior: 'smooth' });
-      });
-    };
+  useChatSocketEvent('chat:new_message', (payload) => {
+    handleIncomingMessage(payload as { chatId: string; message: ChatMessageDTO });
+  });
 
-    const onTyping = (p: { chatId: string; typing: boolean }) => {
-      if (p.chatId === selectedChatId) setTyping(!!p.typing);
-    };
+  useChatSocketEvent('chat:typing', (payload) => {
+    const p = payload as { chatId: string; typing: boolean };
+    if (isSameChatId(p.chatId, selectedChatId)) setTyping(!!p.typing);
+  });
 
-    const onRead = (p: { chatId: string; readerId: string }) => {
-      if (p.chatId !== selectedChatId) return;
-      if (p.readerId === currentUserId) return;
-      setMessages((prev) =>
-        prev.map((m) =>
-          m.senderId === currentUserId ? { ...m, isRead: true, readAt: new Date().toISOString() } : m,
-        ),
-      );
-    };
+  useChatSocketEvent('chat:read', (payload) => {
+    const p = payload as { chatId: string; readerId: string };
+    if (String(p.readerId) === String(currentUserId)) {
+      clearUnreadForChat(p.chatId);
+    }
+    if (!isSameChatId(p.chatId, selectedChatId)) return;
+    if (String(p.readerId) === String(currentUserId)) return;
+    setMessages((prev) =>
+      prev.map((m) =>
+        m.senderId === currentUserId ? { ...m, isRead: true, readAt: new Date().toISOString() } : m,
+      ),
+    );
+  });
 
-    s.on('chat:new_message', onNew);
-    s.on('chat:typing', onTyping);
-    s.on('chat:read', onRead);
-
-    return () => {
-      s.off('chat:new_message', onNew);
-      s.off('chat:typing', onTyping);
-      s.off('chat:read', onRead);
-    };
-  }, [connected, currentUserId, selectedChatId, socketRef]);
+  useChatLiveSync({
+    chatId: selectedChatId,
+    enabled: !!selectedChatId,
+    messages,
+    setMessages,
+    onPeerActivity: scrollToBottom,
+    socketConnected: connected,
+  });
 
   useEffect(() => {
     setTyping(false);
@@ -241,7 +319,7 @@ export function EmployerChatView({ currentUserId }: { currentUserId: string }) {
   const peerImage = activeApplicant?.employee.image;
 
   return (
-    <div className="flex min-h-[480px] min-w-0 flex-col rounded-xl border border-border/60 bg-card/40">
+    <div ref={containerRef} style={{ height: chatHeight }} className="flex min-w-0 flex-col rounded-xl border border-border/60 bg-card/40">
       {/* Thread header */}
       <div className="flex shrink-0 items-center gap-2 border-b border-border/60 px-3 py-2">
         <span className="truncate text-sm font-medium">{peerName}</span>
@@ -348,9 +426,7 @@ export function EmployerChatView({ currentUserId }: { currentUserId: string }) {
         chatId={selectedChatId}
         disabled={!selectedChatId}
         socketRef={socketRef}
-        onSent={() => {
-          /* messages arrive via socket */
-        }}
+        onSent={handleMessageSent}
       />
     </div>
   );

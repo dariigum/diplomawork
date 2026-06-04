@@ -1,7 +1,7 @@
 import { NextResponse } from 'next/server';
 import dbConnect from '@/lib/db/mongoose';
 import { getSession } from '@/lib/auth';
-import { getMessagesBefore, sendMessageFromUser } from '@/lib/chat/chat-service';
+import { getMessagesAfter, getMessagesBefore, sendMessageFromUser } from '@/lib/chat/chat-service';
 import { createSlidingWindowRateLimiter } from '@/lib/chat/rate-limit';
 import type { IAttachment } from '@/lib/db/schema';
 import { publishNewMessage } from '@/lib/socket/io-registry';
@@ -18,16 +18,19 @@ export async function GET(req: Request, ctx: { params: Promise<{ chatId: string 
     const { chatId } = await ctx.params;
     const url = new URL(req.url);
     const before = url.searchParams.get('before') || undefined;
+    const after = url.searchParams.get('after') || undefined;
     const limit = Math.min(80, Math.max(1, parseInt(url.searchParams.get('limit') || '40', 10) || 40));
 
     await dbConnect();
     const role = session.user.role === 'EMPLOYER' ? 'EMPLOYER' : 'EMPLOYEE';
-    const { messages, oldestId, hasMore } = await getMessagesBefore(
-      chatId,
-      { id: session.user.id, role },
-      before,
-      limit
-    );
+    const user = { id: session.user.id, role };
+
+    if (after) {
+      const { messages } = await getMessagesAfter(chatId, user, after, limit);
+      return NextResponse.json({ messages, oldestId: null, hasMore: false });
+    }
+
+    const { messages, oldestId, hasMore } = await getMessagesBefore(chatId, user, before, limit);
 
     return NextResponse.json({ messages, oldestId, hasMore });
   } catch (e: any) {

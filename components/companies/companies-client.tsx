@@ -6,6 +6,7 @@ import { Search, MapPin, Users, Briefcase, Star } from "lucide-react"
 import { Card, CardContent } from "@/components/ui/card"
 import { Badge } from "@/components/ui/badge"
 import { Input } from "@/components/ui/input"
+import { Button } from "@/components/ui/button"
 import { useI18n } from "@/lib/i18n/provider"
 
 export type CompanyListItem = {
@@ -22,6 +23,13 @@ export type CompanyListItem = {
 export function CompaniesClient({ companies }: { companies: CompanyListItem[] }) {
   const { t } = useI18n()
   const [query, setQuery] = useState("")
+  const [currentPage, setCurrentPage] = useState(1)
+  const ITEMS_PER_PAGE = 30
+
+  const handleQueryChange = (val: string) => {
+    setQuery(val)
+    setCurrentPage(1)
+  }
 
   const filteredCompanies = useMemo(() => {
     const normalized = query.trim().toLowerCase()
@@ -34,6 +42,13 @@ export function CompaniesClient({ companies }: { companies: CompanyListItem[] })
       return haystack.includes(normalized)
     })
   }, [companies, query])
+
+  const totalPages = Math.ceil(filteredCompanies.length / ITEMS_PER_PAGE)
+
+  const paginatedCompanies = useMemo(() => {
+    const startIndex = (currentPage - 1) * ITEMS_PER_PAGE
+    return filteredCompanies.slice(startIndex, startIndex + ITEMS_PER_PAGE)
+  }, [filteredCompanies, currentPage])
 
   return (
     <main className="container mx-auto px-4 py-8">
@@ -48,7 +63,7 @@ export function CompaniesClient({ companies }: { companies: CompanyListItem[] })
           <Input
             type="search"
             value={query}
-            onChange={(e) => setQuery(e.target.value)}
+            onChange={(e) => handleQueryChange(e.target.value)}
             placeholder={t.companies.searchEmployers}
             className="border-border bg-card pl-9"
             aria-label={t.companies.searchEmployers}
@@ -56,60 +71,86 @@ export function CompaniesClient({ companies }: { companies: CompanyListItem[] })
         </div>
       </div>
 
-      {filteredCompanies.length === 0 ? (
+      {paginatedCompanies.length === 0 ? (
         <p className="py-12 text-center text-muted-foreground">{t.companies.noSearchResults}</p>
       ) : (
-        <div className="grid gap-6 md:grid-cols-2 lg:grid-cols-3">
-          {filteredCompanies.map((company) => (
-            <Link key={company.id} href={`/companies/${company.id}`}>
-              <Card className="h-full cursor-pointer transition-all hover:border-primary/30 hover:shadow-lg">
-                <CardContent className="p-6">
-                  <div className="flex items-start gap-4">
-                    <div className="flex h-14 w-14 flex-shrink-0 items-center justify-center rounded-xl bg-muted text-lg font-semibold text-muted-foreground">
-                      {company.logoUrl || "🏢"}
+        <>
+          <div className="grid gap-6 md:grid-cols-2 lg:grid-cols-3">
+            {paginatedCompanies.map((company) => (
+              <Link key={company.id} href={`/companies/${company.id}`}>
+                <Card className="h-full cursor-pointer transition-all hover:border-primary/30 hover:shadow-lg">
+                  <CardContent className="p-6">
+                    <div className="flex items-start gap-4">
+                      <div className="flex h-14 w-14 flex-shrink-0 items-center justify-center rounded-xl bg-muted text-lg font-semibold text-muted-foreground">
+                        {company.logoUrl || "🏢"}
+                      </div>
+                      <div className="min-w-0 flex-1">
+                        <h3 className="truncate text-lg font-semibold text-foreground">{company.name}</h3>
+                        {company.industry ? (
+                          <Badge variant="secondary" className="mt-1">
+                            {company.industry}
+                          </Badge>
+                        ) : null}
+                      </div>
                     </div>
-                    <div className="min-w-0 flex-1">
-                      <h3 className="truncate text-lg font-semibold text-foreground">{company.name}</h3>
-                      {company.industry ? (
-                        <Badge variant="secondary" className="mt-1">
-                          {company.industry}
-                        </Badge>
-                      ) : null}
-                    </div>
-                  </div>
 
-                  <p className="mt-4 line-clamp-3 text-sm text-muted-foreground">
-                    {company.description || t.companies.noDescription}
-                  </p>
+                    <p className="mt-4 line-clamp-3 text-sm text-muted-foreground">
+                      {company.description || t.companies.noDescription}
+                    </p>
 
-                  <div className="mt-4 flex flex-wrap gap-4 text-sm text-muted-foreground">
-                    <div className="flex items-center gap-1.5">
-                      <MapPin className="h-4 w-4" />
-                      <span>{company.location || t.companies.multipleLocations}</span>
+                    <div className="mt-4 flex flex-wrap gap-4 text-sm text-muted-foreground">
+                      <div className="flex items-center gap-1.5">
+                        <MapPin className="h-4 w-4" />
+                        <span>{company.location || t.companies.multipleLocations}</span>
+                      </div>
+                      <div className="flex items-center gap-1.5">
+                        <Users className="h-4 w-4" />
+                        <span>{company.employees || "—"}</span>
+                      </div>
                     </div>
-                    <div className="flex items-center gap-1.5">
-                      <Users className="h-4 w-4" />
-                      <span>{company.employees || "—"}</span>
-                    </div>
-                  </div>
 
-                  <div className="mt-4 flex items-center justify-between border-t border-border pt-4">
-                    <div className="flex items-center gap-1.5">
-                      <Star className="h-4 w-4 fill-yellow-500 text-yellow-500" />
-                      <span className="font-medium text-foreground">4.8</span>
+                    <div className="mt-4 flex items-center justify-between border-t border-border pt-4">
+                      <div className="flex items-center gap-1.5">
+                        <Star className="h-4 w-4 fill-yellow-500 text-yellow-500" />
+                        <span className="font-medium text-foreground">4.8</span>
+                      </div>
+                      <div className="flex items-center gap-1.5 text-primary">
+                        <Briefcase className="h-4 w-4" />
+                        <span className="font-medium">
+                          {company.openJobs} {t.companies.openJobs}
+                        </span>
+                      </div>
                     </div>
-                    <div className="flex items-center gap-1.5 text-primary">
-                      <Briefcase className="h-4 w-4" />
-                      <span className="font-medium">
-                        {company.openJobs} {t.companies.openJobs}
-                      </span>
-                    </div>
-                  </div>
-                </CardContent>
-              </Card>
-            </Link>
-          ))}
-        </div>
+                  </CardContent>
+                </Card>
+              </Link>
+            ))}
+          </div>
+
+          {totalPages > 1 && (
+            <div className="mt-8 flex justify-center items-center gap-4">
+              <Button
+                variant="outline"
+                size="sm"
+                onClick={() => setCurrentPage((p) => Math.max(p - 1, 1))}
+                disabled={currentPage === 1}
+              >
+                {t.admin.users.previous || "Previous"}
+              </Button>
+              <span className="text-sm font-medium text-muted-foreground">
+                {currentPage} / {totalPages}
+              </span>
+              <Button
+                variant="outline"
+                size="sm"
+                onClick={() => setCurrentPage((p) => Math.min(p + 1, totalPages))}
+                disabled={currentPage === totalPages}
+              >
+                {t.admin.users.next || "Next"}
+              </Button>
+            </div>
+          )}
+        </>
       )}
     </main>
   )

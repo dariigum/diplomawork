@@ -8,6 +8,7 @@ import { Paperclip, Send } from 'lucide-react';
 import { AttachmentPreview, type PendingFile } from '@/components/chat/attachment-preview';
 import type { Socket } from 'socket.io-client';
 import { useI18n } from '@/lib/i18n/provider';
+import type { ChatMessageDTO } from '@/components/chat/message-bubble';
 
 type UploadedMeta = { storageKey: string; fileName: string; mimeType: string; size: number };
 
@@ -52,7 +53,7 @@ export function MessageInput({
   chatId: string | null;
   disabled?: boolean;
   socketRef: MutableRefObject<Socket | null>;
-  onSent?: () => void;
+  onSent?: (message: ChatMessageDTO) => void;
 }) {
   const { t } = useI18n();
   const [text, setText] = useState('');
@@ -124,33 +125,55 @@ export function MessageInput({
     };
 
     const trySocket = () =>
-      new Promise<boolean>((resolve) => {
+      new Promise<{ ok: boolean; message?: ChatMessageDTO }>((resolve) => {
         const s = socketRef.current;
         if (!s?.connected) {
-          resolve(false);
+          resolve({ ok: false });
           return;
         }
-        s.emit('chat:send', { chatId, ...body }, (res: { ok?: boolean }) => {
-          resolve(!!res?.ok);
-        });
+        let settled = false;
+        const finish = (result: { ok: boolean; message?: ChatMessageDTO }) => {
+          if (settled) return;
+          settled = true;
+          clearTimeout(timer);
+          resolve(result);
+        };
+        const timer = setTimeout(() => finish({ ok: false }), 10_000);
+        s.emit(
+          'chat:send',
+          { chatId, ...body },
+          (res: { ok?: boolean; message?: ChatMessageDTO }) => {
+            finish({ ok: !!res?.ok, message: res?.message });
+          }
+        );
       });
 
-    const ok = await trySocket();
-    if (!ok) {
+    const socketResult = await trySocket();
+    let sentMessage: ChatMessageDTO | undefined = socketResult.message;
+
+    if (!socketResult.ok) {
       const res = await fetch(`/api/chats/${chatId}/messages`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         credentials: 'include',
         body: JSON.stringify(body),
       });
+      const data = await res.json().catch(() => ({}));
       if (!res.ok) {
         setSending(false);
         return;
       }
+      sentMessage = data.message as ChatMessageDTO | undefined;
     }
+
     setText('');
     setSending(false);
-    onSent?.();
+    if (sentMessage) {
+      onSent?.({
+        ...sentMessage,
+        chatId: sentMessage.chatId ?? chatId,
+      });
+    }
   };
 
   const submit = async () => {
@@ -159,7 +182,7 @@ export function MessageInput({
   };
 
   return (
-    <div className="border-t border-border/60 bg-background/95 backdrop-blur">
+    <div className="border-t border-border/60 bg-background/95 backdrop-blur pb-[env(safe-area-inset-bottom,12px)]">
       <AttachmentPreview pending={pending} onRemove={removePending} />
       <div className="flex items-end gap-2 p-2 md:p-3">
         <input

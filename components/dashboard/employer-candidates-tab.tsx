@@ -7,6 +7,8 @@ import { useI18n } from '@/lib/i18n/provider';
 import { useEmployerDashboardNav } from '@/components/dashboard/employer-dashboard-nav';
 import { EmployerRankedApplicantsList } from '@/components/dashboard/employer-ranked-applicants-list';
 import { EmployerMatchingCandidates } from '@/components/dashboard/employer-matching-candidates';
+import { EmployerVacancySelect } from '@/components/dashboard/employer-vacancy-select';
+import { useEmployerVacancyUnread } from '@/hooks/use-employer-vacancy-unread';
 
 type SubTab = 'applied' | 'recommended';
 
@@ -21,6 +23,7 @@ type EmployerCandidatesTabProps = {
 export function EmployerCandidatesTab({ vacancies }: EmployerCandidatesTabProps) {
   const { t } = useI18n();
   const { vacancyId, setVacancyId } = useEmployerDashboardNav();
+  const { byVacancy: unreadByVacancy } = useEmployerVacancyUnread();
   const router = useRouter();
   const pathname = usePathname();
   const searchParams = useSearchParams();
@@ -32,7 +35,7 @@ export function EmployerCandidatesTab({ vacancies }: EmployerCandidatesTabProps)
   const handleRecommendedCount = useCallback((n: number) => setRecommendedCount(n), []);
 
   const subTab = parseSubTab(searchParams.get('subtab'));
-  const selectedVacancyId = vacancyId ?? vacancies[0]?.id ?? '';
+  const selectedVacancyId = vacancyId ?? '';
 
   const handleSubTabChange = useCallback(
     (value: string) => {
@@ -66,18 +69,12 @@ export function EmployerCandidatesTab({ vacancies }: EmployerCandidatesTabProps)
         <label htmlFor="candidates-vacancy-select" className="shrink-0 text-sm font-medium">
           {t.dashboard.matchVacancyLabel}
         </label>
-        <select
-          id="candidates-vacancy-select"
+        <EmployerVacancySelect
+          vacancies={vacancies}
           value={selectedVacancyId}
-          onChange={(e) => setVacancyId(e.target.value)}
-          className="flex-1 max-w-sm rounded-lg border border-border bg-background px-3 py-2 text-sm focus:outline-none focus:ring-1 focus:ring-primary"
-        >
-          {vacancies.map((v) => (
-            <option key={v.id} value={v.id}>
-              {v.title}
-            </option>
-          ))}
-        </select>
+          onValueChange={setVacancyId}
+          unreadByVacancy={unreadByVacancy}
+        />
       </div>
 
       {/* Applicants / Recommended sub-tabs — value driven by URL ?subtab= */}

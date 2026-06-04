@@ -2,6 +2,45 @@ import { NextResponse } from 'next/server';
 import { getSession } from '@/lib/auth';
 import dbConnect from '@/lib/db/mongoose';
 import { User, Vacancy, Response, Chat, Resume, SavedVacancy } from '@/lib/db/schema';
+import { getTopRecommendations } from '@/lib/recommendation';
+
+async function measureGoogleLatencyMs(): Promise<number | null> {
+  const startedAt = performance.now();
+
+  try {
+    const res = await fetch('https://www.google.com/generate_204', {
+      method: 'GET',
+      cache: 'no-store',
+      signal: AbortSignal.timeout(3000),
+    });
+
+    if (!res.ok && res.status !== 204) return null;
+    return Math.round(performance.now() - startedAt);
+  } catch {
+    return null;
+  }
+}
+
+async function measureRecommendationResponseTimeMs(): Promise<number | null> {
+  const resume = await Resume.findOne({
+    activeForAi: true,
+    embedding: { $exists: true, $ne: [] },
+  })
+    .select('userId')
+    .lean() as { userId?: { toString(): string } | string } | null;
+
+  const userId = resume?.userId?.toString();
+  if (!userId) return null;
+
+  const startedAt = performance.now();
+
+  try {
+    await getTopRecommendations({ userId, limit: 1 });
+    return Math.round(performance.now() - startedAt);
+  } catch {
+    return null;
+  }
+}
 
 export async function GET() {
   try {
@@ -13,7 +52,6 @@ export async function GET() {
 
     await dbConnect();
 
-    // Fetch actual counts
     const [
       totalUsers,
       totalEmployers,
@@ -23,6 +61,8 @@ export async function GET() {
       totalChats,
       savedVacanciesCount,
       totalEmbeddingsGenerated,
+      googleLatencyMs,
+      recommendationResponseTimeMs,
     ] = await Promise.all([
       User.countDocuments(),
       User.countDocuments({ role: 'EMPLOYER' }),
@@ -35,7 +75,9 @@ export async function GET() {
         const resumesWithEmbedding = await Resume.countDocuments({ embedding: { $exists: true, $not: {$size: 0} } });
         const vacanciesWithEmbedding = await Vacancy.countDocuments({ embedding: { $exists: true, $not: {$size: 0} } });
         return resumesWithEmbedding + vacanciesWithEmbedding;
-      })()
+      })(),
+      measureGoogleLatencyMs(),
+      measureRecommendationResponseTimeMs(),
     ]);
 
     // Calculate aggregations for charts
@@ -75,31 +117,32 @@ export async function GET() {
       };
     });
 
-    return NextResponse.json({
-      system: {
-        totalUsers,
-        totalEmployers,
-        totalEmployees,
-        totalVacancies,
-        totalApplications,
-        savedVacanciesCount,
-        totalChats,
+    return NextResponse.json(
+      {
+        system: {
+          totalUsers,
+          totalEmployers,
+          totalEmployees,
+          totalVacancies,
+          totalApplications,
+          savedVacanciesCount,
+          totalChats,
+        },
+        ai: {
+          totalEmbeddingsGenerated,
+        },
+        performance: {
+          googleLatencyMs,
+          recommendationResponseTimeMs,
+        },
+        chartData
       },
-      ai: {
-        totalEmbeddingsGenerated,
-        recommendationRequestsCount: 0, // Not tracked in DB
-        averageMatchScore: 0, // Not tracked directly in DB
-        recommendationSuccessRate: 0, // Not tracked
+      {
+        headers: {
+          'Cache-Control': 'no-store',
+        },
       },
-      performance: {
-        apiLatency: 0, 
-        recommendationResponseTime: 0,
-        cacheHitRate: 0,
-        activeUsers: 0, 
-        concurrentSessions: 0,
-      },
-      chartData
-    });
+    );
   } catch (error) {
     console.error('Error fetching admin stats:', error);
     return NextResponse.json({ error: 'Internal Server Error' }, { status: 500 });

@@ -2,11 +2,12 @@
 
 import { useEffect, useState } from 'react'
 import Link from 'next/link'
-import { AlertCircle, ArrowLeft, Loader2, Target, TrendingUp, Sparkles, Compass, Brain, Award, BookOpen } from 'lucide-react'
+import { AlertCircle, ArrowLeft, Loader2, Target, TrendingUp, Sparkles, Compass, Brain, Award, BookOpen, ChevronLeft } from 'lucide-react'
 import { Button } from '@/components/ui/button'
 import { Alert, AlertDescription } from '@/components/ui/alert'
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
 import { useI18n } from '@/lib/i18n/provider'
+import { useRouter } from 'next/navigation'
 
 interface GeminiReportPayload {
   analysisTimestamp: string
@@ -145,6 +146,7 @@ function GeminiMarkdownRenderer({ content }: { content: string }) {
 }
 
 export default function SkillImprovementClient() {
+  const router = useRouter()
   const { t } = useI18n()
   const [report, setReport] = useState<GeminiReportPayload | null>(null)
   const [loading, setLoading] = useState(true)
@@ -181,10 +183,12 @@ export default function SkillImprovementClient() {
     <div className="bg-background pb-12">
       <div className="border-b border-border/50 bg-muted/30">
         <div className="container max-w-6xl mx-auto px-4 py-8">
-          <Link href="/tools" className="inline-flex items-center gap-2 text-sm text-muted-foreground hover:text-foreground mb-4">
-            <ArrowLeft className="h-4 w-4" />
-            {t.skillImprovement.backToCareerHub}
-          </Link>
+          <div className="flex items-center gap-2 mb-4">
+            <Button variant="ghost" size="icon" className="shrink-0" onClick={() => router.back()} aria-label={t.skillImprovement.backToCareerHub}>
+              <ChevronLeft className="size-6" />
+            </Button>
+            <span className="text-sm font-medium text-muted-foreground">{t.skillImprovement.backToCareerHub}</span>
+          </div>
           <div className="space-y-2">
             <h1 className="text-3xl font-bold text-foreground">{t.skillImprovement.title}</h1>
             <p className="text-muted-foreground">{t.skillImprovement.subtitle}</p>

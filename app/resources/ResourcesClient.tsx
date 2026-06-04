@@ -185,26 +185,6 @@ export default function ResourcesClient({ initialArticles }: { initialArticles: 
           </div>
         )}
       </div>
-
-      {/* Newsletter */}
-      <Card className="bg-primary text-primary-foreground max-w-4xl mx-auto">
-        <CardContent className="p-8 text-center">
-          <h2 className="text-2xl font-bold mb-2">{t.resources.stayUpdated}</h2>
-          <p className="opacity-90 mb-6 max-w-md mx-auto">
-            {t.resources.getLatestTips}
-          </p>
-          <div className="flex gap-3 max-w-md mx-auto">
-            <input
-              type="email"
-              placeholder={t.resources.enterEmail}
-              className="flex-1 px-4 py-2 rounded-lg bg-background text-foreground placeholder:text-muted-foreground"
-            />
-            <button className="px-6 py-2 bg-foreground text-background rounded-lg font-medium hover:bg-foreground/90 transition-colors">
-              {t.resources.subscribe}
-            </button>
-          </div>
-        </CardContent>
-      </Card>
     </main>
   )
 }

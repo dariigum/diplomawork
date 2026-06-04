@@ -1,6 +1,6 @@
 import { NextResponse } from 'next/server';
 import type { NextRequest } from 'next/server';
-import { decrypt } from './lib/auth';
+import { decryptSessionToken } from './lib/session-jwt';
 
 export async function proxy(request: NextRequest) {
   const path = request.nextUrl.pathname;
@@ -12,7 +12,7 @@ export async function proxy(request: NextRequest) {
 
   if (sessionCookie) {
     try {
-      session = await decrypt(sessionCookie);
+      session = await decryptSessionToken(sessionCookie);
     } catch (e) {
       session = null;
     }
@@ -54,5 +54,5 @@ export async function proxy(request: NextRequest) {
 }
 
 export const config = {
-  matcher: ['/((?!api|_next/static|_next/image|favicon.ico|uploads/|.*\\.png$).*)'],
+  matcher: ['/((?!api|_next/static|_next/image|favicon.ico|uploads/|socket.io|.*\\.png$).*)'],
 };

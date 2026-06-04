@@ -149,7 +149,7 @@ export function EmployeeProfileSection({
                 {resumes.map((r) => (
                   <li
                     key={r.id}
-                    className="flex flex-col gap-3 rounded-lg border p-4 sm:flex-row sm:items-center sm:justify-between"
+                    className="flex flex-col gap-3 rounded-lg border p-4 sm:flex-row sm:items-start sm:justify-between"
                   >
                     <div className="min-w-0 flex-1">
                       <div className="flex flex-wrap items-center gap-2 gap-y-1">
@@ -177,28 +177,43 @@ export function EmployeeProfileSection({
                         </p>
                       ) : null}
                     </div>
-                    <div className="flex shrink-0 flex-wrap items-center gap-2">
-                      <Button variant="secondary" size="sm" asChild>
-                        <Link href={`/dashboard/employee/resume/${r.id}`}>{t.common.edit}</Link>
-                      </Button>
-                      {r.activeForAi ? (
-                        <Button variant="secondary" size="sm" type="button" disabled className="cursor-not-allowed opacity-80">
-                          {t.dashboard.activeResumeCurrentlyActive}
+                    <div className="flex w-full shrink-0 flex-col items-end gap-2 sm:ml-2 sm:w-auto">
+                      <div className="flex w-full justify-end">
+                        {r.activeForAi ? (
+                          <Button
+                            variant="secondary"
+                            size="sm"
+                            type="button"
+                            disabled
+                            className="h-8 max-w-full cursor-not-allowed whitespace-nowrap text-center opacity-80"
+                          >
+                            {t.dashboard.activeResumeCurrentlyActive}
+                          </Button>
+                        ) : (
+                          <form action={setActiveResumeForAiAction} className="inline-flex max-w-full justify-end">
+                            <input type="hidden" name="id" value={r.id} />
+                            <Button
+                              variant="outline"
+                              size="sm"
+                              type="submit"
+                              className="h-8 max-w-full whitespace-nowrap text-center"
+                            >
+                              {t.dashboard.activeResumeUseForRecommendations}
+                            </Button>
+                          </form>
+                        )}
+                      </div>
+                      <div className="flex w-full flex-wrap justify-end gap-2">
+                        <Button variant="secondary" size="sm" asChild className="h-8 whitespace-nowrap">
+                          <Link href={`/dashboard/employee/resume/${r.id}`}>{t.common.edit}</Link>
                         </Button>
-                      ) : (
-                        <form action={setActiveResumeForAiAction}>
+                        <form action={deleteResumeAction} className="inline-flex">
                           <input type="hidden" name="id" value={r.id} />
-                          <Button variant="outline" size="sm" type="submit">
-                            {t.dashboard.activeResumeUseForRecommendations}
+                          <Button variant="destructive" size="sm" type="submit" className="h-8 whitespace-nowrap">
+                            {t.common.delete}
                           </Button>
                         </form>
-                      )}
-                      <form action={deleteResumeAction}>
-                        <input type="hidden" name="id" value={r.id} />
-                        <Button variant="destructive" size="sm" type="submit">
-                          {t.common.delete}
-                        </Button>
-                      </form>
+                      </div>
                     </div>
                   </li>
                 ))}

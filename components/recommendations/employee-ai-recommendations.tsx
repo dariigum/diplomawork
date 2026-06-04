@@ -9,6 +9,7 @@ import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
 import { Progress } from '@/components/ui/progress'
 import { Skeleton } from '@/components/ui/skeleton'
 import { cn } from '@/lib/utils'
+import { useI18n } from '@/lib/i18n/provider'
 import type { BehaviourSessionInsights, RecommendationApiItem } from '@/lib/recommendations-api-types'
 import { parseRecommendationsApiPayload } from '@/lib/recommendations-api-types'
 import { formatBehaviourPhraseForDisplay } from '@/lib/recommendations-display-format'
@@ -16,6 +17,7 @@ import { formatBehaviourPhraseForDisplay } from '@/lib/recommendations-display-f
 const INITIAL_LIMIT = 3
 const MID_LIMIT = 5
 const MAX_LIMIT = 50
+const RECOMMENDATIONS_RETURN_HREF = '/dashboard/employee/recommendations'
 
 const PROGRESS_ENHANCED =
   'h-2.5 bg-primary/12 rounded-full [&_[data-slot=progress-indicator]]:transition-transform [&_[data-slot=progress-indicator]]:duration-700 [&_[data-slot=progress-indicator]]:ease-out'
@@ -28,15 +30,16 @@ type LoadState =
   | { kind: 'no_embedding'; message: string }
   | { kind: 'error'; status: number; message: string }
 
-const LOADING_MESSAGES = [
-  'Finding relevant opportunities…',
-  'Preparing personalized recommendations…',
-  'Refreshing recommendations…',
-] as const
+function formatMessage(template: string, values: Record<string, string | number>): string {
+  return Object.entries(values).reduce(
+    (acc, [key, value]) => acc.replaceAll(`{${key}}`, String(value)),
+    template,
+  )
+}
 
-async function readErrorMessage(res: Response): Promise<string> {
+async function readErrorMessage(res: Response, fallback: string): Promise<string> {
   const body = (await res.json().catch(() => null)) as { error?: unknown } | null
-  return typeof body?.error === 'string' ? body.error : `Request failed (${res.status}).`
+  return typeof body?.error === 'string' ? body.error : formatMessage(fallback, { status: res.status })
 }
 
 function scoreToPercent(score: number): number {
@@ -52,14 +55,16 @@ function getSemanticScore(d: RecommendationApiItem): number {
   return typeof d.semanticScore === 'number' ? d.semanticScore : d.score
 }
 
-function fitTierFromPercent(pct: number): 'Strong fit' | 'Good fit' | 'Related' | 'Exploratory' {
-  if (pct >= 85) return 'Strong fit'
-  if (pct >= 70) return 'Good fit'
-  if (pct >= 50) return 'Related'
-  return 'Exploratory'
+type FitTier = 'strong' | 'good' | 'related' | 'exploratory'
+
+function fitTierFromPercent(pct: number): FitTier {
+  if (pct >= 85) return 'strong'
+  if (pct >= 70) return 'good'
+  if (pct >= 50) return 'related'
+  return 'exploratory'
 }
 
-function buildCardLeadLine(item: RecommendationApiItem): string {
+function buildCardLeadLine(item: RecommendationApiItem, fallback: string): string {
   const tag = item.behaviourCardTagline?.trim()
   const note = item.semanticMatchNote?.trim()
   if (tag && tag.length <= 180) return tag
@@ -69,16 +74,16 @@ function buildCardLeadLine(item: RecommendationApiItem): string {
     return base.length > 180 ? `${base.slice(0, 177)}…` : base
   }
   if (tag) return tag.length > 180 ? `${tag.slice(0, 177)}…` : tag
-  return 'Aligned with your profile and experience.'
+  return fallback
 }
 
-function tierBadgeClass(tier: ReturnType<typeof fitTierFromPercent>): string {
+function tierBadgeClass(tier: FitTier): string {
   switch (tier) {
-    case 'Strong fit':
-      return 'border-emerald-500/40 bg-emerald-500/10 text-emerald-900 dark:text-emerald-100'
-    case 'Good fit':
-      return 'border-primary/35 bg-primary/[0.08] text-primary'
-    case 'Related':
+    case 'strong':
+      return 'border-border/80 bg-background/70 text-foreground'
+    case 'good':
+      return 'border-border/80 bg-background/70 text-foreground'
+    case 'related':
       return 'border-border/80 bg-muted/40 text-foreground'
     default:
       return 'border-muted-foreground/25 bg-muted/30 text-muted-foreground'
@@ -86,8 +91,15 @@ function tierBadgeClass(tier: ReturnType<typeof fitTierFromPercent>): string {
 }
 
 export function EmployeeAiRecommendations() {
+  const { t } = useI18n()
   const [state, setState] = useState<LoadState>({ kind: 'idle' })
   const [loadTick, setLoadTick] = useState(0)
+
+  const loadingMessages = [
+    t.employeeDashboard.loadingRelevantOpportunities,
+    t.employeeDashboard.loadingPersonalizedRecommendations,
+    t.employeeDashboard.loadingRefreshingRecommendations,
+  ] as const
 
   const fetchRecommendations = useCallback(async (limit: number) => {
     setState({ kind: 'loading', pendingLimit: limit })
@@ -100,42 +112,39 @@ export function EmployeeAiRecommendations() {
         cache: 'no-store',
       })
     } catch {
-      setState({ kind: 'error', status: 0, message: 'Network error. Check your connection and try again.' })
+      setState({ kind: 'error', status: 0, message: t.employeeDashboard.networkError })
       return
     }
 
     if (res.status === 401) {
-      setState({ kind: 'error', status: 401, message: 'Please sign in to see recommendations.' })
+      setState({ kind: 'error', status: 401, message: t.employeeDashboard.signInToSeeRecommendations })
       return
     }
     if (res.status === 403) {
-      setState({ kind: 'error', status: 403, message: 'This page is only available for job seekers.' })
+      setState({ kind: 'error', status: 403, message: t.employeeDashboard.jobSeekersOnly })
       return
     }
     if (res.status === 404) {
-      const body = await res.json().catch(() => ({}))
       setState({
         kind: 'error',
         status: 404,
-        message: typeof body.error === 'string' ? body.error : 'Create a resume first to unlock recommendations.',
+        message: t.employeeDashboard.createResumeToUnlock,
       })
       return
     }
 
     if (res.status === 422) {
-      const message = await readErrorMessage(res)
-      setState({ kind: 'no_embedding', message })
+      setState({ kind: 'no_embedding', message: t.employeeDashboard.resumeSavedNeedMatch })
       return
     }
 
     if (res.status === 503) {
-      const message = await readErrorMessage(res)
-      setState({ kind: 'error', status: 503, message })
+      setState({ kind: 'error', status: 503, message: t.employeeDashboard.couldntLoadRecs })
       return
     }
 
     if (!res.ok) {
-      const message = await readErrorMessage(res)
+      const message = await readErrorMessage(res, t.employeeDashboard.requestFailed)
       setState({ kind: 'error', status: res.status, message })
       return
     }
@@ -149,7 +158,7 @@ export function EmployeeAiRecommendations() {
     }
 
     setState({ kind: 'ok', data: recommendations, apiLimit: limit, behaviourSession: behaviourSession ?? null })
-  }, [])
+  }, [t])
 
   useEffect(() => {
     fetchRecommendations(INITIAL_LIMIT)
@@ -158,12 +167,12 @@ export function EmployeeAiRecommendations() {
   useEffect(() => {
     if (state.kind !== 'loading' && state.kind !== 'idle') return
     const id = setInterval(() => {
-      setLoadTick((t) => (t + 1) % LOADING_MESSAGES.length)
+      setLoadTick((t) => (t + 1) % loadingMessages.length)
     }, 1450)
     return () => clearInterval(id)
-  }, [state.kind])
+  }, [loadingMessages.length, state.kind])
 
-  const loadingMessage = LOADING_MESSAGES[loadTick % LOADING_MESSAGES.length]
+  const loadingMessage = loadingMessages[loadTick % loadingMessages.length]
 
   const loadingSkeletonCount =
     state.kind === 'loading' ? Math.min(6, Math.max(1, state.pendingLimit)) : INITIAL_LIMIT
@@ -178,17 +187,19 @@ export function EmployeeAiRecommendations() {
       <div className="space-y-8 md:space-y-10 animate-in fade-in duration-300">
         <div
           className={cn(
-            'relative overflow-hidden rounded-2xl border border-primary/25 ring-1 ring-primary/[0.06]',
-            'bg-gradient-to-br from-primary/[0.06] via-background to-muted/30 p-6 md:p-8 shadow-sm',
+            'relative overflow-hidden rounded-2xl border border-border/70 ring-1 ring-border/50',
+            'bg-card/80 p-6 md:p-8 shadow-sm',
           )}
         >
           <div className="relative flex flex-col gap-3 sm:flex-row sm:items-center">
-            <div className="flex h-12 w-12 shrink-0 items-center justify-center rounded-2xl bg-primary/15 text-primary">
+            <div className="flex h-12 w-12 shrink-0 items-center justify-center rounded-2xl bg-muted text-muted-foreground">
               <Sparkles className="h-6 w-6 animate-pulse" />
             </div>
             <div className="min-w-0 flex-1">
               <p className="font-semibold text-lg text-foreground transition-all duration-300">{loadingMessage}</p>
-              <p className="text-sm text-muted-foreground mt-1 leading-relaxed">This usually takes just a moment.</p>
+              <p className="text-sm text-muted-foreground mt-1 leading-relaxed">
+                {t.employeeDashboard.loadingTakesMoment}
+              </p>
             </div>
           </div>
         </div>
@@ -231,18 +242,18 @@ export function EmployeeAiRecommendations() {
             <div className="min-w-0 space-y-2">
               <CardTitle className="text-xl">
                 {isNoResume
-                  ? 'Add a resume to get started'
+                  ? t.employeeDashboard.addResumeToGetStarted
                   : isAuth
-                    ? 'Sign in required'
-                    : 'We couldn’t load recommendations right now'}
+                    ? t.employeeDashboard.signInRequired
+                    : t.employeeDashboard.couldntLoadRecs}
               </CardTitle>
               <p className="text-sm text-muted-foreground leading-relaxed">
-                {isAuth || isNoResume ? state.message : 'Please try again in a moment.'}
+                {isAuth || isNoResume ? state.message : t.employeeDashboard.pleaseRetry}
               </p>
               {!isAuth && !isNoResume ? (
                 <details className="mt-3 rounded-lg border border-border/60 bg-muted/20 px-3 py-2 text-xs text-muted-foreground">
                   <summary className="cursor-pointer font-medium text-foreground list-none marker:content-none [&::-webkit-details-marker]:hidden">
-                    Details
+                    {t.employeeDashboard.details}
                   </summary>
                   <p className="mt-2 leading-relaxed">{state.message}</p>
                 </details>
@@ -250,16 +261,18 @@ export function EmployeeAiRecommendations() {
               <div className="flex flex-wrap gap-2 pt-4">
                 {state.status === 401 ? (
                   <Button asChild size="sm">
-                    <Link href="/login">Sign in</Link>
+                    <Link href="/login">{t.employeeDashboard.signIn}</Link>
                   </Button>
                 ) : (
                   <Button size="sm" variant="outline" asChild>
-                    <Link href="/dashboard/employee/resume/new">{isNoResume ? 'Create resume' : 'Resume editor'}</Link>
+                    <Link href="/dashboard/employee/resume/new">
+                      {isNoResume ? t.employeeDashboard.createResume : t.employeeDashboard.resumeEditor}
+                    </Link>
                   </Button>
                 )}
                 <Button variant="ghost" size="sm" type="button" onClick={() => fetchRecommendations(INITIAL_LIMIT)}>
                   <RefreshCw className="h-4 w-4 mr-1.5" />
-                  Retry
+                  {t.employeeDashboard.retry}
                 </Button>
               </div>
             </div>
@@ -271,26 +284,25 @@ export function EmployeeAiRecommendations() {
 
   if (state.kind === 'no_embedding') {
     return (
-      <Card className="relative overflow-hidden rounded-2xl border border-amber-500/30 bg-card shadow-md">
+      <Card className="relative overflow-hidden rounded-2xl border border-border/70 bg-card shadow-md">
         <CardHeader className="pb-2">
           <div className="flex flex-col gap-4 sm:flex-row sm:items-start">
-            <div className="flex h-14 w-14 shrink-0 items-center justify-center rounded-2xl bg-amber-500/10 text-amber-700 dark:text-amber-300">
+            <div className="flex h-14 w-14 shrink-0 items-center justify-center rounded-2xl bg-muted text-muted-foreground">
               <Cpu className="h-7 w-7" />
             </div>
             <div className="space-y-2 max-w-2xl">
               <div className="flex flex-wrap gap-2">
                 <Badge variant="secondary" className="rounded-full">
-                  Profile setup
+                  {t.employeeDashboard.profileSetup}
                 </Badge>
               </div>
-              <CardTitle className="text-xl tracking-tight">Finish your match profile</CardTitle>
+              <CardTitle className="text-xl tracking-tight">{t.employeeDashboard.finishSetupProfile}</CardTitle>
               <p className="text-sm text-muted-foreground leading-relaxed">
-                Your resume is on file, but we still need an up-to-date match profile. Open the resume editor and save
-                again — then come back here.
+                {t.employeeDashboard.resumeSavedNeedMatch}
               </p>
               <details className="rounded-lg border border-border/60 bg-muted/20 px-3 py-2 text-xs text-muted-foreground">
                 <summary className="cursor-pointer font-medium text-foreground list-none marker:content-none [&::-webkit-details-marker]:hidden">
-                  Technical note
+                  {t.employeeDashboard.technicalNote}
                 </summary>
                 <p className="mt-2 leading-relaxed">{state.message}</p>
               </details>
@@ -299,14 +311,14 @@ export function EmployeeAiRecommendations() {
         </CardHeader>
         <CardContent className="flex flex-wrap gap-2 pb-8">
           <Button asChild variant="outline" size="sm">
-            <Link href="/dashboard/employee">Dashboard</Link>
+            <Link href="/dashboard/employee">{t.employeeDashboard.dashboard}</Link>
           </Button>
           <Button asChild size="sm">
-            <Link href="/dashboard/employee/resume/new">Open resume editor</Link>
+            <Link href="/dashboard/employee/resume/new">{t.employeeDashboard.openResumeEditor}</Link>
           </Button>
           <Button variant="secondary" size="sm" type="button" onClick={() => fetchRecommendations(INITIAL_LIMIT)}>
             <RefreshCw className="h-4 w-4 mr-1.5" />
-            Try again
+            {t.employeeDashboard.tryAgain}
           </Button>
         </CardContent>
       </Card>
@@ -318,10 +330,10 @@ export function EmployeeAiRecommendations() {
     return (
       <div className="space-y-6 animate-in fade-in duration-300">
         {bs ? (
-          <details className="rounded-xl border border-violet-500/20 bg-muted/20 px-4 py-3">
+          <details className="rounded-xl border border-border/70 bg-card/80 px-4 py-3">
             <summary className="cursor-pointer text-sm font-medium text-foreground list-none marker:content-none flex items-center gap-2 [&::-webkit-details-marker]:hidden">
               <Info className="h-4 w-4 text-primary shrink-0" />
-              Your activity context
+              {t.employeeDashboard.activityContext}
             </summary>
             <div className="mt-3 space-y-2 text-sm text-muted-foreground">
               {bs.productBadge ? (
@@ -345,26 +357,26 @@ export function EmployeeAiRecommendations() {
                 <Cpu className="h-7 w-7" />
               </div>
               <div className="space-y-3 max-w-2xl">
-                <CardTitle className="text-xl tracking-tight">No strong matches found yet</CardTitle>
+                <CardTitle className="text-xl tracking-tight">{t.employeeDashboard.noStrongMatchesFound}</CardTitle>
                 <p className="text-sm text-muted-foreground leading-relaxed">
-                  Try updating your profile, resume, or exploring more roles — then refresh.
+                  {t.employeeDashboard.noStrongMatchesDesc}
                 </p>
               </div>
             </div>
           </CardHeader>
           <CardContent className="flex flex-wrap gap-2 pb-8">
             <Button asChild variant="outline" size="sm">
-              <Link href="/dashboard/employee">Dashboard</Link>
+              <Link href="/dashboard/employee">{t.employeeDashboard.dashboard}</Link>
             </Button>
             <Button asChild size="sm">
-              <Link href="/">Explore jobs</Link>
+              <Link href="/">{t.employeeDashboard.exploreJobs}</Link>
             </Button>
             <Button asChild size="sm" variant="secondary">
-              <Link href="/dashboard/employee/resume/new">Update resume</Link>
+              <Link href="/dashboard/employee/resume/new">{t.employeeDashboard.updateResume}</Link>
             </Button>
             <Button variant="ghost" size="sm" type="button" onClick={() => fetchRecommendations(state.lastLimit)}>
               <RefreshCw className="h-4 w-4 mr-1.5" />
-              Refresh
+              {t.employeeDashboard.refresh}
             </Button>
           </CardContent>
         </Card>
@@ -381,7 +393,7 @@ export function EmployeeAiRecommendations() {
     <div className="space-y-10 md:space-y-12 animate-in fade-in duration-500">
       <div className="flex flex-wrap items-center gap-2">
         <Badge variant="outline" className="rounded-full text-xs">
-          Personalized for you
+          {t.employeeDashboard.personalizedForYou}
         </Badge>
       </div>
 
@@ -389,7 +401,7 @@ export function EmployeeAiRecommendations() {
         <details className="rounded-xl border border-border/70 bg-muted/15 px-4 py-3">
           <summary className="cursor-pointer text-sm font-medium text-foreground list-none flex items-center gap-2 marker:content-none [&::-webkit-details-marker]:hidden">
             <Sparkles className="h-4 w-4 text-primary shrink-0" />
-            Why these roles match you
+            {t.employeeDashboard.whyTheseRolesMatch}
           </summary>
           <div className="mt-3 space-y-2 text-sm text-muted-foreground border-t border-border/40 pt-3">
             {state.behaviourSession.productBadge ? (
@@ -409,9 +421,9 @@ export function EmployeeAiRecommendations() {
 
       <div className="flex flex-col sm:flex-row sm:items-end sm:justify-between gap-4 pb-3 border-b border-border/50">
         <div className="space-y-1 max-w-xl min-w-0">
-          <p className="text-sm font-semibold text-foreground tracking-tight">Your positions</p>
+          <p className="text-sm font-semibold text-foreground tracking-tight">{t.employeeDashboard.yourPositions}</p>
           <p className="text-sm text-muted-foreground leading-relaxed">
-            Showing <strong className="text-foreground font-medium">{data.length}</strong> roles — best match first.
+            {formatMessage(t.employeeDashboard.showingRolesBestFirst, { count: data.length })}
           </p>
         </div>
         <div className="flex flex-wrap items-center gap-2 shrink-0">
@@ -423,7 +435,7 @@ export function EmployeeAiRecommendations() {
               className="gap-1 rounded-full"
               onClick={() => fetchRecommendations(MID_LIMIT)}
             >
-              Show more <span className="font-semibold">({MID_LIMIT})</span>
+              {t.employeeDashboard.showMore} <span className="font-semibold">({MID_LIMIT})</span>
               <ChevronDown className="h-4 w-4 opacity-70" />
             </Button>
           )}
@@ -435,13 +447,13 @@ export function EmployeeAiRecommendations() {
               className="gap-1 rounded-full"
               onClick={() => fetchRecommendations(MAX_LIMIT)}
             >
-              Show more <span className="font-semibold">(up to {MAX_LIMIT})</span>
+              {formatMessage(t.employeeDashboard.showMoreUpTo, { count: MAX_LIMIT })}
               <ChevronDown className="h-4 w-4 opacity-70" />
             </Button>
           )}
           <Button variant="outline" size="sm" type="button" onClick={refresh} className="gap-2 rounded-full">
             <RefreshCw className="h-4 w-4" />
-            Refresh
+            {t.employeeDashboard.refresh}
           </Button>
         </div>
       </div>
@@ -452,14 +464,22 @@ export function EmployeeAiRecommendations() {
           const pctSemantic = scoreToPercent(getSemanticScore(item))
           const behaviourPts = Math.round(item.behaviourScore * 1000) / 10
           const tier = fitTierFromPercent(pctHybrid)
-          const lead = buildCardLeadLine(item)
+          const lead = buildCardLeadLine(item, t.employeeDashboard.alignedFallback)
+          const tierLabel =
+            tier === 'strong'
+              ? t.employeeDashboard.strongFit
+              : tier === 'good'
+                ? t.employeeDashboard.goodFit
+                : tier === 'related'
+                  ? t.dashboard.matchFitRelated
+                  : t.dashboard.matchFitExploratory
           return (
             <Card
               key={item.vacancyId}
               className={cn(
                 'group/card relative overflow-hidden rounded-2xl border-border/60 transition-all duration-300',
-                'shadow-sm hover:shadow-md hover:border-primary/25',
-                idx === 0 && 'ring-2 ring-primary/20 bg-gradient-to-b from-primary/[0.04] to-background',
+                'shadow-sm hover:shadow-md hover:border-border',
+                idx === 0 && 'ring-2 ring-border/60 bg-card/80',
               )}
             >
               <CardHeader className="pb-4 space-y-4">
@@ -472,7 +492,7 @@ export function EmployeeAiRecommendations() {
                     <span className="truncate">{item.company}</span>
                   </div>
                   <Badge variant="outline" className={cn('rounded-full text-xs font-medium w-fit', tierBadgeClass(tier))}>
-                    {tier}
+                    {tierLabel}
                   </Badge>
                   <p className="text-sm text-foreground/90 leading-relaxed">{lead}</p>
                 </div>
@@ -480,23 +500,26 @@ export function EmployeeAiRecommendations() {
                 <details className="group rounded-lg border border-border/60 bg-muted/15">
                   <summary className="flex cursor-pointer list-none items-center gap-2 px-3 py-2.5 text-xs font-medium text-muted-foreground hover:text-foreground transition-colors marker:content-none [&::-webkit-details-marker]:hidden">
                     <ChevronDown className="h-3.5 w-3.5 shrink-0 transition-transform group-open:rotate-180" />
-                    How this recommendation was ranked
+                    {t.employeeDashboard.rankedHow}
                   </summary>
                   <div className="border-t border-border/50 px-3 py-3 space-y-4 text-xs text-muted-foreground">
                     <div>
-                      <p className="font-semibold text-foreground mb-1">Match strength (overall)</p>
+                      <p className="font-semibold text-foreground mb-1">{t.employeeDashboard.matchStrengthOverall}</p>
                       <Progress value={pctHybrid} className={PROGRESS_ENHANCED} />
                       <p className="mt-1.5 tabular-nums">
-                        Combined score ~{pctHybrid}% · semantic layer ~{pctSemantic}% · behaviour contribution{' '}
-                        {behaviourPts.toFixed(1)} / 15 pts
+                        {formatMessage(t.employeeDashboard.combinedScoreLine, {
+                          hybrid: pctHybrid,
+                          semantic: pctSemantic,
+                          behaviour: behaviourPts.toFixed(1),
+                        })}
                       </p>
                     </div>
                     <div>
-                      <p className="font-semibold text-foreground mb-1">Semantic notes</p>
+                      <p className="font-semibold text-foreground mb-1">{t.employeeDashboard.semanticNotes}</p>
                       <p className="leading-relaxed">{item.semanticMatchNote}</p>
                     </div>
                     <div>
-                      <p className="font-semibold text-foreground mb-1">Resume phrase overlap</p>
+                      <p className="font-semibold text-foreground mb-1">{t.employeeDashboard.resumePhraseOverlap}</p>
                       {item.matchedSkills.length > 0 ? (
                         <div className="flex flex-wrap gap-1.5 mt-1">
                           {item.matchedSkills.map((s) => (
@@ -510,12 +533,12 @@ export function EmployeeAiRecommendations() {
                           ))}
                         </div>
                       ) : (
-                        <p>No extra phrase overlap highlighted.</p>
+                        <p>{t.employeeDashboard.noExtraPhraseOverlap}</p>
                       )}
                       {item.textOverlapNote ? <p className="mt-2 leading-relaxed">{item.textOverlapNote}</p> : null}
                     </div>
                     <div>
-                      <p className="font-semibold text-foreground mb-1">Ranking detail</p>
+                      <p className="font-semibold text-foreground mb-1">{t.employeeDashboard.rankingDetail}</p>
                       <p className="leading-relaxed">{item.hybridRankingNote}</p>
                       {item.behaviourExplanations.length > 0 ? (
                         <ul className="list-disc list-inside space-y-1 mt-2">
@@ -532,8 +555,8 @@ export function EmployeeAiRecommendations() {
               <CardContent className="space-y-4 pt-0">
                 <p className="text-sm text-muted-foreground leading-relaxed line-clamp-4">{item.description}</p>
                 <Button variant="default" size="sm" className="w-full sm:w-auto gap-2 rounded-full" asChild>
-                  <Link href={`/jobs/${item.vacancyId}`}>
-                    Open vacancy <ArrowRight className="h-4 w-4" />
+                  <Link href={`/jobs/${item.vacancyId}?from=${encodeURIComponent(RECOMMENDATIONS_RETURN_HREF)}`}>
+                    {t.employeeDashboard.openVacancy} <ArrowRight className="h-4 w-4" />
                   </Link>
                 </Button>
               </CardContent>

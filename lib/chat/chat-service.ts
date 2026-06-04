@@ -269,6 +269,31 @@ export async function getMessagesBefore(
   return { messages, oldestId, hasMore };
 }
 
+export async function getMessagesAfter(
+  chatId: string,
+  user: SessionUser,
+  afterId: string,
+  limit = 50,
+) {
+  await assertUserCanAccessChat(user, chatId);
+  const chat = (await Chat.findById(chatId).lean()) as IChat | null;
+  if (!chat) throw new Error('Forbidden');
+
+  if (!mongoose.Types.ObjectId.isValid(afterId)) {
+    return { messages: [] as ReturnType<typeof serializeMessage>[] };
+  }
+
+  const rows = await Message.find({
+    chatId: new mongoose.Types.ObjectId(chatId),
+    _id: { $gt: new mongoose.Types.ObjectId(afterId) },
+  })
+    .sort({ _id: 1 })
+    .limit(limit)
+    .lean();
+
+  return { messages: rows.map((m) => serializeMessage(m)) };
+}
+
 export async function persistMessage(params: {
   chatId: string;
   senderId: string;

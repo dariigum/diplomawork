@@ -1,6 +1,6 @@
 import Link from "next/link"
 import { cookies } from "next/headers"
-import { ArrowLeft, MapPin, Users, Globe, ExternalLink, Building2 } from "lucide-react"
+import { MapPin, Users, Globe, ExternalLink, Building2 } from "lucide-react"
 import { Card, CardContent } from "@/components/ui/card"
 import { Badge } from "@/components/ui/badge"
 import { Header } from "@/components/jobs/header"
@@ -11,6 +11,7 @@ import { parseSafeExternalUrl } from "@/lib/vacancy-detail-display"
 import { User, Vacancy, SavedVacancy } from "@/lib/db/schema"
 import { getSession } from "@/lib/auth"
 import { getDictionary } from "@/lib/i18n/dictionaries"
+import { BackButton } from "@/components/ui/back-button"
 
 export const dynamic = "force-dynamic"
 
@@ -59,10 +60,7 @@ export default async function CompanyProfilePage({
       <Header savedJobsCount={savedJobsCount} />
 
       <main className="container mx-auto px-4 py-8">
-        <Link href={backHref} className="inline-flex items-center gap-2 text-muted-foreground hover:text-foreground mb-6 transition-colors">
-          <ArrowLeft className="h-4 w-4" />
-          {backLabel}
-        </Link>
+        <BackButton label={t.forms.back} />
 
         <div className="bg-card border border-border rounded-xl p-8 mb-8 flex flex-col md:flex-row items-start md:items-center gap-6">
           <div className="w-24 h-24 rounded-2xl bg-primary/10 flex items-center justify-center text-4xl font-bold text-primary flex-shrink-0">

@@ -14,6 +14,7 @@ import { useState, useEffect } from "react"
 import { getAuthSession, logoutAction } from "@/app/actions/auth"
 import { getSavedVacanciesAction } from "@/app/actions/vacancy"
 import { SAVED_VACANCIES_UPDATED_EVENT } from "@/lib/saved-vacancies-events"
+import { CHAT_UNREAD_UPDATED_EVENT } from "@/lib/chat/chat-events"
 import { ThemeToggle } from "@/components/theme-toggle"
 
 import { useChatSocket } from "@/hooks/use-chat-socket"
@@ -101,6 +102,15 @@ export function Header({ savedJobsCount }: HeaderProps) {
       socket.off('chat:read', handleUpdate)
     }
   }, [socket, connected])
+
+  useEffect(() => {
+    if (typeof window === 'undefined') return
+    const handleUpdate = () => {
+      void fetchUnreadChats()
+    }
+    window.addEventListener(CHAT_UNREAD_UPDATED_EVENT, handleUpdate)
+    return () => window.removeEventListener(CHAT_UNREAD_UPDATED_EVENT, handleUpdate)
+  }, [])
 
   const handleSavedPopoverChange = (open: boolean) => {
     if (open) {

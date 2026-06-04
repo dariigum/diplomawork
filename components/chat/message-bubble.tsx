@@ -7,6 +7,7 @@ import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
 
 export type ChatMessageDTO = {
   id: string;
+  chatId?: string;
   senderId: string;
   text: string;
   createdAt: string;

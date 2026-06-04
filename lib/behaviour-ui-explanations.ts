@@ -1,5 +1,6 @@
 import type { UserBehaviourProfile } from '@/lib/behaviour-profile'
 import type { BehaviourSessionInsights } from '@/lib/recommendations-api-types'
+import { getDictionary, type Locale } from '@/lib/i18n/dictionaries'
 
 const CATEGORY_LABELS: Record<string, string> = {
   frontend: 'Frontend',
@@ -19,9 +20,19 @@ export function isBehaviourColdStart(profile: UserBehaviourProfile): boolean {
   return viewed === 0 && saved === 0 && applied === 0
 }
 
-export function buildBehaviourSessionInsights(profile: UserBehaviourProfile): BehaviourSessionInsights {
-  const neutralSemanticLine =
-    'Recommendations use semantic resume similarity (embeddings and cosine on the server).'
+function formatMessage(template: string, values: Record<string, string | number>): string {
+  return Object.entries(values).reduce(
+    (acc, [key, value]) => acc.replaceAll(`{${key}}`, String(value)),
+    template,
+  )
+}
+
+export function buildBehaviourSessionInsights(
+  profile: UserBehaviourProfile,
+  locale: Locale = 'en',
+): BehaviourSessionInsights {
+  const t = getDictionary(locale).employeeDashboard
+  const neutralSemanticLine = t.behaviourSemanticLine
 
   const { viewed, saved, applied } = profile.interactionSummary
 
@@ -31,7 +42,7 @@ export function buildBehaviourSessionInsights(profile: UserBehaviourProfile): Be
       activitySummary: { viewed: 0, saved: 0, applied: 0 },
       dashboardLines: [
         neutralSemanticLine,
-        'No views, saves, or applications yet — activity-based wording stays off until there is real signal.',
+        t.noActivitySignal,
       ],
       productBadge: null,
       neutralSemanticLine,
@@ -39,28 +50,28 @@ export function buildBehaviourSessionInsights(profile: UserBehaviourProfile): Be
   }
 
   const dashboardLines: string[] = [
-    `On record: ${viewed} views · ${saved} saves · ${applied} applies — fixed, explainable rules only (not self-learning).`,
+    formatMessage(t.activityOnRecord, { viewed, saved, applied }),
   ]
 
   const topCat = profile.preferredCategories[0]
   if (topCat) {
     const label = getBehaviourCategoryDisplayName(topCat)
     dashboardLines.push(
-      `Strongest theme from roles you opened: ${label} (keyword bucketing on vacancy text, not a separate ML model).`,
+      formatMessage(t.strongestTheme, { label }),
     )
   }
 
   const s1 = profile.preferredSkills[0]
   if (s1) {
     const s2 = profile.preferredSkills[1]
-    dashboardLines.push(`Skill phrases seen in those listings: ${s1}${s2 ? `, ${s2}` : ''}.`)
+    dashboardLines.push(formatMessage(t.skillPhrasesSeen, { skills: `${s1}${s2 ? `, ${s2}` : ''}` }))
   }
 
   return {
     coldStart: false,
     activitySummary: { viewed, saved, applied },
     dashboardLines: dashboardLines.slice(0, 4),
-    productBadge: 'Uses your recent job activity',
+    productBadge: t.usesRecentActivity,
     neutralSemanticLine,
   }
 }
@@ -82,14 +93,22 @@ export function pickBehaviourCardTagline(
   coldStart: boolean,
   behaviourScore: number,
   behaviourExplanations: string[],
+  locale: Locale = 'en',
 ): string | null {
   if (coldStart || behaviourScore <= 0) return null
+  const t = getDictionary(locale).employeeDashboard
   const matched = behaviourExplanations.find(
     (x) =>
       x.startsWith('Matched preferred skill:') ||
       x.startsWith('Matched keyword:') ||
       x.startsWith('Matched category:'),
   )
-  if (matched) return matched.length > 160 ? `${matched.slice(0, 157)}…` : matched
-  return 'Small behaviour-informed adjustment on this row (capped vs semantic).'
+  if (matched) {
+    const translated = matched
+      .replace(/^Matched preferred skill:\s*(.+)$/, (_, value) => formatMessage(t.matchedPreferredSkill, { value }))
+      .replace(/^Matched keyword:\s*(.+)$/, (_, value) => formatMessage(t.matchedKeyword, { value }))
+      .replace(/^Matched category:\s*(.+?)(?:\s+\(.+\))?$/, (_, value) => formatMessage(t.matchedCategory, { value }))
+    return translated.length > 160 ? `${translated.slice(0, 157)}…` : translated
+  }
+  return t.smallBehaviourAdjustment
 }

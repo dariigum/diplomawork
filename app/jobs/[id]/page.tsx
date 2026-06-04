@@ -215,8 +215,8 @@ export default async function JobDetailsPage({
             ) : null}
           </div>
 
-          <div className="space-y-6">
-            <Card className="sticky top-24">
+          <div className="space-y-6 sticky top-24">
+            <Card>
               <CardContent className="p-6 space-y-4">
                 <JobDetailActions
                   job={{

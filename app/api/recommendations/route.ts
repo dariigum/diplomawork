@@ -15,6 +15,7 @@ import {
 } from '@/lib/behaviour-ui-explanations'
 import { normalizeStringArray } from '@/lib/normalize-string-array'
 import { normalizeVacancySkills } from '@/lib/normalize-vacancy-skills'
+import { getDictionary, type Locale } from '@/lib/i18n/dictionaries'
 
 function truncateText(text: string, max: number): string {
   const t = (text ?? '').trim()
@@ -53,9 +54,42 @@ function matchedSkillsFromResumeAndVacancy(
   return out
 }
 
-function buildSemanticMatchNote(semanticScore: number): string {
+function formatMessage(template: string, values: Record<string, string | number>): string {
+  return Object.entries(values).reduce(
+    (acc, [key, value]) => acc.replaceAll(`{${key}}`, String(value)),
+    template,
+  )
+}
+
+function resolveLocale(raw: string | undefined): Locale {
+  return raw === 'ru' || raw === 'kk' ? raw : 'en'
+}
+
+function translateBehaviourExplanation(line: string, dict: ReturnType<typeof getDictionary>): string {
+  const t = dict.employeeDashboard
+  const preferredSkill = line.match(/^Matched preferred skill:\s*(.+)$/)
+  if (preferredSkill?.[1]) {
+    return formatMessage(t.matchedPreferredSkill, { value: preferredSkill[1] })
+  }
+
+  const keyword = line.match(/^Matched keyword:\s*(.+)$/)
+  if (keyword?.[1]) {
+    return formatMessage(t.matchedKeyword, { value: keyword[1] })
+  }
+
+  const category = line.match(/^Matched category:\s*(.+?)(?:\s+\(.+\))?$/)
+  if (category?.[1]) {
+    return formatMessage(t.matchedCategory, { value: category[1] })
+  }
+
+  if (line.startsWith('Raw behaviour contribution')) return t.rawBehaviourCap
+  if (line.startsWith('No overlap')) return t.noBehaviourOverlap
+  return line
+}
+
+function buildSemanticMatchNote(semanticScore: number, dict: ReturnType<typeof getDictionary>): string {
   const pct = Math.round(semanticScore * 100)
-  return `Semantic match (embedding cosine, semantic-only layer): ~${pct}% on a 0–100 display scale. This is the primary signal in semantic-first adaptive ranking.`
+  return formatMessage(dict.employeeDashboard.semanticMatchNote, { pct })
 }
 
 function buildHybridRankingNote(
@@ -63,29 +97,37 @@ function buildHybridRankingNote(
   behaviourScore: number,
   finalScore: number,
   behaviourBullets: string[],
+  dict: ReturnType<typeof getDictionary>,
 ): string {
   const finPct = Math.round(finalScore * 100)
   const semPct = Math.round(semanticScore * 100)
+  const t = dict.employeeDashboard
   const parts = [
-    `Adaptive rank combines semantic (${HYBRID_SEMANTIC_WEIGHT}×) and behaviour (${HYBRID_BEHAVIOUR_WEIGHT}×): final ~${finPct}% (semantic-only would be ~${semPct}%). Behaviour term is capped (${behaviourScore.toFixed(3)}).`,
+    formatMessage(t.hybridRankingNote, {
+      semanticWeight: HYBRID_SEMANTIC_WEIGHT,
+      behaviourWeight: HYBRID_BEHAVIOUR_WEIGHT,
+      finalPct: finPct,
+      semanticPct: semPct,
+      behaviourScore: behaviourScore.toFixed(3),
+    }),
   ]
   const hits = behaviourBullets.filter(
     (b) => b.startsWith('Matched ') && !b.includes('exceeded cap') && !b.includes('No overlap'),
   )
   if (hits.length > 0) {
-    parts.push(`Behaviour signals: ${hits.slice(0, 3).join(' ')}`)
+    parts.push(`${t.behaviourSignalsPrefix} ${hits.slice(0, 3).map((line) => translateBehaviourExplanation(line, dict)).join(' ')}`)
   } else if (behaviourScore <= 0) {
-    parts.push('No behaviour boost here (cold profile or no overlap); ordering follows the semantic layer.')
+    parts.push(t.noBehaviourBoost)
   } else {
-    parts.push('Behaviour adjustment applied (see explanation lines on the card).')
+    parts.push(t.behaviourAdjustmentApplied)
   }
   return parts.join(' ')
 }
 
-function buildTextOverlapNote(matched: string[]): string | null {
+function buildTextOverlapNote(matched: string[], dict: ReturnType<typeof getDictionary>): string | null {
   if (matched.length === 0) return null
   const list = matched.slice(0, 5).join(', ')
-  return `Resume text overlap with JD phrases: ${list}. Readability hint only — does not change embedding cosine or adaptive rank.`
+  return formatMessage(dict.employeeDashboard.textOverlapNote, { list })
 }
 
 const DEFAULT_LIMIT = 10
@@ -101,6 +143,8 @@ const EMPTY_BEHAVIOUR_PROFILE: UserBehaviourProfile = {
 
 export async function GET(request: NextRequest) {
   const rawLimit = request.nextUrl.searchParams.get('limit')
+  const locale = resolveLocale(request.cookies.get('NEXT_LOCALE')?.value)
+  const dict = getDictionary(locale)
   let requestedLimit = DEFAULT_LIMIT
   if (rawLimit !== null && rawLimit !== '') {
     const parsed = Number.parseInt(rawLimit, 10)
@@ -111,25 +155,24 @@ export async function GET(request: NextRequest) {
 
   const session = await getSession()
   if (!session?.user?.id) {
-    return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
+    return NextResponse.json({ error: dict.employeeDashboard.signInToSeeRecommendations }, { status: 401 })
   }
 
   if (session.user.role !== 'EMPLOYEE') {
-    return NextResponse.json({ error: 'Only employees can get recommendations' }, { status: 403 })
+    return NextResponse.json({ error: dict.employeeDashboard.jobSeekersOnly }, { status: 403 })
   }
 
   await dbConnect()
 
   const resume = (await getActiveResumeLeanForUser(session.user.id)) as any
   if (!resume) {
-    return NextResponse.json({ error: 'No resume found. Create a resume to get recommendations.' }, { status: 404 })
+    return NextResponse.json({ error: dict.employeeDashboard.createResumeToUnlock }, { status: 404 })
   }
 
   if (!Array.isArray((resume as any).embedding) || (resume as any).embedding.length === 0) {
     return NextResponse.json(
       {
-        error:
-          'Your resume is saved but has no embedding vector yet. Save again from the resume editor while the embedding service is online.',
+        error: dict.employeeDashboard.resumeSavedNeedMatch,
         code: 'NO_EMBEDDING',
       },
       { status: 422 },
@@ -155,7 +198,7 @@ export async function GET(request: NextRequest) {
       console.warn('[JobFlow] Behaviour profile fetch for UI insights failed; using neutral copy.', e)
     }
 
-    const behaviourSession = buildBehaviourSessionInsights(behaviourProfile)
+    const behaviourSession = buildBehaviourSessionInsights(behaviourProfile, locale)
     const cold = behaviourSession.coldStart
 
     if (recs.length === 0) {
@@ -180,6 +223,9 @@ export async function GET(request: NextRequest) {
       const requirements = normalizeStringArray(v?.requirements)
       const matchedSkills = matchedSkillsFromResumeAndVacancy(resumeBlob, skillsRequired, requirements)
       const behaviourExplanations = normalizeStringArray(r.behaviourExplanations)
+      const translatedBehaviourExplanations = behaviourExplanations.map((line) =>
+        translateBehaviourExplanation(line, dict),
+      )
       return {
         vacancyId: r.vacancyId,
         title: r.title,
@@ -188,14 +234,14 @@ export async function GET(request: NextRequest) {
         semanticScore: r.semanticScore,
         behaviourScore: r.behaviourScore,
         finalScore: r.finalScore,
-        description: description || 'No short description available for this listing.',
+        description: description || dict.employeeDashboard.noShortDescription,
         matchedSkills,
-        semanticMatchNote: buildSemanticMatchNote(r.semanticScore),
-        textOverlapNote: buildTextOverlapNote(matchedSkills),
-        hybridRankingNote: buildHybridRankingNote(r.semanticScore, r.behaviourScore, r.finalScore, behaviourExplanations),
-        behaviourExplanations,
+        semanticMatchNote: buildSemanticMatchNote(r.semanticScore, dict),
+        textOverlapNote: buildTextOverlapNote(matchedSkills, dict),
+        hybridRankingNote: buildHybridRankingNote(r.semanticScore, r.behaviourScore, r.finalScore, behaviourExplanations, dict),
+        behaviourExplanations: translatedBehaviourExplanations,
         cardAdaptationHint: resolveCardAdaptationHint(cold, r.behaviourScore),
-        behaviourCardTagline: pickBehaviourCardTagline(cold, r.behaviourScore, behaviourExplanations),
+        behaviourCardTagline: pickBehaviourCardTagline(cold, r.behaviourScore, behaviourExplanations, locale),
       }
     })
 
@@ -205,7 +251,7 @@ export async function GET(request: NextRequest) {
     console.warn('[JobFlow] Recommendations generation failed.', e)
     return NextResponse.json(
       {
-        error: 'Recommendation ranking could not be completed. Try again shortly.',
+        error: dict.employeeDashboard.couldntLoadRecs,
         code: 'RANKING_SERVICE_ERROR',
       },
       { status: 503 },

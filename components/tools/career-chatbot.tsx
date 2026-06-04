@@ -11,6 +11,88 @@ type Message = {
   text: string
 }
 
+function ChatbotMessageRenderer({ content }: { content: string }) {
+  if (!content) return null
+
+  const lines = content.split('\n')
+  const elements: React.ReactNode[] = []
+
+  const parseAsterisks = (text: string): React.ReactNode => {
+    const parts = text.split(/(\*.*?\*)/g)
+    return parts.map((part, idx) => {
+      if (part.startsWith('*') && part.endsWith('*')) {
+        const inner = part.slice(1, -1)
+        return <span key={idx} className="text-[15px] font-semibold text-foreground/90">{inner}</span>
+      }
+      return part
+    })
+  }
+
+  const parseInlineStyles = (text: string): React.ReactNode => {
+    const parts = text.split(/(\*\*.*?\*\*)/g)
+    return parts.map((part, idx) => {
+      if (part.startsWith('**') && part.endsWith('**')) {
+        const inner = part.slice(2, -2)
+        return <strong key={idx} className="font-bold text-foreground">{parseAsterisks(inner)}</strong>
+      }
+      return <span key={idx}>{parseAsterisks(part)}</span>
+    })
+  }
+
+  for (let i = 0; i < lines.length; i++) {
+    const line = lines[i].trim()
+
+    if (!line) {
+      elements.push(<div key={`br-${i}`} className="h-2" />)
+      continue
+    }
+
+    // 1) Heading: "### text" or "### text ###"
+    const headingMatch = line.match(/^###\s+(.*?)(?:\s+###)?$/)
+    if (headingMatch) {
+      elements.push(
+        <h3 key={`h-${i}`} className="text-base font-extrabold text-foreground mt-3 mb-1.5">
+          {parseInlineStyles(headingMatch[1])}
+        </h3>
+      )
+      continue
+    }
+
+    // 2) Categorization by numbers: "4. " or any "1. "
+    const numberMatch = line.match(/^(\d+\.\s+)(.*)$/)
+    if (numberMatch) {
+      elements.push(
+        <div key={`num-${i}`} className="pl-1.5 my-1.5 text-sm text-foreground">
+          <span className="font-bold mr-1">{numberMatch[1]}</span>
+          {parseInlineStyles(numberMatch[2])}
+        </div>
+      )
+      continue
+    }
+
+    // 3) Bullet points / sub-sub-headings starting with * or -
+    if (line.startsWith('*') || line.startsWith('-')) {
+      const contentText = line.replace(/^[\*\-]\s*/, '')
+      elements.push(
+        <div key={`li-${i}`} className="pl-3 flex items-start gap-1.5 text-[15px] font-medium leading-relaxed my-1">
+          <span className="shrink-0 text-muted-foreground">•</span>
+          <span className="flex-1">{parseInlineStyles(contentText)}</span>
+        </div>
+      )
+      continue
+    }
+
+    // 4) Plain text paragraph
+    elements.push(
+      <p key={`p-${i}`} className="text-sm text-foreground/90 leading-relaxed mb-1.5">
+        {parseInlineStyles(line)}
+      </p>
+    )
+  }
+
+  return <div className="space-y-1">{elements}</div>
+}
+
 export function CareerChatbot() {
   const { t, locale } = useI18n()
   const [messages, setMessages] = useState<Message[]>([])
@@ -191,7 +273,11 @@ export function CareerChatbot() {
                         : 'bg-muted text-foreground border border-border/40 rounded-tl-none'
                     }`}
                   >
-                    {msg.text}
+                    {isUser ? (
+                      msg.text
+                    ) : (
+                      <ChatbotMessageRenderer content={msg.text} />
+                    )}
                   </div>
                   {isUser && (
                     <div className="h-7 w-7 rounded-full bg-muted border border-border/60 flex items-center justify-center shrink-0">

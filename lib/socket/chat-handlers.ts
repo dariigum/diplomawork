@@ -19,9 +19,14 @@ export function attachChatSocketHandlers(io: Server) {
   io.use(async (socket, next) => {
     try {
       const raw = socket.handshake.headers.cookie;
-      const cookies = cookie.parse(raw || '');
-      const tok = cookies.session;
+      const parsed = cookie.parse(raw || '');
+      let tok = parsed.session;
+      const authToken = socket.handshake.auth?.token;
+      if (!tok && typeof authToken === 'string') {
+        tok = authToken;
+      }
       if (!tok) return next(new Error('Unauthorized'));
+      tok = tok.trim();
       const sess = await verifySessionJwt(tok);
       if (!sess?.user) return next(new Error('Unauthorized'));
       (socket.data as any).userId = sess.user.id;

@@ -11,6 +11,7 @@ import { parseSafeExternalUrl } from "@/lib/vacancy-detail-display";
 import Link from "next/link";
 import { cookies } from "next/headers";
 import { getDictionary } from "@/lib/i18n/dictionaries";
+import { ChevronLeft } from "lucide-react";
 
 interface EditResumePageProps {
   params: Promise<{ id: string }>;
@@ -36,11 +37,13 @@ export default async function EditResumePage({ params }: EditResumePageProps) {
 
   return (
     <div className="max-w-2xl mx-auto space-y-8">
-      <div className="flex items-center justify-between">
-        <h1 className="text-3xl font-bold">{t.forms.editResume}</h1>
-        <Button variant="ghost" asChild>
-          <Link href="/dashboard/employee">← {t.forms.back}</Link>
+      <div className="flex items-center gap-2">
+        <Button variant="ghost" size="icon" className="shrink-0" asChild>
+          <Link href="/dashboard/employee" aria-label={t.forms.back}>
+            <ChevronLeft className="size-6" />
+          </Link>
         </Button>
+        <h1 className="text-3xl font-bold">{t.forms.editResume}</h1>
       </div>
 
       <Card>

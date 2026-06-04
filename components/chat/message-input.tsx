@@ -6,9 +6,7 @@ import {
   ensureComposerVisible,
   scheduleComposerVisibility,
   useIsMobileComposer,
-  useKeyboardInset,
 } from '@/hooks/use-mobile-composer-viewport';
-import { cn } from '@/lib/utils';
 import { Button } from '@/components/ui/button';
 import { Textarea } from '@/components/ui/textarea';
 import { Paperclip, Send } from 'lucide-react';
@@ -76,7 +74,6 @@ export function MessageInput({
   const fileRef = useRef<HTMLInputElement>(null);
   const composerRef = useRef<HTMLDivElement>(null);
   const isMobile = useIsMobileComposer();
-  const keyboardInset = useKeyboardInset();
 
   const scrollToComposer = useCallback(
     (behavior: ScrollBehavior = 'smooth') => {
@@ -100,11 +97,6 @@ export function MessageInput({
       scheduleComposerVisibility(composerRef.current, messagesScrollRef.current);
     }
   }, [syncScrollKey, chatId, isMobile, messagesScrollRef, scrollToComposer]);
-
-  useEffect(() => {
-    if (!isMobile || keyboardInset <= 0) return;
-    scrollToComposer('auto');
-  }, [keyboardInset, isMobile, scrollToComposer]);
 
   const emitTyping = useCallback(
     (typing: boolean) => {
@@ -229,15 +221,7 @@ export function MessageInput({
   return (
     <div
       ref={composerRef}
-      className={cn(
-        'shrink-0 border-t border-border/60 bg-background/95 backdrop-blur pb-[env(safe-area-inset-bottom,12px)]',
-        isMobile && 'sticky bottom-0 z-10',
-      )}
-      style={
-        isMobile && keyboardInset > 0
-          ? { transform: `translateY(-${keyboardInset}px)` }
-          : undefined
-      }
+      className="shrink-0 border-t border-border/60 bg-background/95 backdrop-blur pb-[env(safe-area-inset-bottom,12px)]"
     >
       <AttachmentPreview pending={pending} onRemove={removePending} />
       <div className="flex items-end gap-2 p-2 md:p-3">

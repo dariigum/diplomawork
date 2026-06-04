@@ -1,12 +1,7 @@
 'use client'
 
 import { useState, useRef, useEffect, useCallback } from 'react'
-import {
-  ensureComposerVisible,
-  scheduleComposerVisibility,
-  useIsMobileComposer,
-  useKeyboardInset,
-} from '@/hooks/use-mobile-composer-viewport'
+import { scheduleAnchorAboveKeyboard } from '@/hooks/use-mobile-composer-viewport'
 import { Send, Sparkles, Bot, User, Loader2, AlertCircle, Trash2 } from 'lucide-react'
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/components/ui/card'
 import { Button } from '@/components/ui/button'
@@ -106,35 +101,25 @@ export function CareerChatbot() {
   const [loading, setLoading] = useState(false)
   const [apiKeyError, setApiKeyError] = useState(false)
   
+  const cardRef = useRef<HTMLDivElement>(null)
   const messagesScrollRef = useRef<HTMLDivElement>(null)
-  const inputBarRef = useRef<HTMLDivElement>(null)
-  const inputRef = useRef<HTMLInputElement>(null)
-  const isMobile = useIsMobileComposer()
-  const keyboardInset = useKeyboardInset()
+  const wasLoadingRef = useRef(false)
 
-  const scrollToComposer = useCallback(
-    (behavior: ScrollBehavior = 'smooth') => {
-      ensureComposerVisible(inputBarRef.current, messagesScrollRef.current, behavior)
-    },
-    [],
-  )
-
-  useEffect(() => {
-    if (messages.length === 0 && !loading) return
-    scrollToComposer('smooth')
-    if (isMobile) {
-      scheduleComposerVisibility(inputBarRef.current, messagesScrollRef.current)
-    }
-  }, [messages, loading, isMobile, scrollToComposer])
+  const scrollChatbotAboveKeyboard = useCallback(() => {
+    scheduleAnchorAboveKeyboard(cardRef.current, messagesScrollRef.current)
+  }, [])
 
   const handleInputFocus = () => {
-    scheduleComposerVisibility(inputBarRef.current, messagesScrollRef.current)
+    scrollChatbotAboveKeyboard()
   }
 
+  // Only after AI finishes responding — not on every render or while typing on the page
   useEffect(() => {
-    if (!isMobile || keyboardInset <= 0) return
-    scrollToComposer('auto')
-  }, [keyboardInset, isMobile, scrollToComposer])
+    if (wasLoadingRef.current && !loading && messages.length > 0) {
+      scrollChatbotAboveKeyboard()
+    }
+    wasLoadingRef.current = loading
+  }, [loading, messages.length, scrollChatbotAboveKeyboard])
 
   const handleSend = async (textToSend: string) => {
     if (!textToSend.trim() || loading) return
@@ -229,8 +214,9 @@ export function CareerChatbot() {
 
   return (
     <Card
+      ref={cardRef}
       id="career-chatbot"
-      className="flex flex-col h-full border-border/70 shadow-sm overflow-hidden bg-card max-md:min-h-[min(78dvh,680px)] max-md:max-h-[min(92dvh,820px)]"
+      className="flex flex-col h-full border-border/70 shadow-sm overflow-hidden bg-card max-md:min-h-[min(52dvh,420px)] max-md:scroll-mt-4"
     >
       <CardHeader className="p-4 border-b border-border/60 flex flex-row items-center justify-between">
         <div className="space-y-0.5">
@@ -349,15 +335,7 @@ export function CareerChatbot() {
         )}
       </CardContent>
 
-      <div
-        ref={inputBarRef}
-        className="shrink-0 p-3 border-t border-border/60 bg-muted/30 max-md:sticky max-md:bottom-0 max-md:z-10"
-        style={
-          isMobile && keyboardInset > 0
-            ? { transform: `translateY(-${keyboardInset}px)` }
-            : undefined
-        }
-      >
+      <div className="shrink-0 p-3 border-t border-border/60 bg-muted/30">
         <form
           onSubmit={(e) => {
             e.preventDefault()
@@ -366,7 +344,6 @@ export function CareerChatbot() {
           className="flex items-center gap-2"
         >
           <input
-            ref={inputRef}
             type="text"
             value={input}
             onChange={(e) => setInput(e.target.value)}

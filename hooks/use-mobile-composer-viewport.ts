@@ -42,46 +42,65 @@ export function useKeyboardInset() {
   return inset
 }
 
-export function ensureComposerVisible(
-  composerEl: HTMLElement | null,
+function scrollMessagesToEnd(messagesScrollEl: HTMLElement | null) {
+  if (messagesScrollEl) {
+    messagesScrollEl.scrollTop = messagesScrollEl.scrollHeight
+  }
+}
+
+/** Scroll the page so the bottom of `anchorEl` sits above the mobile keyboard. */
+export function scrollAnchorAboveKeyboard(
+  anchorEl: HTMLElement | null,
   messagesScrollEl: HTMLElement | null,
   behavior: ScrollBehavior = 'smooth',
 ) {
-  if (!composerEl) return
+  if (!anchorEl) return
 
   requestAnimationFrame(() => {
-    if (messagesScrollEl) {
-      messagesScrollEl.scrollTop = messagesScrollEl.scrollHeight
-    }
+    scrollMessagesToEnd(messagesScrollEl)
 
     const vv = window.visualViewport
+    const rect = anchorEl.getBoundingClientRect()
     if (!vv) {
-      composerEl.scrollIntoView({ block: 'end', behavior, inline: 'nearest' })
+      anchorEl.scrollIntoView({ block: 'end', behavior, inline: 'nearest' })
       return
     }
 
-    const rect = composerEl.getBoundingClientRect()
     const visibleBottom = vv.offsetTop + vv.height
     const padding = 12
     const overflow = rect.bottom - (visibleBottom - padding)
 
     if (overflow > 0) {
       window.scrollBy({ top: overflow, behavior })
-    } else {
-      composerEl.scrollIntoView({ block: 'end', behavior, inline: 'nearest' })
     }
   })
+}
+
+/** @deprecated Use scrollAnchorAboveKeyboard — kept for dashboard chat composer bar. */
+export function ensureComposerVisible(
+  composerEl: HTMLElement | null,
+  messagesScrollEl: HTMLElement | null,
+  behavior: ScrollBehavior = 'smooth',
+) {
+  scrollAnchorAboveKeyboard(composerEl, messagesScrollEl, behavior)
+}
+
+export function scheduleAnchorAboveKeyboard(
+  anchorEl: HTMLElement | null,
+  messagesScrollEl: HTMLElement | null,
+) {
+  const run = () => scrollAnchorAboveKeyboard(anchorEl, messagesScrollEl, 'smooth')
+  run()
+  window.setTimeout(run, 120)
+  window.setTimeout(run, 350)
+  window.setTimeout(run, 600)
 }
 
 export function scheduleComposerVisibility(
   composerEl: HTMLElement | null,
   messagesScrollEl: HTMLElement | null,
 ) {
-  const run = () => ensureComposerVisible(composerEl, messagesScrollEl, 'smooth')
-  run()
-  window.setTimeout(run, 120)
-  window.setTimeout(run, 350)
-  window.setTimeout(run, 600)
+  scheduleAnchorAboveKeyboard(composerEl, messagesScrollEl)
 }
 
 /** Visible viewport height (shrinks when mobile keyboard is open). */

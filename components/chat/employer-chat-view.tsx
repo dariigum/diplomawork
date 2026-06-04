@@ -11,6 +11,7 @@ import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
 import { Card } from '@/components/ui/card';
 import { useChatLiveSync } from '@/hooks/use-chat-live-sync';
+import { useViewportHeight } from '@/hooks/use-mobile-composer-viewport';
 import { useChatSocket, useChatSocketEvent } from '@/hooks/use-chat-socket';
 import { isSameChatId } from '@/lib/chat/merge-messages';
 import { MessageBubble, type ChatMessageDTO } from '@/components/chat/message-bubble';
@@ -54,17 +55,8 @@ export function EmployerChatView({ currentUserId }: { currentUserId: string }) {
   const hasRestoredRef = useRef(false);
 
   const containerRef = useRef<HTMLDivElement>(null);
-  const [height, setHeight] = useState<number>(0);
+  const height = useViewportHeight();
   const [chatHeight, setChatHeight] = useState<number>(500);
-
-  useEffect(() => {
-    setHeight(window.innerHeight);
-    const handleResize = () => {
-      setHeight(window.innerHeight);
-    };
-    window.addEventListener('resize', handleResize);
-    return () => window.removeEventListener('resize', handleResize);
-  }, []);
 
   useEffect(() => {
     if (!height) return;
@@ -427,6 +419,8 @@ export function EmployerChatView({ currentUserId }: { currentUserId: string }) {
         disabled={!selectedChatId}
         socketRef={socketRef}
         onSent={handleMessageSent}
+        messagesScrollRef={scrollRef}
+        syncScrollKey={`${messages.length}-${typing ? 1 : 0}`}
       />
     </div>
   );

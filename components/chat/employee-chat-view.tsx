@@ -22,6 +22,7 @@ import {
 import { ScrollArea } from '@/components/ui/scroll-area';
 import { Skeleton } from '@/components/ui/skeleton';
 import { useIsMobile } from '@/hooks/use-mobile';
+import { useViewportHeight } from '@/hooks/use-mobile-composer-viewport';
 import { useChatLiveSync } from '@/hooks/use-chat-live-sync';
 import { useChatSocket, useChatSocketEvent } from '@/hooks/use-chat-socket';
 import { isSameChatId } from '@/lib/chat/merge-messages';
@@ -66,17 +67,8 @@ export function EmployeeChatView({ currentUserId }: { currentUserId: string }) {
   const scrollRef = useRef<HTMLDivElement>(null);
 
   const containerRef = useRef<HTMLDivElement>(null);
-  const [height, setHeight] = useState<number>(0);
+  const height = useViewportHeight();
   const [chatHeight, setChatHeight] = useState<number>(500);
-
-  useEffect(() => {
-    setHeight(window.innerHeight);
-    const handleResize = () => {
-      setHeight(window.innerHeight);
-    };
-    window.addEventListener('resize', handleResize);
-    return () => window.removeEventListener('resize', handleResize);
-  }, []);
 
   useEffect(() => {
     if (!height) return;
@@ -480,6 +472,8 @@ export function EmployeeChatView({ currentUserId }: { currentUserId: string }) {
         disabled={false}
         socketRef={socketRef}
         onSent={handleMessageSent}
+        messagesScrollRef={scrollRef}
+        syncScrollKey={`${messages.length}-${typing ? 1 : 0}`}
       />
     </div>
   );

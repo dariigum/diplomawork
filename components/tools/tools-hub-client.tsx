@@ -135,7 +135,7 @@ export function ToolsHubClient({ role, employee, employer }: ToolsHubClientProps
         {pageHeader}
         <div className="grid grid-cols-1 lg:grid-cols-12 gap-8 items-start">
           {/* Left column: AI Chatbot */}
-          <div className="lg:col-span-4 lg:sticky lg:top-8 h-[800px] flex flex-col">
+          <div className="flex flex-col lg:col-span-4 lg:sticky lg:top-8 h-[800px] max-md:h-auto max-md:min-h-0">
             <CareerChatbot />
           </div>
 

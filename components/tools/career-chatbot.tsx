@@ -1,6 +1,12 @@
 'use client'
 
-import { useState, useRef, useEffect } from 'react'
+import { useState, useRef, useEffect, useCallback } from 'react'
+import {
+  ensureComposerVisible,
+  scheduleComposerVisibility,
+  useIsMobileComposer,
+  useKeyboardInset,
+} from '@/hooks/use-mobile-composer-viewport'
 import { Send, Sparkles, Bot, User, Loader2, AlertCircle, Trash2 } from 'lucide-react'
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/components/ui/card'
 import { Button } from '@/components/ui/button'
@@ -100,15 +106,35 @@ export function CareerChatbot() {
   const [loading, setLoading] = useState(false)
   const [apiKeyError, setApiKeyError] = useState(false)
   
-  const messagesEndRef = useRef<HTMLDivElement>(null)
+  const messagesScrollRef = useRef<HTMLDivElement>(null)
+  const inputBarRef = useRef<HTMLDivElement>(null)
+  const inputRef = useRef<HTMLInputElement>(null)
+  const isMobile = useIsMobileComposer()
+  const keyboardInset = useKeyboardInset()
 
-  const scrollToBottom = () => {
-    messagesEndRef.current?.scrollIntoView({ behavior: 'smooth' })
+  const scrollToComposer = useCallback(
+    (behavior: ScrollBehavior = 'smooth') => {
+      ensureComposerVisible(inputBarRef.current, messagesScrollRef.current, behavior)
+    },
+    [],
+  )
+
+  useEffect(() => {
+    if (messages.length === 0 && !loading) return
+    scrollToComposer('smooth')
+    if (isMobile) {
+      scheduleComposerVisibility(inputBarRef.current, messagesScrollRef.current)
+    }
+  }, [messages, loading, isMobile, scrollToComposer])
+
+  const handleInputFocus = () => {
+    scheduleComposerVisibility(inputBarRef.current, messagesScrollRef.current)
   }
 
   useEffect(() => {
-    scrollToBottom()
-  }, [messages, loading])
+    if (!isMobile || keyboardInset <= 0) return
+    scrollToComposer('auto')
+  }, [keyboardInset, isMobile, scrollToComposer])
 
   const handleSend = async (textToSend: string) => {
     if (!textToSend.trim() || loading) return
@@ -202,7 +228,10 @@ export function CareerChatbot() {
   ]
 
   return (
-    <Card className="flex flex-col h-full border-border/70 shadow-sm overflow-hidden bg-card">
+    <Card
+      id="career-chatbot"
+      className="flex flex-col h-full border-border/70 shadow-sm overflow-hidden bg-card max-md:min-h-[min(78dvh,680px)] max-md:max-h-[min(92dvh,820px)]"
+    >
       <CardHeader className="p-4 border-b border-border/60 flex flex-row items-center justify-between">
         <div className="space-y-0.5">
           <CardTitle className="text-md font-bold flex items-center gap-1.5 text-foreground">
@@ -226,7 +255,10 @@ export function CareerChatbot() {
         )}
       </CardHeader>
       
-      <CardContent className="flex-1 overflow-y-auto p-4 space-y-4 min-h-[300px] flex flex-col">
+      <CardContent
+        ref={messagesScrollRef}
+        className="flex-1 overflow-y-auto overscroll-contain p-4 space-y-4 min-h-[200px] flex flex-col scroll-pb-4"
+      >
         {messages.length === 0 ? (
           <div className="flex-1 flex flex-col items-center justify-center text-center p-4 space-y-4">
             <div className="h-12 w-12 rounded-full bg-primary/10 flex items-center justify-center">
@@ -313,12 +345,19 @@ export function CareerChatbot() {
               </div>
             )}
             
-            <div ref={messagesEndRef} />
           </div>
         )}
       </CardContent>
-      
-      <div className="p-3 border-t border-border/60 bg-muted/30">
+
+      <div
+        ref={inputBarRef}
+        className="shrink-0 p-3 border-t border-border/60 bg-muted/30 max-md:sticky max-md:bottom-0 max-md:z-10"
+        style={
+          isMobile && keyboardInset > 0
+            ? { transform: `translateY(-${keyboardInset}px)` }
+            : undefined
+        }
+      >
         <form
           onSubmit={(e) => {
             e.preventDefault()
@@ -327,11 +366,14 @@ export function CareerChatbot() {
           className="flex items-center gap-2"
         >
           <input
+            ref={inputRef}
             type="text"
             value={input}
             onChange={(e) => setInput(e.target.value)}
+            onFocus={handleInputFocus}
             placeholder={t.skillImprovement.chatbotPlaceholder}
             disabled={loading}
+            enterKeyHint="send"
             className="flex-1 bg-background border border-border/70 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-1 focus:ring-primary focus:border-primary disabled:opacity-50"
           />
           <Button

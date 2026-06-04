@@ -1,21 +1,26 @@
 import type { Server } from 'socket.io';
 import { publishSocketEventRemote } from '@/lib/socket/publish-remote';
 
-const GLOBAL_KEY = '__JOBFLOW_SOCKET_IO__';
+type GlobalSocketStore = typeof globalThis & {
+  __JOBFLOW_SOCKET_IO__?: Server;
+};
+
+function socketGlobal(): GlobalSocketStore {
+  return globalThis as GlobalSocketStore;
+}
 
 let moduleIo: Server | null = null;
 
 function getIo(): Server | null {
   if (moduleIo) return moduleIo;
-  const g = globalThis as Record<string, Server | undefined>;
-  return g[GLOBAL_KEY] ?? null;
+  return socketGlobal().__JOBFLOW_SOCKET_IO__ ?? null;
 }
 
 export function setSocketIoServer(server: Server | null) {
   moduleIo = server;
-  const g = globalThis as Record<string, Server | undefined>;
-  if (server) g[GLOBAL_KEY] = server;
-  else delete g[GLOBAL_KEY];
+  const g = socketGlobal();
+  if (server) g.__JOBFLOW_SOCKET_IO__ = server;
+  else delete g.__JOBFLOW_SOCKET_IO__;
 }
 
 export function emitChatEvent(chatId: string, event: string, payload: unknown) {

@@ -4,6 +4,7 @@ import mongoose from 'mongoose';
 import dbConnect from '@/lib/db/mongoose';
 import { User, Vacancy } from '@/lib/db/schema';
 import { getSession } from '@/lib/auth';
+import { toObjectId } from '@/lib/db/object-id';
 import { revalidatePath } from 'next/cache';
 import { redirect } from 'next/navigation';
 import { getEmbedding } from '@/lib/ml';
@@ -81,7 +82,7 @@ export async function createVacancyAction(formData: FormData) {
 
   await dbConnect();
   await Vacancy.create({
-    employerId: session.user.id,
+    employerId: toObjectId(session.user.id),
     ...parsed,
     ...(embedding ? { embedding } : {}),
   });

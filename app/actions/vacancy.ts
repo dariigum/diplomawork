@@ -31,8 +31,8 @@ export async function toggleSaveVacancyAction(vacancyId: string) {
     });
   } else {
     await SavedVacancy.create({
-      userId: session.user.id,
-      vacancyId: objectVacancyId
+      userId: new mongoose.Types.ObjectId(session.user.id),
+      vacancyId: objectVacancyId,
     });
     saved = true;
     await recordVacancyBehaviourEvent({

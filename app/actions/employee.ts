@@ -4,6 +4,7 @@ import dbConnect from '@/lib/db/mongoose';
 import mongoose from 'mongoose';
 import { Response, Resume, SavedVacancy, User, Vacancy, Chat, Message } from '@/lib/db/schema';
 import { clearSession, getSession } from '@/lib/auth';
+import { toObjectId } from '@/lib/db/object-id';
 import { revalidatePath } from 'next/cache';
 import { redirect } from 'next/navigation';
 import { getEmbedding } from '@/lib/ml';
@@ -59,7 +60,7 @@ export async function createResumeAction(formData: FormData) {
   const activeForAi = existingCount === 0;
 
   await Resume.create({
-    userId: session.user.id,
+    userId: toObjectId(session.user.id),
     title,
     skills,
     experience: experience || '',
@@ -325,7 +326,7 @@ export async function submitVacancyResponseAction(formData: FormData) {
     const activeForAi = existingCount === 0;
 
     const createdResume = await Resume.create({
-      userId: session.user.id,
+      userId: toObjectId(session.user.id),
       title,
       skills,
       experience: experience || '',
@@ -340,13 +341,17 @@ export async function submitVacancyResponseAction(formData: FormData) {
       github: github || '',
     });
 
-    resumeId = createdResume._id.toString();
+    resumeId = String(createdResume._id);
+  }
+
+  if (!resumeId) {
+    return { error: 'Resume is required to apply.' };
   }
 
   const createdResponse = await Response.create({
-    userId: new mongoose.Types.ObjectId(session.user.id),
-    vacancyId: new mongoose.Types.ObjectId(vacancyId),
-    resumeId: new mongoose.Types.ObjectId(resumeId),
+    userId: toObjectId(session.user.id),
+    vacancyId: toObjectId(vacancyId),
+    resumeId: toObjectId(resumeId),
     status: 'PENDING',
   });
 

@@ -216,7 +216,7 @@ export function CareerChatbot() {
     <Card
       ref={cardRef}
       id="career-chatbot"
-      className="flex flex-col h-full border-border/70 shadow-sm overflow-hidden bg-card max-md:h-[2300px] max-md:min-h-[2300px] max-md:max-h-[2300px] max-md:scroll-mt-4"
+      className="flex flex-col h-full border-border/70 shadow-sm overflow-hidden bg-card max-md:h-[800px] max-md:min-h-[800px] max-md:max-h-[800px] max-md:scroll-mt-4"
     >
       <CardHeader className="p-4 border-b border-border/60 flex flex-row items-center justify-between">
         <div className="space-y-0.5">

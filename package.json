@@ -9,6 +9,7 @@
     "lint": "eslint .",
     "seed:demo": "tsx scripts/seed-demo-data.ts",
     "backfill:embeddings": "tsx scripts/backfill-vacancy-embeddings.ts",
+    "backfill:resume-embeddings": "tsx scripts/backfill-resume-embeddings.ts",
     "ingestion:demo": "tsx scripts/seed-ingestion-demo.ts",
     "seed:eval-cohort": "tsx scripts/seed-eval-cohort.ts",
     "seed:articles": "tsx scripts/seed-articles.ts",

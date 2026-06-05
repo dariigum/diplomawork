@@ -66,7 +66,8 @@ app.prepare().then(() => {
   const httpServer = createServer((req, res) => {
     const parsedUrl = parse(req.url || '', true);
     if (parsedUrl.pathname === '/__jobflow/socket/publish' && req.method === 'POST') {
-      const io = (globalThis as Record<string, Server | undefined>).__JOBFLOW_SOCKET_IO__;
+      const io = (globalThis as typeof globalThis & { __JOBFLOW_SOCKET_IO__?: Server })
+        .__JOBFLOW_SOCKET_IO__;
       if (!io) {
         res.writeHead(503);
         res.end('socket not ready');
@@ -88,7 +89,7 @@ app.prepare().then(() => {
   });
 
   setSocketIoServer(io);
-  (globalThis as Record<string, Server | undefined>).__JOBFLOW_SOCKET_IO__ = io;
+  (globalThis as typeof globalThis & { __JOBFLOW_SOCKET_IO__?: Server }).__JOBFLOW_SOCKET_IO__ = io;
   attachChatSocketHandlers(io);
 
   httpServer.once('error', (err) => {

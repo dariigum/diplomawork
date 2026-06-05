@@ -139,7 +139,6 @@ export default async function EmployeeDashboard() {
           </section>
         </div>
       }
-      candidates={<></>}
       chat={<EmployeeChatView currentUserId={session.user.id} />}
     />
   );

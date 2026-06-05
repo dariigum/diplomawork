@@ -1,6 +1,11 @@
 import { cookies } from 'next/headers';
 import bcrypt from 'bcryptjs';
-import { decryptSessionToken, encryptSessionPayload } from '@/lib/session-jwt';
+import {
+  decryptSessionToken,
+  encryptSessionPayload,
+  type SessionPayload,
+  type UserRole,
+} from '@/lib/session-jwt';
 
 export { decryptSessionToken as decrypt, encryptSessionPayload as encrypt } from '@/lib/session-jwt';
 
@@ -11,14 +16,14 @@ const sessionCookieOptions = () => ({
   secure: process.env.NODE_ENV === 'production',
 });
 
-export async function getSession() {
+export async function getSession(): Promise<SessionPayload | null> {
   const cookieStore = await cookies();
   const sessionCookie = cookieStore.get('session')?.value;
   if (!sessionCookie) return null;
   return await decryptSessionToken(sessionCookie);
 }
 
-export async function setSession(user: { id: string; role: string; email: string }) {
+export async function setSession(user: { id: string; role: UserRole; email: string }) {
   const expires = new Date(Date.now() + 7 * 24 * 60 * 60 * 1000);
   const session = await encryptSessionPayload({
     user: { id: String(user.id), role: user.role, email: user.email },

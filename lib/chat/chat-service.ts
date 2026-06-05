@@ -8,6 +8,13 @@ import { resolveEmployerCvForApi } from '@/lib/employer-cv-url.server';
 
 export type SessionUser = { id: string; role: 'EMPLOYEE' | 'EMPLOYER'; email?: string };
 
+export type ChatParticipantRole = SessionUser['role'];
+
+export function toChatSessionUser(user: { id: string; role: string }): SessionUser {
+  const role: ChatParticipantRole = user.role === 'EMPLOYER' ? 'EMPLOYER' : 'EMPLOYEE';
+  return { id: user.id, role };
+}
+
 function preview(text: string, max = 140): string {
   const t = text.replace(/\s+/g, ' ').trim();
   if (t.length <= max) return t;

@@ -1,7 +1,12 @@
 'use client';
 
 import { useCallback, useEffect, useRef, useState } from 'react';
-import type { MutableRefObject } from 'react';
+import type { MutableRefObject, RefObject } from 'react';
+import {
+  ensureComposerVisible,
+  scheduleComposerVisibility,
+  useIsMobileComposer,
+} from '@/hooks/use-mobile-composer-viewport';
 import { Button } from '@/components/ui/button';
 import { Textarea } from '@/components/ui/textarea';
 import { Paperclip, Send } from 'lucide-react';
@@ -49,11 +54,17 @@ export function MessageInput({
   disabled,
   socketRef,
   onSent,
+  messagesScrollRef,
+  syncScrollKey,
 }: {
   chatId: string | null;
   disabled?: boolean;
   socketRef: MutableRefObject<Socket | null>;
   onSent?: (message: ChatMessageDTO) => void;
+  /** Messages list scroll container (dashboard chat). */
+  messagesScrollRef?: RefObject<HTMLElement | null>;
+  /** Change when messages/typing update to keep composer in view on mobile. */
+  syncScrollKey?: string | number;
 }) {
   const { t } = useI18n();
   const [text, setText] = useState('');
@@ -61,6 +72,31 @@ export function MessageInput({
   const [pending, setPending] = useState<PendingFile[]>([]);
   const typingTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
   const fileRef = useRef<HTMLInputElement>(null);
+  const composerRef = useRef<HTMLDivElement>(null);
+  const isMobile = useIsMobileComposer();
+
+  const scrollToComposer = useCallback(
+    (behavior: ScrollBehavior = 'smooth') => {
+      ensureComposerVisible(
+        composerRef.current,
+        messagesScrollRef?.current ?? null,
+        behavior,
+      );
+    },
+    [messagesScrollRef],
+  );
+
+  const handleComposerFocus = () => {
+    scheduleComposerVisibility(composerRef.current, messagesScrollRef?.current ?? null);
+  };
+
+  useEffect(() => {
+    if (!chatId || !messagesScrollRef) return;
+    scrollToComposer('smooth');
+    if (isMobile) {
+      scheduleComposerVisibility(composerRef.current, messagesScrollRef.current);
+    }
+  }, [syncScrollKey, chatId, isMobile, messagesScrollRef, scrollToComposer]);
 
   const emitTyping = useCallback(
     (typing: boolean) => {
@@ -173,6 +209,7 @@ export function MessageInput({
         ...sentMessage,
         chatId: sentMessage.chatId ?? chatId,
       });
+      requestAnimationFrame(() => scrollToComposer('smooth'));
     }
   };
 
@@ -182,7 +219,10 @@ export function MessageInput({
   };
 
   return (
-    <div className="border-t border-border/60 bg-background/95 backdrop-blur pb-[env(safe-area-inset-bottom,12px)]">
+    <div
+      ref={composerRef}
+      className="shrink-0 border-t border-border/60 bg-background/95 backdrop-blur pb-[env(safe-area-inset-bottom,12px)]"
+    >
       <AttachmentPreview pending={pending} onRemove={removePending} />
       <div className="flex items-end gap-2 p-2 md:p-3">
         <input
@@ -206,6 +246,7 @@ export function MessageInput({
         <Textarea
           value={text}
           onChange={(e) => onChangeText(e.target.value)}
+          onFocus={handleComposerFocus}
           onKeyDown={(e) => {
             if (e.key === 'Enter' && !e.shiftKey) {
               e.preventDefault();
@@ -214,6 +255,7 @@ export function MessageInput({
           }}
           placeholder={chatId ? t.chat.typeMessage : t.chat.selectApplicantToStartChat}
           rows={1}
+          enterKeyHint="send"
           className="min-h-[44px] max-h-32 resize-none"
           disabled={!chatId || disabled || sending}
         />

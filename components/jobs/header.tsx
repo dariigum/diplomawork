@@ -340,16 +340,6 @@ export function Header({ savedJobsCount }: HeaderProps) {
 
                   {userRole ? (
                     <>
-                      {isEmployee && (
-                        <DropdownMenuItem asChild>
-                          <Link href="/saved" className="w-full flex items-center justify-between">
-                            {t.header.savedJobs}
-                            {savedCount > 0 && (
-                              <Badge variant="secondary">{savedCount}</Badge>
-                            )}
-                          </Link>
-                        </DropdownMenuItem>
-                      )}
                       <DropdownMenuItem asChild>
                         <Link
                           href={

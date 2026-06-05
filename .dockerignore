@@ -1,0 +1,14 @@
+node_modules
+.next
+.git
+.env
+.env.*
+.env*.local
+data/chat-uploads
+public/uploads/resumes
+*.log
+auth_error.log
+.DS_Store
+__v0_*
+.v0-trash
+.vercel

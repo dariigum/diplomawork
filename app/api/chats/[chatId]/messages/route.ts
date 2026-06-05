@@ -1,7 +1,12 @@
 import { NextResponse } from 'next/server';
 import dbConnect from '@/lib/db/mongoose';
 import { getSession } from '@/lib/auth';
-import { getMessagesAfter, getMessagesBefore, sendMessageFromUser } from '@/lib/chat/chat-service';
+import {
+  getMessagesAfter,
+  getMessagesBefore,
+  sendMessageFromUser,
+  toChatSessionUser,
+} from '@/lib/chat/chat-service';
 import { createSlidingWindowRateLimiter } from '@/lib/chat/rate-limit';
 import type { IAttachment } from '@/lib/db/schema';
 import { publishNewMessage } from '@/lib/socket/io-registry';
@@ -22,8 +27,7 @@ export async function GET(req: Request, ctx: { params: Promise<{ chatId: string 
     const limit = Math.min(80, Math.max(1, parseInt(url.searchParams.get('limit') || '40', 10) || 40));
 
     await dbConnect();
-    const role = session.user.role === 'EMPLOYER' ? 'EMPLOYER' : 'EMPLOYEE';
-    const user = { id: session.user.id, role };
+    const user = toChatSessionUser(session.user);
 
     if (after) {
       const { messages } = await getMessagesAfter(chatId, user, after, limit);
@@ -70,9 +74,8 @@ export async function POST(req: Request, ctx: { params: Promise<{ chatId: string
     }
 
     await dbConnect();
-    const role = session.user.role === 'EMPLOYER' ? 'EMPLOYER' : 'EMPLOYEE';
     const { message, chatPatch, notifyReceiver } = await sendMessageFromUser({
-      user: { id: session.user.id, role },
+      user: toChatSessionUser(session.user),
       chatId,
       text,
       attachments,

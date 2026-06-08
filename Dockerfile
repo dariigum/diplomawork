@@ -2,9 +2,13 @@ FROM node:20-bookworm-slim AS builder
 WORKDIR /app
 
 COPY package.json package-lock.json ./
-# Install deps on Linux in this stage (never copy node_modules between stages).
 ENV NODE_ENV=development
-RUN npm ci --include=dev --include=optional
+# lockfile from macOS + npm ci skips Linux optional natives (npm/cli#4828)
+RUN npm install --include=dev --include=optional && \
+    npm install --no-save \
+      @tailwindcss/oxide-linux-x64-gnu@$(node -p "require('@tailwindcss/oxide/package.json').version") \
+      lightningcss-linux-x64-gnu@$(node -p "require('lightningcss/package.json').version") && \
+    node -e "require('@tailwindcss/oxide'); require('lightningcss')"
 
 COPY . .
 ENV NEXT_TELEMETRY_DISABLED=1 \

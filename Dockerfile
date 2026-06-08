@@ -1,7 +1,8 @@
 FROM node:20-bookworm-slim AS deps
 WORKDIR /app
 COPY package.json package-lock.json ./
-RUN npm ci
+# next build needs devDependencies (tailwindcss, typescript, etc.)
+RUN npm ci --include=dev --include=optional
 
 FROM node:20-bookworm-slim AS builder
 WORKDIR /app
@@ -22,6 +23,7 @@ RUN mkdir -p data/chat-uploads public/uploads/resumes
 
 COPY package.json package-lock.json ./
 COPY --from=deps /app/node_modules ./node_modules
+RUN npm prune --omit=dev
 COPY --from=builder /app/.next ./.next
 COPY --from=builder /app/public ./public
 COPY --from=builder /app/server.ts ./server.ts

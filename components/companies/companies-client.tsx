@@ -1,7 +1,7 @@
 "use client"
 
 import Link from "next/link"
-import { useMemo, useState } from "react"
+import { useMemo, useState, type ReactNode } from "react"
 import { Search, MapPin, Users, Briefcase, Star } from "lucide-react"
 import { Card, CardContent } from "@/components/ui/card"
 import { Badge } from "@/components/ui/badge"
@@ -18,6 +18,24 @@ export type CompanyListItem = {
   employees: string
   openJobs: number
   logoUrl: string | null
+}
+
+function CompanyLogo({ logoUrl, name }: { logoUrl: string | null; name: string }): ReactNode {
+  const [failed, setFailed] = useState(false)
+
+  if (logoUrl && !failed) {
+    return (
+      // eslint-disable-next-line @next/next/no-img-element
+      <img
+        src={logoUrl}
+        alt={name}
+        className="h-full w-full rounded-xl object-cover"
+        onError={() => setFailed(true)}
+      />
+    )
+  }
+
+  return <span className="text-lg">🏢</span>
 }
 
 export function CompaniesClient({ companies }: { companies: CompanyListItem[] }) {
@@ -51,7 +69,7 @@ export function CompaniesClient({ companies }: { companies: CompanyListItem[] })
   }, [filteredCompanies, currentPage])
 
   return (
-    <main className="container mx-auto px-4 py-8">
+    <main className="container mx-auto min-w-0 max-w-full overflow-x-hidden px-4 py-8">
       <div className="mb-8 space-y-4">
         <div>
           <h1 className="text-3xl font-bold text-foreground">{t.companies.exploreCompanies}</h1>
@@ -75,14 +93,14 @@ export function CompaniesClient({ companies }: { companies: CompanyListItem[] })
         <p className="py-12 text-center text-muted-foreground">{t.companies.noSearchResults}</p>
       ) : (
         <>
-          <div className="grid gap-6 md:grid-cols-2 lg:grid-cols-3">
+          <div className="grid min-w-0 gap-6 md:grid-cols-2 lg:grid-cols-3">
             {paginatedCompanies.map((company) => (
-              <Link key={company.id} href={`/companies/${company.id}`}>
-                <Card className="h-full cursor-pointer transition-all hover:border-primary/30 hover:shadow-lg">
+              <Link key={company.id} href={`/companies/${company.id}`} className="block min-w-0">
+                <Card className="h-full min-w-0 cursor-pointer overflow-hidden transition-all hover:border-primary/30 hover:shadow-lg">
                   <CardContent className="p-6">
-                    <div className="flex items-start gap-4">
-                      <div className="flex h-14 w-14 flex-shrink-0 items-center justify-center rounded-xl bg-muted text-lg font-semibold text-muted-foreground">
-                        {company.logoUrl || "🏢"}
+                    <div className="flex min-w-0 items-start gap-4">
+                      <div className="flex h-14 w-14 shrink-0 items-center justify-center overflow-hidden rounded-xl bg-muted text-lg font-semibold text-muted-foreground">
+                        <CompanyLogo logoUrl={company.logoUrl} name={company.name} />
                       </div>
                       <div className="min-w-0 flex-1">
                         <h3 className="truncate text-lg font-semibold text-foreground">{company.name}</h3>
@@ -98,18 +116,18 @@ export function CompaniesClient({ companies }: { companies: CompanyListItem[] })
                       {company.description || t.companies.noDescription}
                     </p>
 
-                    <div className="mt-4 flex flex-wrap gap-4 text-sm text-muted-foreground">
-                      <div className="flex items-center gap-1.5">
-                        <MapPin className="h-4 w-4" />
-                        <span>{company.location || t.companies.multipleLocations}</span>
+                    <div className="mt-4 flex min-w-0 flex-wrap gap-x-4 gap-y-2 text-sm text-muted-foreground">
+                      <div className="flex min-w-0 max-w-full items-center gap-1.5">
+                        <MapPin className="h-4 w-4 shrink-0" />
+                        <span className="truncate">{company.location || t.companies.multipleLocations}</span>
                       </div>
-                      <div className="flex items-center gap-1.5">
-                        <Users className="h-4 w-4" />
-                        <span>{company.employees || "—"}</span>
+                      <div className="flex min-w-0 items-center gap-1.5">
+                        <Users className="h-4 w-4 shrink-0" />
+                        <span className="truncate">{company.employees || "—"}</span>
                       </div>
                     </div>
 
-                    <div className="mt-4 flex items-center justify-between border-t border-border pt-4">
+                    <div className="mt-4 flex min-w-0 items-center justify-between gap-2 border-t border-border pt-4">
                       <div className="flex items-center gap-1.5">
                         <Star className="h-4 w-4 fill-yellow-500 text-yellow-500" />
                         <span className="font-medium text-foreground">4.8</span>

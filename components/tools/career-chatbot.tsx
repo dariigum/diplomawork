@@ -2,7 +2,8 @@
 
 import { useState, useRef, useEffect, useCallback } from 'react'
 import { scheduleAnchorAboveKeyboard } from '@/hooks/use-mobile-composer-viewport'
-import { Send, Sparkles, Bot, User, Loader2, AlertCircle, Trash2 } from 'lucide-react'
+import { Send, Sparkles, Bot, User, Loader2, AlertCircle, Trash2, ChevronDown } from 'lucide-react'
+import { cn } from '@/lib/utils'
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/components/ui/card'
 import { Button } from '@/components/ui/button'
 import { useI18n } from '@/lib/i18n/provider'
@@ -100,6 +101,12 @@ export function CareerChatbot() {
   const [input, setInput] = useState('')
   const [loading, setLoading] = useState(false)
   const [apiKeyError, setApiKeyError] = useState(false)
+  const [chatCollapsed, setChatCollapsed] = useState(false)
+
+  const toggleChatCollapsed = () => {
+    if (typeof window !== 'undefined' && window.matchMedia('(min-width: 1024px)').matches) return
+    setChatCollapsed((prev) => !prev)
+  }
   
   const cardRef = useRef<HTMLDivElement>(null)
   const messagesScrollRef = useRef<HTMLDivElement>(null)
@@ -216,23 +223,39 @@ export function CareerChatbot() {
     <Card
       ref={cardRef}
       id="career-chatbot"
-      className="flex flex-col h-full border-border/70 shadow-sm overflow-hidden bg-card max-md:h-[800px] max-md:min-h-[800px] max-md:max-h-[800px] max-md:scroll-mt-4"
+      className={cn(
+        "flex flex-col h-full border-border/70 shadow-sm overflow-hidden bg-card max-md:scroll-mt-4",
+        !chatCollapsed && "max-md:h-[800px] max-md:min-h-[800px] max-md:max-h-[800px]",
+      )}
     >
-      <CardHeader className="p-4 border-b border-border/60 flex flex-row items-center justify-between">
-        <div className="space-y-0.5">
+      <CardHeader className="p-4 border-b border-border/60 flex flex-row items-center justify-between gap-2">
+        <button
+          type="button"
+          className="min-w-0 flex-1 space-y-0.5 text-left lg:cursor-default"
+          onClick={toggleChatCollapsed}
+          aria-expanded={!chatCollapsed}
+          aria-controls="career-chatbot-body"
+        >
           <CardTitle className="text-md font-bold flex items-center gap-1.5 text-foreground">
-            <Sparkles className="h-4 w-4 text-primary animate-pulse" />
-            {t.skillImprovement.chatbotTitle}
+            <Sparkles className="h-4 w-4 shrink-0 text-primary animate-pulse" />
+            <span className="truncate">{t.skillImprovement.chatbotTitle}</span>
+            <ChevronDown
+              className={cn(
+                "ml-auto h-5 w-5 shrink-0 text-muted-foreground transition-transform lg:hidden",
+                chatCollapsed && "-rotate-90",
+              )}
+              aria-hidden
+            />
           </CardTitle>
           <CardDescription className="text-xs text-muted-foreground line-clamp-1">
             {t.skillImprovement.chatbotSubtitle}
           </CardDescription>
-        </div>
+        </button>
         {messages.length > 0 && (
           <Button
             variant="ghost"
             size="icon"
-            className="h-8 w-8 text-muted-foreground hover:text-destructive transition-colors"
+            className="h-8 w-8 shrink-0 text-muted-foreground hover:text-destructive transition-colors"
             onClick={handleClear}
             title={t.tools.clearChat}
           >
@@ -240,7 +263,14 @@ export function CareerChatbot() {
           </Button>
         )}
       </CardHeader>
-      
+
+      <div
+        id="career-chatbot-body"
+        className={cn(
+          "flex min-h-0 flex-1 flex-col",
+          chatCollapsed ? "hidden lg:flex" : "flex",
+        )}
+      >
       <CardContent
         ref={messagesScrollRef}
         className="flex-1 overflow-y-auto overscroll-contain p-4 space-y-4 min-h-[200px] flex flex-col scroll-pb-4"
@@ -362,6 +392,7 @@ export function CareerChatbot() {
             <Send className="h-4 w-4" />
           </Button>
         </form>
+      </div>
       </div>
     </Card>
   )

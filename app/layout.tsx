@@ -31,8 +31,13 @@ export const metadata: Metadata = {
 }
 
 import { cookies } from 'next/headers'
+import { getSession } from '@/lib/auth'
 import { I18nProvider } from '@/lib/i18n/provider'
 import { ChatSocketRoot } from '@/components/chat/chat-socket-root'
+import { AuthProvider } from '@/components/auth/auth-provider'
+import { FaviconLoadingIndicator } from '@/components/favicon-loading-indicator'
+import { Toaster } from '@/components/ui/sonner'
+import { Suspense } from 'react'
 
 export default async function RootLayout({
   children,
@@ -41,6 +46,7 @@ export default async function RootLayout({
 }>) {
   const cookieStore = await cookies()
   const locale = cookieStore.get('NEXT_LOCALE')?.value || 'en'
+  const session = await getSession()
 
   return (
     <html lang={locale} suppressHydrationWarning>
@@ -52,10 +58,16 @@ export default async function RootLayout({
             enableSystem
             disableTransitionOnChange
           >
-            <ChatSocketRoot>
-              {children}
-              <Analytics />
-            </ChatSocketRoot>
+            <AuthProvider initialUser={session?.user ?? null}>
+              <ChatSocketRoot>
+                <Suspense fallback={null}>
+                  <FaviconLoadingIndicator />
+                </Suspense>
+                {children}
+                <Toaster richColors closeButton position="top-center" />
+                <Analytics />
+              </ChatSocketRoot>
+            </AuthProvider>
           </ThemeProvider>
         </I18nProvider>
       </body>

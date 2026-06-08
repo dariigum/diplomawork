@@ -4,7 +4,8 @@ import { ThemeToggle } from '@/components/theme-toggle';
 import { Button } from '@/components/ui/button';
 import { Menu, User as UserIcon, LogOut, Globe } from 'lucide-react';
 import { Skeleton } from '@/components/ui/skeleton';
-import { getAuthSession, logoutAction } from '@/app/actions/auth';
+import { getAuthSession } from '@/app/actions/auth';
+import { LogoutButton } from '@/components/auth/logout-button';
 import { useEffect, useState } from 'react';
 import {
   DropdownMenu,
@@ -83,12 +84,10 @@ export function AdminHeader() {
                 <p className="text-xs leading-none text-muted-foreground">{user.email}</p>
               </div>
               <DropdownMenuItem asChild>
-                <form action={logoutAction} className="w-full">
-                  <button type="submit" className="w-full flex items-center text-destructive">
-                    <LogOut className="mr-2 h-4 w-4" />
-                    Logout
-                  </button>
-                </form>
+                <LogoutButton asMenuItem className="w-full flex items-center text-destructive">
+                  <LogOut className="mr-2 h-4 w-4" />
+                  Logout
+                </LogoutButton>
               </DropdownMenuItem>
             </DropdownMenuContent>
           </DropdownMenu>

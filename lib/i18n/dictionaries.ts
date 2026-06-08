@@ -96,6 +96,9 @@ export const dictionaries = {
       googleAuthFailed: 'Google sign-in failed. Please try again.',
       googleNotConfigured: 'Google sign-in is not configured.',
       googleSignupExpired: 'Google sign-up session expired. Please try again.',
+      invalidCredentials: 'Incorrect email or password. Please try again.',
+      missingCredentials: 'Please enter your email and password.',
+      loginFailed: 'Sign-in failed. Please try again.',
     },
     home: {
       findYourDreamJob: 'Find Your Dream Job',
@@ -988,6 +991,9 @@ export const dictionaries = {
       googleAuthFailed: 'Не удалось войти через Google. Попробуйте снова.',
       googleNotConfigured: 'Вход через Google не настроен.',
       googleSignupExpired: 'Сессия регистрации через Google истекла. Попробуйте снова.',
+      invalidCredentials: 'Неверный email или пароль. Попробуйте снова.',
+      missingCredentials: 'Введите email и пароль.',
+      loginFailed: 'Не удалось войти. Попробуйте снова.',
     },
     home: {
       findYourDreamJob: 'Найдите работу мечты',
@@ -1881,6 +1887,9 @@ export const dictionaries = {
       googleAuthFailed: 'Google арқылы кіру сәтсіз аяқталды. Қайта көріңіз.',
       googleNotConfigured: 'Google арқылы кіру бапталмаған.',
       googleSignupExpired: 'Google арқылы тіркелу сессиясы аяқталды. Қайта көріңіз.',
+      invalidCredentials: 'Email немесе құпия сөз дұрыс емес. Қайта көріңіз.',
+      missingCredentials: 'Email мен құпия сөзді енгізіңіз.',
+      loginFailed: 'Кіру сәтсіз аяқталды. Қайта көріңіз.',
     },
     home: {
       findYourDreamJob: 'Арманыңыздағы жұмысты табыңыз',

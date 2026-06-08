@@ -1,17 +1,24 @@
 import { Header } from "@/components/jobs/header"
-import { ToolsHubClient } from "@/components/tools/tools-hub-client"
-import { getToolsHubContext } from "@/app/actions/tools-hub"
+import { ToolsPageShell } from "@/components/tools/tools-page-shell"
+import dbConnect from "@/lib/db/mongoose"
+import { SavedVacancy } from "@/lib/db/schema"
+import { getSession } from "@/lib/auth"
 
 export const dynamic = "force-dynamic"
 
 export default async function ToolsPage() {
-  const { role, employee, employer, savedJobsCount } = await getToolsHubContext()
+  const session = await getSession()
+  let savedJobsCount = 0
+  if (session?.user.role === "EMPLOYEE") {
+    await dbConnect()
+    savedJobsCount = await SavedVacancy.countDocuments({ userId: session.user.id })
+  }
 
   return (
     <div className="min-h-screen bg-background">
       <Header savedJobsCount={savedJobsCount} />
       <main className="container mx-auto px-4 py-8">
-        <ToolsHubClient role={role === "EMPLOYEE" || role === "EMPLOYER" ? role : null} employee={employee} employer={employer} />
+        <ToolsPageShell />
       </main>
     </div>
   )

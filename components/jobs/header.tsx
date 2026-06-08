@@ -1,40 +1,42 @@
 "use client"
 
 import Link from "next/link"
-import { Briefcase, Heart, Bell, Menu, LogOut, User as UserIcon, Globe } from "lucide-react"
+import { Briefcase, Heart, Bell, Menu, LogOut, User as UserIcon } from "lucide-react"
 import { Button } from "@/components/ui/button"
 import { Badge } from "@/components/ui/badge"
 import {
   DropdownMenu,
   DropdownMenuContent,
   DropdownMenuItem,
+  DropdownMenuSeparator,
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu"
 import { useState, useEffect } from "react"
-import { getAuthSession, logoutAction } from "@/app/actions/auth"
+import { useAuth } from "@/components/auth/auth-provider"
+import { LogoutButton } from "@/components/auth/logout-button"
 import { getSavedVacanciesAction } from "@/app/actions/vacancy"
 import { SAVED_VACANCIES_UPDATED_EVENT } from "@/lib/saved-vacancies-events"
 import { CHAT_UNREAD_UPDATED_EVENT } from "@/lib/chat/chat-events"
+import { LocaleSwitcher } from "@/components/locale-switcher"
 import { ThemeToggle } from "@/components/theme-toggle"
 
 import { useChatSocket } from "@/hooks/use-chat-socket"
 import { useI18n } from "@/lib/i18n/provider"
-import { Locale } from "@/lib/i18n/dictionaries"
 
 interface HeaderProps {
   savedJobsCount: number
 }
 
 export function Header({ savedJobsCount }: HeaderProps) {
-  const { t, locale, setLocale } = useI18n();
+  const { t } = useI18n();
+  const { user, authReady } = useAuth()
   const [mounted, setMounted] = useState(false)
-  const [userRole, setUserRole] = useState<string | null>(null)
-  const [userId, setUserId] = useState<string | null>(null)
   const [savedJobsData, setSavedJobsData] = useState<any[]>([])
   const [savedCount, setSavedCount] = useState(savedJobsCount)
   const [notifications, setNotifications] = useState<any[]>([])
   const { socket, connected } = useChatSocket()
-  
+
+  const userRole = user?.role ?? null
   const isEmployee = userRole === 'EMPLOYEE'
 
   useEffect(() => {
@@ -63,32 +65,29 @@ export function Header({ savedJobsCount }: HeaderProps) {
   }
 
   useEffect(() => {
-    getAuthSession().then(session => {
-      if (!session?.user) {
-        setUserRole(null)
-        setUserId(null)
-        setSavedJobsData([])
-        setSavedCount(0)
-        setNotifications([])
-        return
-      }
-
-      setUserRole(session.user.role)
-      setUserId(session.user.id)
-      fetchUnreadChats()
-
-      if (session.user.role === 'EMPLOYEE') {
-        refreshSavedVacancies().catch(() => {
-          setSavedJobsData([])
-          setSavedCount(0)
-        })
-      } else {
-        setSavedJobsData([])
-        setSavedCount(0)
-      }
-    })
     setMounted(true)
   }, [])
+
+  useEffect(() => {
+    if (!user) {
+      setSavedJobsData([])
+      setSavedCount(0)
+      setNotifications([])
+      return
+    }
+
+    fetchUnreadChats()
+
+    if (user.role === 'EMPLOYEE') {
+      refreshSavedVacancies().catch(() => {
+        setSavedJobsData([])
+        setSavedCount(0)
+      })
+    } else {
+      setSavedJobsData([])
+      setSavedCount(0)
+    }
+  }, [user?.id, user?.role])
 
   useEffect(() => {
     if (!socket || !connected) return
@@ -131,19 +130,21 @@ export function Header({ savedJobsCount }: HeaderProps) {
   }, [isEmployee])
 
   return (
-    <header className="sticky top-0 z-50 w-full border-b border-border bg-card/95 backdrop-blur supports-[backdrop-filter]:bg-card/80">
-      <div className="container mx-auto px-4 lg:px-6">
-        <div className="flex h-16 items-center justify-between">
+    <header className="sticky top-0 z-50 w-full overflow-x-hidden border-b border-border bg-card/95 backdrop-blur supports-[backdrop-filter]:bg-card/80">
+      <div className="mx-auto w-full max-w-[100vw] px-3 sm:px-4 lg:px-6">
+        <div className="flex h-16 min-w-0 items-center justify-between gap-2">
           {/* Logo */}
-          <Link href="/welcome" className="flex items-center gap-2.5">
+          <Link href="/welcome" className="flex shrink-0 items-center gap-2">
             <div className="w-9 h-9 rounded-lg bg-primary flex items-center justify-center">
               <Briefcase className="h-5 w-5 text-primary-foreground" />
             </div>
-            <span className="text-xl font-bold text-foreground">JobFlow</span>
+            <span className="hidden text-xl font-bold text-foreground sm:inline max-lg:max-w-[5.5rem] max-lg:truncate lg:max-w-none">
+              JobFlow
+            </span>
           </Link>
 
           {/* Desktop Navigation */}
-          <nav className="hidden md:flex items-center gap-1">
+          <nav className="hidden lg:flex items-center gap-1">
             <Link href="/">
               <Button variant="ghost" className="text-muted-foreground hover:text-foreground">
                 {t.header.findJobs}
@@ -167,13 +168,13 @@ export function Header({ savedJobsCount }: HeaderProps) {
           </nav>
 
           {/* Right Side Actions */}
-          <div className="flex items-center gap-2">
+          <div className="flex min-w-0 shrink items-center gap-1 lg:gap-2">
             {isEmployee && (
               <>
                 {/* Saved Jobs Popover */}
                 <DropdownMenu onOpenChange={handleSavedPopoverChange}>
                   <DropdownMenuTrigger asChild>
-                    <Button variant="ghost" size="icon" className="relative hidden sm:flex">
+                    <Button variant="ghost" size="icon" className="relative hidden md:flex">
                       <Heart className="h-5 w-5 text-muted-foreground" />
                       {savedCount > 0 && (
                         <Badge className="absolute -top-1 -right-1 h-5 w-5 p-0 flex items-center justify-center text-xs bg-destructive text-destructive-foreground">
@@ -208,7 +209,7 @@ export function Header({ savedJobsCount }: HeaderProps) {
             {userRole && (
               <DropdownMenu>
                 <DropdownMenuTrigger asChild>
-                  <Button variant="ghost" size="icon" className="hidden sm:flex relative">
+                  <Button variant="ghost" size="icon" className="relative flex shrink-0">
                     <Bell className="h-5 w-5 text-muted-foreground" />
                     {notifications.length > 0 && (
                       <Badge className="absolute -top-1 -right-1 h-5 w-5 p-0 flex items-center justify-center text-xs bg-destructive text-destructive-foreground">
@@ -250,62 +251,36 @@ export function Header({ savedJobsCount }: HeaderProps) {
               </DropdownMenu>
             )}
 
-            {/* Language Switcher */}
-            {!mounted ? (
-              <Button variant="ghost" size="icon" className="relative">
-                <Globe className="h-5 w-5 text-muted-foreground" />
-                <span className="sr-only">Change Language</span>
-              </Button>
-            ) : (
-              <DropdownMenu>
-                <DropdownMenuTrigger asChild>
-                  <Button variant="ghost" size="icon" className="relative">
-                    <Globe className="h-5 w-5 text-muted-foreground" />
-                    <span className="sr-only">Change Language</span>
-                  </Button>
-                </DropdownMenuTrigger>
-                <DropdownMenuContent align="end">
-                  <DropdownMenuItem onClick={() => setLocale('en')} className={locale === 'en' ? 'font-bold' : ''}>
-                    English
-                  </DropdownMenuItem>
-                  <DropdownMenuItem onClick={() => setLocale('ru')} className={locale === 'ru' ? 'font-bold' : ''}>
-                    Русский
-                  </DropdownMenuItem>
-                  <DropdownMenuItem onClick={() => setLocale('kk')} className={locale === 'kk' ? 'font-bold' : ''}>
-                    Қазақша
-                  </DropdownMenuItem>
-                </DropdownMenuContent>
-              </DropdownMenu>
-            )}
+            <LocaleSwitcher />
 
             <ThemeToggle />
 
             {/* Auth Buttons */}
-            <div className="hidden sm:flex items-center gap-2 ml-2">
-              {userRole ? (
+            <div className="hidden lg:flex items-center gap-2 ml-1">
+              {!authReady ? (
+                <div className="h-9 w-36" aria-hidden />
+              ) : userRole ? (
                 <>
                   <Link href={userRole === 'ADMIN' ? '/admin' : userRole === 'EMPLOYER' ? '/dashboard/employer' : '/dashboard/employee'}>
-                    <Button variant="ghost" className="text-muted-foreground flex items-center gap-2">
+                    <Button variant="ghost" className="text-muted-foreground flex items-center gap-2 px-2">
                       <UserIcon className="h-4 w-4" />
                       {t.header.profile}
                     </Button>
                   </Link>
-                  <form action={logoutAction}>
-                    <Button variant="outline" className="text-muted-foreground hover:text-destructive flex items-center gap-2">
-                      <LogOut className="h-4 w-4" />
-                      {t.header.logout}
-                    </Button>
-                  </form>
+                  <LogoutButton className="text-muted-foreground hover:text-destructive flex items-center gap-2 px-2">
+                    <LogOut className="h-4 w-4" />
+                    {t.header.logout}
+                  </LogoutButton>
                 </>
               ) : (
                 <>
                   <Link href="/login">
-                    <Button variant="ghost" className="text-muted-foreground">
+                    <Button variant="ghost" className="text-muted-foreground px-2">
                       {t.header.login}
                     </Button>
                   </Link>
                   <Link href="/signup">
-                    <Button className="bg-primary text-primary-foreground hover:bg-primary/90">
+                    <Button className="bg-primary text-primary-foreground hover:bg-primary/90 px-3">
                       {t.header.signup}
                     </Button>
                   </Link>
@@ -315,32 +290,36 @@ export function Header({ savedJobsCount }: HeaderProps) {
 
             {/* Mobile Menu */}
             {!mounted ? (
-              <Button variant="ghost" size="icon" className="md:hidden">
+              <Button variant="ghost" size="icon" className="lg:hidden shrink-0">
                 <Menu className="h-5 w-5" />
                 <span className="sr-only">Menu</span>
               </Button>
             ) : (
               <DropdownMenu>
                 <DropdownMenuTrigger asChild>
-                  <Button variant="ghost" size="icon" className="md:hidden">
+                  <Button variant="ghost" size="icon" className="lg:hidden shrink-0">
                     <Menu className="h-5 w-5" />
                     <span className="sr-only">Menu</span>
                   </Button>
                 </DropdownMenuTrigger>
-                <DropdownMenuContent align="end" className="w-48">
-                  <DropdownMenuItem asChild>
+                <DropdownMenuContent align="end" sideOffset={12} className="w-52 p-2 pt-3">
+                  <DropdownMenuItem asChild className="mt-1 py-2.5">
                     <Link href="/" className="w-full">{t.header.findJobs}</Link>
                   </DropdownMenuItem>
-                  <DropdownMenuItem asChild>
+                  <DropdownMenuItem asChild className="py-2.5">
                     <Link href="/companies" className="w-full">{t.header.companies}</Link>
                   </DropdownMenuItem>
-                  <DropdownMenuItem asChild>
+                  <DropdownMenuItem asChild className="py-2.5">
                     <Link href="/tools" className="w-full">{t.header.tools}</Link>
                   </DropdownMenuItem>
+                  <DropdownMenuItem asChild className="py-2.5">
+                    <Link href="/resources" className="w-full">{t.header.resources}</Link>
+                  </DropdownMenuItem>
 
-                  {userRole ? (
+                  {authReady && userRole ? (
                     <>
-                      <DropdownMenuItem asChild>
+                      <DropdownMenuSeparator className="my-2" />
+                      <DropdownMenuItem asChild className="py-2.5">
                         <Link
                           href={
                             userRole === 'ADMIN'
@@ -354,13 +333,18 @@ export function Header({ savedJobsCount }: HeaderProps) {
                           {t.header.profile}
                         </Link>
                       </DropdownMenuItem>
-                      <DropdownMenuItem asChild>
-                        <form action={logoutAction} className="w-full">
-                          <button type="submit" className="w-full text-left text-destructive">{t.header.logout}</button>
-                        </form>
-                      </DropdownMenuItem>
+                      <div className="px-1 pb-1 pt-1">
+                        <LogoutButton
+                          variant="outline"
+                          size="sm"
+                          className="w-full gap-2 border-destructive/40 text-destructive hover:border-destructive/60 hover:bg-destructive/10 hover:text-destructive"
+                        >
+                          <LogOut className="h-4 w-4" />
+                          {t.header.logout}
+                        </LogoutButton>
+                      </div>
                     </>
-                  ) : (
+                  ) : authReady ? (
                     <>
                       <DropdownMenuItem asChild className="text-primary">
                         <Link href="/login" className="w-full">{t.header.login}</Link>
@@ -369,7 +353,7 @@ export function Header({ savedJobsCount }: HeaderProps) {
                         <Link href="/signup" className="w-full">{t.header.signup}</Link>
                       </DropdownMenuItem>
                     </>
-                  )}
+                  ) : null}
                 </DropdownMenuContent>
               </DropdownMenu>
             )}

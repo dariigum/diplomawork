@@ -1,6 +1,6 @@
 "use client"
 
-import { Search, MapPin, Briefcase, DollarSign, Clock, X } from "lucide-react"
+import { Search, MapPin, Briefcase, DollarSign, Clock, X, ChevronDown } from "lucide-react"
 import { Input } from "@/components/ui/input"
 import { Button } from "@/components/ui/button"
 import { Checkbox } from "@/components/ui/checkbox"
@@ -14,6 +14,8 @@ import {
 } from "@/components/ui/accordion"
 import { Badge } from "@/components/ui/badge"
 import { useI18n } from "@/lib/i18n/provider"
+import { useState } from "react"
+import { cn } from "@/lib/utils"
 
 interface FiltersSidebarProps {
   onFiltersChange: (filters: FilterState) => void
@@ -92,6 +94,13 @@ export function FiltersSidebar({
   experienceLevelOptions = [],
 }: FiltersSidebarProps) {
   const { t } = useI18n()
+  const [filtersCollapsed, setFiltersCollapsed] = useState(false)
+
+  const toggleFiltersCollapsed = () => {
+    if (typeof window !== "undefined" && window.matchMedia("(min-width: 1024px)").matches) return
+    setFiltersCollapsed((prev) => !prev)
+  }
+
   const activeFiltersCount =
     filters.locations.length +
     filters.employmentTypes.length +
@@ -124,7 +133,22 @@ export function FiltersSidebar({
   return (
     <aside className="sticky top-6 h-fit w-full min-w-0 max-w-full rounded-xl border border-border bg-card p-5 lg:w-80">
       <div className="mb-5 flex min-w-0 items-center justify-between gap-2">
-        <h2 className="min-w-0 truncate font-semibold text-lg text-foreground">{t.filters.filters}</h2>
+        <button
+          type="button"
+          className="flex min-w-0 items-center gap-2 text-left lg:cursor-default"
+          onClick={toggleFiltersCollapsed}
+          aria-expanded={!filtersCollapsed}
+          aria-controls="filters-panel-content"
+        >
+          <h2 className="min-w-0 truncate font-semibold text-lg text-foreground">{t.filters.filters}</h2>
+          <ChevronDown
+            className={cn(
+              "h-5 w-5 shrink-0 text-muted-foreground transition-transform lg:hidden",
+              filtersCollapsed && "-rotate-90",
+            )}
+            aria-hidden
+          />
+        </button>
         {activeFiltersCount > 0 && (
           <Button
             variant="ghost"
@@ -138,6 +162,10 @@ export function FiltersSidebar({
         )}
       </div>
 
+      <div
+        id="filters-panel-content"
+        className={cn(filtersCollapsed ? "hidden lg:block" : "block")}
+      >
       {/* Search */}
       <div className="relative mb-5 min-w-0">
         <Search className="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" />
@@ -305,6 +333,7 @@ export function FiltersSidebar({
             {t.filters.remoteJobsOnly}
           </Label>
         </div>
+      </div>
       </div>
     </aside>
   )

@@ -115,10 +115,10 @@ export default function VacanciesPage() {
   }
 
   return (
-    <div className="min-h-screen bg-background">
+    <div className="flex min-h-dvh flex-col bg-background">
       <Header savedJobsCount={savedJobs.length} />
-      
-      <main className="container mx-auto px-4 lg:px-6 py-6">
+
+      <main className="container mx-auto flex flex-1 flex-col px-4 py-6 lg:px-6">
         {/* Hero Section */}
         <section className="mb-8 text-center lg:text-left">
           <h1 className="text-3xl lg:text-4xl font-bold text-foreground text-balance">
@@ -132,7 +132,7 @@ export default function VacanciesPage() {
         <SemanticJobSearchPanel />
 
         {/* Main Content */}
-        <div className="flex min-w-0 flex-col gap-6 lg:flex-row">
+        <div className="flex min-h-0 min-w-0 flex-1 flex-col gap-6 lg:flex-row">
           {/* Sidebar */}
           <div className="min-w-0 w-full shrink-0 lg:w-80">
             <FiltersSidebar
@@ -146,9 +146,11 @@ export default function VacanciesPage() {
 
           {/* Job Listings */}
           {jobs.length === 0 ? (
-            <p className="min-w-0 flex-1 text-center text-muted-foreground py-12">
-              {t.home.noVacanciesPosted}
-            </p>
+            <div className="flex min-h-[40vh] min-w-0 flex-1 items-center justify-center lg:min-h-0">
+              <p className="text-center text-muted-foreground">
+                {t.home.noVacanciesPosted}
+              </p>
+            </div>
           ) : (
             <JobList
               jobs={filteredJobs}
@@ -160,7 +162,7 @@ export default function VacanciesPage() {
         </div>
       </main>
 
-      <Footer />
+      <Footer className="mt-auto" />
     </div>
   )
 }

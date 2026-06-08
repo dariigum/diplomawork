@@ -1,55 +1,25 @@
 import { Header } from "@/components/jobs/header"
 import { Footer } from "@/components/jobs/footer"
-import { CompaniesClient, type CompanyListItem } from "@/components/companies/companies-client"
-import { formatEmployerName } from "@/lib/format-employer-name"
+import { CompaniesPageShell } from "@/components/companies/companies-page-shell"
 import dbConnect from "@/lib/db/mongoose"
-import { User, Vacancy, SavedVacancy } from "@/lib/db/schema"
+import { SavedVacancy } from "@/lib/db/schema"
 import { getSession } from "@/lib/auth"
 
 export const dynamic = "force-dynamic"
 
 export default async function CompaniesPage() {
-  await dbConnect()
-
-  const employers = (await User.find({ role: "EMPLOYER" }).lean()) as Array<{
-    _id: { toString(): string }
-    industry?: string
-    description?: string
-    location?: string
-    employees?: string
-    logoUrl?: string
-    name?: string
-    companyName?: string
-  }>
-
-  const companyStats: CompanyListItem[] = await Promise.all(
-    employers.map(async (emp) => {
-      const openJobs = await Vacancy.countDocuments({ employerId: emp._id })
-      return {
-        id: emp._id.toString(),
-        name: formatEmployerName(emp),
-        // Keep public company listing honest: do not fabricate defaults.
-        industry: emp.industry || "",
-        description: emp.description || "",
-        location: emp.location || "",
-        employees: emp.employees || "",
-        openJobs,
-        logoUrl: emp.logoUrl || null,
-      }
-    }),
-  )
-
   const session = await getSession()
   let savedJobsCount = 0
   if (session?.user.role === "EMPLOYEE") {
+    await dbConnect()
     savedJobsCount = await SavedVacancy.countDocuments({ userId: session.user.id })
   }
 
   return (
-    <div className="flex flex-col min-h-screen bg-background">
+    <div className="flex min-h-screen flex-col overflow-x-hidden bg-background">
       <Header savedJobsCount={savedJobsCount} />
-      <div className="flex-grow">
-        <CompaniesClient companies={companyStats} />
+      <div className="min-w-0 flex-grow">
+        <CompaniesPageShell />
       </div>
       <Footer />
     </div>

@@ -88,7 +88,7 @@ function ArticleCard({ article }: { article: Article }) {
   return <div className="block h-full">{card}</div>
 }
 
-export default function ResourcesClient({ initialArticles }: { initialArticles: Article[] }) {
+export default function ResourcesClient({ articles }: { articles: Article[] }) {
   const { t } = useI18n()
   const [activeLang, setActiveLang] = useState<string>("ru")
   const [activeCat, setActiveCat] = useState<string>("All")
@@ -108,16 +108,16 @@ export default function ResourcesClient({ initialArticles }: { initialArticles: 
   ]
 
   const filteredArticles = useMemo(() => {
-    return initialArticles.filter((a) => {
+    return articles.filter((a) => {
       const matchLang = a.language === activeLang
       const matchCat = activeCat === "All" ? true : a.category === activeCat
       const matchEnglishTitle = activeLang === "en" ? isEnglishDisplayText(a.title) : true
       return matchLang && matchCat && matchEnglishTitle
     })
-  }, [initialArticles, activeLang, activeCat])
+  }, [articles, activeLang, activeCat])
 
   return (
-    <main className="container mx-auto px-4 py-8">
+    <main className="container mx-auto min-w-0 max-w-full overflow-x-hidden px-4 py-8">
       {/* Page Header */}
       <div className="mb-8 flex flex-col md:flex-row md:items-center justify-between gap-4">
         <div>
@@ -146,20 +146,22 @@ export default function ResourcesClient({ initialArticles }: { initialArticles: 
       </div>
 
       {/* Categories */}
-      <div className="grid sm:grid-cols-2 lg:grid-cols-6 gap-4 mb-12">
+      <div className="mb-12 grid min-w-0 grid-cols-2 gap-2 sm:gap-3 lg:grid-cols-6 lg:gap-4">
         {categoriesList.map((category) => (
           <Card 
             key={category.id} 
             onClick={() => setActiveCat(category.id)}
-            className={`hover:border-primary/50 hover:shadow-md transition-all cursor-pointer ${
+            className={`min-w-0 cursor-pointer transition-all hover:border-primary/50 hover:shadow-md ${
               activeCat === category.id ? 'border-primary shadow-sm bg-primary/5' : ''
             }`}
           >
-            <CardContent className="p-4 flex flex-col items-center text-center">
-              <div className="w-10 h-10 rounded-lg bg-primary/10 flex items-center justify-center mb-3">
-                <category.icon className="h-5 w-5 text-primary" />
+            <CardContent className="flex min-w-0 flex-row items-center gap-2 p-2.5 sm:p-3 lg:flex-col lg:items-center lg:gap-0 lg:p-4 lg:text-center">
+              <div className="flex h-8 w-8 shrink-0 items-center justify-center rounded-lg bg-primary/10 lg:mb-3 lg:h-10 lg:w-10">
+                <category.icon className="h-4 w-4 text-primary lg:h-5 lg:w-5" />
               </div>
-              <h3 className="font-semibold text-foreground text-sm">{category.title}</h3>
+              <h3 className="min-w-0 flex-1 text-left text-xs font-semibold leading-tight text-foreground sm:text-sm lg:flex-none lg:text-center">
+                {category.title}
+              </h3>
             </CardContent>
           </Card>
         ))}

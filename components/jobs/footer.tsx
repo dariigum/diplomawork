@@ -3,11 +3,12 @@
 import Link from "next/link"
 import { Briefcase } from "lucide-react"
 import { useI18n } from "@/lib/i18n/provider"
+import { cn } from "@/lib/utils"
 
-export function Footer() {
+export function Footer({ className }: { className?: string }) {
   const { t } = useI18n()
   return (
-    <footer className="border-t border-border bg-card mt-12">
+    <footer className={cn("shrink-0 border-t border-border bg-card mt-12", className)}>
       <div className="container mx-auto px-4 py-8">
         <div className="flex flex-col md:flex-row items-center justify-between gap-4">
           {/* Logo */}

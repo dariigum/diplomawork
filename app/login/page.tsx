@@ -10,12 +10,14 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/com
 import { Checkbox } from "@/components/ui/checkbox"
 import { Separator } from "@/components/ui/separator"
 import { loginAction } from "@/app/actions/auth"
+import { useAuth } from "@/components/auth/auth-provider"
 import { toast } from "sonner"
 import { useI18n } from "@/lib/i18n/provider"
 
 export default function LoginPage() {
   const { t } = useI18n()
   const router = useRouter()
+  const { refreshSession } = useAuth()
   const searchParams = useSearchParams()
   const [showPassword, setShowPassword] = useState(false)
   const [isPending, startTransition] = useTransition()
@@ -55,6 +57,7 @@ export default function LoginPage() {
       }
 
       if (res?.redirectTo) {
+        await refreshSession()
         router.push(res.redirectTo)
         router.refresh()
       }

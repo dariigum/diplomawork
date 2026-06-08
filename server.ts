@@ -6,6 +6,7 @@ import { Server } from 'socket.io';
 import { emitNewMessageEvents, setSocketIoServer } from '@/lib/socket/io-registry';
 import { attachChatSocketHandlers } from '@/lib/socket/chat-handlers';
 import { resolveSessionSecret } from '@/lib/session-jwt';
+import { tryServeResumeUpload } from '@/lib/serve-resume-upload';
 
 const dev = process.env.NODE_ENV !== 'production';
 const hostname = process.env.HOSTNAME || '0.0.0.0';
@@ -65,7 +66,11 @@ async function handleSocketPublish(req: IncomingMessage, res: ServerResponse, io
 app.prepare().then(() => {
   const httpServer = createServer((req, res) => {
     const parsedUrl = parse(req.url || '', true);
-    if (parsedUrl.pathname === '/__jobflow/socket/publish' && req.method === 'POST') {
+    const pathname = parsedUrl.pathname || '';
+    if (req.method === 'GET' && tryServeResumeUpload(pathname, res)) {
+      return;
+    }
+    if (pathname === '/__jobflow/socket/publish' && req.method === 'POST') {
       const io = (globalThis as typeof globalThis & { __JOBFLOW_SOCKET_IO__?: Server })
         .__JOBFLOW_SOCKET_IO__;
       if (!io) {

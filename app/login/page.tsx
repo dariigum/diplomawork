@@ -4,6 +4,8 @@ import { useEffect, useState, useTransition } from "react"
 import Link from "next/link"
 import { useRouter, useSearchParams } from "next/navigation"
 import { Briefcase, Eye, EyeOff, Mail, Lock } from "lucide-react"
+import { LocaleSwitcher } from "@/components/locale-switcher"
+import { ThemeToggle } from "@/components/theme-toggle"
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card"
@@ -43,8 +45,21 @@ export default function LoginPage() {
     router.replace(next ? `/login?${next}` : '/login', { scroll: false })
   }, [router, searchParams, t])
 
+  const getLoginErrorMessage = (error: string) => {
+    if (error === 'Invalid credentials') return t.auth.invalidCredentials
+    if (error === 'Missing credentials') return t.auth.missingCredentials
+    if (error === 'Failed to authenticate') return t.auth.loginFailed
+    return error
+  }
+
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault()
+
+    if (!email.trim() || !password) {
+      toast.error(t.auth.missingCredentials)
+      return
+    }
+
     startTransition(async () => {
       const data = new FormData()
       data.append('email', email)
@@ -52,7 +67,7 @@ export default function LoginPage() {
       
       const res = await loginAction(data)
       if (res?.error) {
-        toast.error(res.error)
+        toast.error(getLoginErrorMessage(res.error))
         return
       }
 
@@ -69,13 +84,18 @@ export default function LoginPage() {
   return (
     <div className="min-h-screen bg-background flex items-center justify-center p-4">
       <div className="w-full max-w-md">
-        {/* Logo */}
-        <Link href="/" className="flex items-center justify-center gap-2.5 mb-8">
-          <div className="w-10 h-10 rounded-lg bg-primary flex items-center justify-center">
-            <Briefcase className="h-6 w-6 text-primary-foreground" />
+        <div className="mb-8 flex items-center justify-between gap-3">
+          <Link href="/" className="flex min-w-0 items-center gap-2.5">
+            <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-lg bg-primary">
+              <Briefcase className="h-6 w-6 text-primary-foreground" />
+            </div>
+            <span className="truncate text-2xl font-bold text-foreground">JobFlow</span>
+          </Link>
+          <div className="flex shrink-0 items-center gap-1">
+            <LocaleSwitcher />
+            <ThemeToggle />
           </div>
-          <span className="text-2xl font-bold text-foreground">JobFlow</span>
-        </Link>
+        </div>
 
         <Card>
           <CardHeader className="text-center">

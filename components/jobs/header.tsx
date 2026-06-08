@@ -1,13 +1,14 @@
 "use client"
 
 import Link from "next/link"
-import { Briefcase, Heart, Bell, Menu, LogOut, User as UserIcon, Globe } from "lucide-react"
+import { Briefcase, Heart, Bell, Menu, LogOut, User as UserIcon } from "lucide-react"
 import { Button } from "@/components/ui/button"
 import { Badge } from "@/components/ui/badge"
 import {
   DropdownMenu,
   DropdownMenuContent,
   DropdownMenuItem,
+  DropdownMenuSeparator,
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu"
 import { useState, useEffect } from "react"
@@ -16,18 +17,18 @@ import { LogoutButton } from "@/components/auth/logout-button"
 import { getSavedVacanciesAction } from "@/app/actions/vacancy"
 import { SAVED_VACANCIES_UPDATED_EVENT } from "@/lib/saved-vacancies-events"
 import { CHAT_UNREAD_UPDATED_EVENT } from "@/lib/chat/chat-events"
+import { LocaleSwitcher } from "@/components/locale-switcher"
 import { ThemeToggle } from "@/components/theme-toggle"
 
 import { useChatSocket } from "@/hooks/use-chat-socket"
 import { useI18n } from "@/lib/i18n/provider"
-import { Locale } from "@/lib/i18n/dictionaries"
 
 interface HeaderProps {
   savedJobsCount: number
 }
 
 export function Header({ savedJobsCount }: HeaderProps) {
-  const { t, locale, setLocale } = useI18n();
+  const { t } = useI18n();
   const { user, authReady } = useAuth()
   const [mounted, setMounted] = useState(false)
   const [savedJobsData, setSavedJobsData] = useState<any[]>([])
@@ -250,33 +251,7 @@ export function Header({ savedJobsCount }: HeaderProps) {
               </DropdownMenu>
             )}
 
-            {/* Language Switcher */}
-            {!mounted ? (
-              <Button variant="ghost" size="icon" className="relative">
-                <Globe className="h-5 w-5 text-muted-foreground" />
-                <span className="sr-only">Change Language</span>
-              </Button>
-            ) : (
-              <DropdownMenu>
-                <DropdownMenuTrigger asChild>
-                  <Button variant="ghost" size="icon" className="relative">
-                    <Globe className="h-5 w-5 text-muted-foreground" />
-                    <span className="sr-only">Change Language</span>
-                  </Button>
-                </DropdownMenuTrigger>
-                <DropdownMenuContent align="end">
-                  <DropdownMenuItem onClick={() => setLocale('en')} className={locale === 'en' ? 'font-bold' : ''}>
-                    English
-                  </DropdownMenuItem>
-                  <DropdownMenuItem onClick={() => setLocale('ru')} className={locale === 'ru' ? 'font-bold' : ''}>
-                    Русский
-                  </DropdownMenuItem>
-                  <DropdownMenuItem onClick={() => setLocale('kk')} className={locale === 'kk' ? 'font-bold' : ''}>
-                    Қазақша
-                  </DropdownMenuItem>
-                </DropdownMenuContent>
-              </DropdownMenu>
-            )}
+            <LocaleSwitcher />
 
             <ThemeToggle />
 
@@ -327,23 +302,24 @@ export function Header({ savedJobsCount }: HeaderProps) {
                     <span className="sr-only">Menu</span>
                   </Button>
                 </DropdownMenuTrigger>
-                <DropdownMenuContent align="end" className="w-48">
-                  <DropdownMenuItem asChild>
+                <DropdownMenuContent align="end" sideOffset={12} className="w-52 p-2 pt-3">
+                  <DropdownMenuItem asChild className="mt-1 py-2.5">
                     <Link href="/" className="w-full">{t.header.findJobs}</Link>
                   </DropdownMenuItem>
-                  <DropdownMenuItem asChild>
+                  <DropdownMenuItem asChild className="py-2.5">
                     <Link href="/companies" className="w-full">{t.header.companies}</Link>
                   </DropdownMenuItem>
-                  <DropdownMenuItem asChild>
+                  <DropdownMenuItem asChild className="py-2.5">
                     <Link href="/tools" className="w-full">{t.header.tools}</Link>
                   </DropdownMenuItem>
-                  <DropdownMenuItem asChild>
+                  <DropdownMenuItem asChild className="py-2.5">
                     <Link href="/resources" className="w-full">{t.header.resources}</Link>
                   </DropdownMenuItem>
 
                   {authReady && userRole ? (
                     <>
-                      <DropdownMenuItem asChild>
+                      <DropdownMenuSeparator className="my-2" />
+                      <DropdownMenuItem asChild className="py-2.5">
                         <Link
                           href={
                             userRole === 'ADMIN'
@@ -357,9 +333,16 @@ export function Header({ savedJobsCount }: HeaderProps) {
                           {t.header.profile}
                         </Link>
                       </DropdownMenuItem>
-                      <DropdownMenuItem asChild>
-                        <LogoutButton asMenuItem>{t.header.logout}</LogoutButton>
-                      </DropdownMenuItem>
+                      <div className="px-1 pb-1 pt-1">
+                        <LogoutButton
+                          variant="outline"
+                          size="sm"
+                          className="w-full gap-2 border-destructive/40 text-destructive hover:border-destructive/60 hover:bg-destructive/10 hover:text-destructive"
+                        >
+                          <LogOut className="h-4 w-4" />
+                          {t.header.logout}
+                        </LogoutButton>
+                      </div>
                     </>
                   ) : authReady ? (
                     <>

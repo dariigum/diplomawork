@@ -36,6 +36,7 @@ import { I18nProvider } from '@/lib/i18n/provider'
 import { ChatSocketRoot } from '@/components/chat/chat-socket-root'
 import { AuthProvider } from '@/components/auth/auth-provider'
 import { FaviconLoadingIndicator } from '@/components/favicon-loading-indicator'
+import { Toaster } from '@/components/ui/sonner'
 import { Suspense } from 'react'
 
 export default async function RootLayout({
@@ -63,6 +64,7 @@ export default async function RootLayout({
                   <FaviconLoadingIndicator />
                 </Suspense>
                 {children}
+                <Toaster richColors closeButton position="top-center" />
                 <Analytics />
               </ChatSocketRoot>
             </AuthProvider>

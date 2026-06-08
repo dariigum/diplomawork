@@ -15,9 +15,10 @@ function serverActionAllowedOrigins() {
 const nextConfig = {
   experimental: {
     serverActions: {
-      bodySizeLimit: '10mb',
+      bodySizeLimit: '25mb',
       allowedOrigins: serverActionAllowedOrigins(),
     },
+    proxyClientMaxBodySize: '25mb',
   },
   images: {
     unoptimized: true,

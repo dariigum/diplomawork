@@ -14,8 +14,10 @@ export const SALARY_FILTER_MAX = SALARY_FILTER_STEPS[SALARY_FILTER_STEPS.length 
 
 export const DEFAULT_SALARY_RANGE: [number, number] = [0, SALARY_FILTER_MAX]
 
-export function snapSalaryToStep(value: number): number {
-  let closest = SALARY_FILTER_STEPS[0]
+type SalaryFilterStep = (typeof SALARY_FILTER_STEPS)[number]
+
+export function snapSalaryToStep(value: number): SalaryFilterStep {
+  let closest: SalaryFilterStep = SALARY_FILTER_STEPS[0]
   let minDiff = Math.abs(value - closest)
   for (const step of SALARY_FILTER_STEPS) {
     const diff = Math.abs(value - step)
@@ -28,8 +30,8 @@ export function snapSalaryToStep(value: number): number {
 }
 
 export function salaryRangeToSliderIndices(range: [number, number]): [number, number] {
-  const minIndex = SALARY_FILTER_STEPS.indexOf(snapSalaryToStep(range[0]) as (typeof SALARY_FILTER_STEPS)[number])
-  const maxIndex = SALARY_FILTER_STEPS.indexOf(snapSalaryToStep(range[1]) as (typeof SALARY_FILTER_STEPS)[number])
+  const minIndex = SALARY_FILTER_STEPS.indexOf(snapSalaryToStep(range[0]))
+  const maxIndex = SALARY_FILTER_STEPS.indexOf(snapSalaryToStep(range[1]))
   return [
     minIndex === -1 ? 0 : minIndex,
     maxIndex === -1 ? SALARY_FILTER_STEPS.length - 1 : maxIndex,

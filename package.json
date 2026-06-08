@@ -13,6 +13,7 @@
     "seed:eval-cohort": "tsx scripts/seed-eval-cohort.ts",
     "seed:articles": "tsx scripts/seed-articles.ts",
     "eval:recommendations": "tsx scripts/eval-recommendations.ts",
+    "prune:vacancy-sources": "tsx scripts/prune-invalid-vacancy-sources.ts",
     "test": "vitest run",
     "test:watch": "vitest",
     "test:ui": "vitest --ui"
@@ -77,6 +78,7 @@
     "tailwind-merge": "^3.3.1",
     "tsx": "^4.21.0",
     "vaul": "^1.1.2",
+    "xlsx": "^0.18.5",
     "zod": "^3.24.1"
   },
   "devDependencies": {

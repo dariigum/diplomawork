@@ -17,6 +17,7 @@ import { Search, Loader2, CheckCircle2, XCircle, ChevronLeft, ChevronRight } fro
 import { format } from 'date-fns';
 import { toast } from 'sonner';
 import { useI18n } from '@/lib/i18n/provider';
+import { ImportEmployersButton } from '@/components/admin/import-employers-button';
 
 export default function AdminEmployersPage() {
   const { t, locale } = useI18n();
@@ -25,6 +26,7 @@ export default function AdminEmployersPage() {
   const [search, setSearch] = useState('');
   const [page, setPage] = useState(1);
   const [totalPages, setTotalPages] = useState(1);
+  const [refreshKey, setRefreshKey] = useState(0);
   const limit = 50;
 
   useEffect(() => {
@@ -52,13 +54,17 @@ export default function AdminEmployersPage() {
     
     const timeout = setTimeout(fetchEmployers, 300);
     return () => clearTimeout(timeout);
-  }, [search, page]);
+  }, [search, page, refreshKey]);
 
   return (
     <div className="flex flex-col gap-6">
-      <div>
-        <h1 className="text-3xl font-bold tracking-tight">{t.admin.employers.title}</h1>
-        <p className="text-muted-foreground">{t.admin.employers.subtitle}</p>
+      <div className="flex flex-col gap-4 sm:flex-row sm:items-start sm:justify-between">
+        <div>
+          <h1 className="text-3xl font-bold tracking-tight">{t.admin.employers.title}</h1>
+          <p className="text-muted-foreground">{t.admin.employers.subtitle}</p>
+          <p className="mt-2 text-sm text-muted-foreground">{t.admin.employers.importEmployersHint}</p>
+        </div>
+        <ImportEmployersButton onImported={() => setRefreshKey((value) => value + 1)} />
       </div>
 
       <Card>

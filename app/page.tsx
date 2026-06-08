@@ -4,9 +4,10 @@ import { useState, useMemo, useEffect } from "react"
 import { Header } from "@/components/jobs/header"
 import { Footer } from "@/components/jobs/footer"
 import { FiltersSidebar, type FilterState } from "@/components/jobs/filters-sidebar"
-import { JobList } from "@/components/jobs/job-list"
+import { JobList, JobListHeader, type SortOption } from "@/components/jobs/job-list"
 import { SemanticJobSearchPanel } from "@/components/jobs/semantic-job-search-panel"
 import { getHomeData, toggleSaveVacancyAction } from "@/app/actions/vacancy"
+import { DEFAULT_SALARY_RANGE, isDefaultSalaryRange, jobSalaryOverlapsFilter } from "@/lib/salary-filter-steps"
 import { emitSavedVacanciesUpdated } from "@/lib/saved-vacancies-events"
 import { toast } from "sonner"
 
@@ -17,7 +18,7 @@ const initialFilters: FilterState = {
   locations: [],
   employmentTypes: [],
   experienceLevels: [],
-  salaryRange: [0, 200],
+  salaryRange: [...DEFAULT_SALARY_RANGE],
   remoteOnly: false,
 }
 
@@ -32,6 +33,7 @@ export default function VacanciesPage() {
     employmentTypes: [],
     experienceLevels: [],
   })
+  const [sortBy, setSortBy] = useState<SortOption>("newest")
   
   useEffect(() => {
     getHomeData().then(data => {
@@ -76,12 +78,8 @@ export default function VacanciesPage() {
       }
 
       // Salary range filter
-      const salaryMatch = job.salary.match(/\$(\d+),?(\d*)/g)
-      if (salaryMatch) {
-        const minSalary = parseInt(salaryMatch[0].replace(/[^0-9]/g, "")) / 1000
-        if (minSalary < filters.salaryRange[0] || minSalary > filters.salaryRange[1]) {
-          return false
-        }
+      if (!isDefaultSalaryRange(filters.salaryRange) && !jobSalaryOverlapsFilter(job.salary, filters.salaryRange)) {
+        return false
       }
 
       // Remote only filter
@@ -129,36 +127,48 @@ export default function VacanciesPage() {
           </p>
         </section>
 
-        <SemanticJobSearchPanel />
+        <div className="min-w-0 flex-1 space-y-6">
+          <SemanticJobSearchPanel />
 
-        {/* Main Content */}
-        <div className="flex min-h-0 min-w-0 flex-1 flex-col gap-6 lg:flex-row">
-          {/* Sidebar */}
-          <div className="min-w-0 w-full shrink-0 lg:w-80">
-            <FiltersSidebar
-              filters={filters}
-              onFiltersChange={setFilters}
-              locationOptions={filterOptions.locations}
-              employmentTypeOptions={filterOptions.employmentTypes}
-              experienceLevelOptions={filterOptions.experienceLevels}
+          {jobs.length > 0 ? (
+            <JobListHeader
+              jobsCount={filteredJobs.length}
+              sortBy={sortBy}
+              onSortByChange={setSortBy}
             />
-          </div>
+          ) : null}
 
-          {/* Job Listings */}
-          {jobs.length === 0 ? (
-            <div className="flex min-h-[40vh] min-w-0 flex-1 items-center justify-center lg:min-h-0">
-              <p className="text-center text-muted-foreground">
-                {t.home.noVacanciesPosted}
-              </p>
+          <div className="grid min-w-0 gap-6 lg:grid-cols-[20rem_1fr] lg:items-start">
+            <aside className="min-w-0 lg:sticky lg:top-20 lg:self-start">
+              <FiltersSidebar
+                filters={filters}
+                onFiltersChange={setFilters}
+                locationOptions={filterOptions.locations}
+                employmentTypeOptions={filterOptions.employmentTypes}
+                experienceLevelOptions={filterOptions.experienceLevels}
+              />
+            </aside>
+
+            <div className="min-w-0">
+              {jobs.length === 0 ? (
+                <div className="flex min-h-[40vh] items-center justify-center lg:min-h-0">
+                  <p className="text-center text-muted-foreground">
+                    {t.home.noVacanciesPosted}
+                  </p>
+                </div>
+              ) : (
+                <JobList
+                  jobs={filteredJobs}
+                  savedJobs={savedJobs}
+                  onSaveJob={handleSaveJob}
+                  canApply={viewerRole !== "EMPLOYER"}
+                  showHeader={false}
+                  sortBy={sortBy}
+                  onSortByChange={setSortBy}
+                />
+              )}
             </div>
-          ) : (
-            <JobList
-              jobs={filteredJobs}
-              savedJobs={savedJobs}
-              onSaveJob={handleSaveJob}
-              canApply={viewerRole !== "EMPLOYER"}
-            />
-          )}
+          </div>
         </div>
       </main>
 

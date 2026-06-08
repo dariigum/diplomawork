@@ -13,71 +13,101 @@ import { ensureActiveResumeForUser } from '@/lib/active-resume';
 import fs from 'fs';
 import path from 'path';
 
-async function saveFile(file: File) {
-  if (!file || file.size === 0) return null;
-  const arrayBuffer = await file.arrayBuffer();
-  const buffer = Buffer.from(arrayBuffer);
-  const fileName = `${Date.now()}-${file.name.replace(/\s+/g, '-')}`;
-  const uploadDir = path.join(process.cwd(), 'public', 'uploads', 'resumes');
-  const uploadPath = path.join(uploadDir, fileName);
-  await fs.promises.mkdir(uploadDir, { recursive: true });
-  await fs.promises.writeFile(uploadPath, buffer);
-  return `/uploads/resumes/${fileName}`;
+function isUploadableFile(value: FormDataEntryValue | null): value is File {
+  return (
+    value != null &&
+    typeof value === 'object' &&
+    'arrayBuffer' in value &&
+    typeof (value as File).arrayBuffer === 'function' &&
+    (value as File).size > 0
+  );
 }
 
-export async function createResumeAction(formData: FormData) {
-  const session = await getSession();
-  if (!session || session.user.role !== 'EMPLOYEE') throw new Error('Unauthorized');
+async function saveFile(file: File): Promise<string | null> {
+  if (!isUploadableFile(file)) return null;
 
-  const title = formData.get('title') as string;
-  const skills = formData.get('skills') as string;
-  const experience = formData.get('experience') as string;
-  const education = formData.get('education') as string;
-  const cvLink = formData.get('cvLink') as string;
-  const cvFile = formData.get('cvFile') as File | null;
-  const phone = formData.get('phone') as string;
-  const telegram = formData.get('telegram') as string;
-  const linkedin = formData.get('linkedin') as string;
-  const github = formData.get('github') as string;
-
-  if (!title || !skills) throw new Error('Missing required fields');
-
-  let cvFilePath = null;
-  if (cvFile) {
-    cvFilePath = await saveFile(cvFile);
-  }
-
-  let embedding: number[] | undefined = undefined;
   try {
-    const text = buildResumeEmbeddingText({ title, skills, experience, education });
-    embedding = await getEmbedding(text);
-  } catch (e) {
-    console.warn('[JobFlow] ML service unavailable, resume saved without embedding.', e);
+    const arrayBuffer = await file.arrayBuffer();
+    const buffer = Buffer.from(arrayBuffer);
+    const fileName = `${Date.now()}-${file.name.replace(/\s+/g, '-')}`;
+    const uploadDir = path.join(process.cwd(), 'public', 'uploads', 'resumes');
+    const uploadPath = path.join(uploadDir, fileName);
+    await fs.promises.mkdir(uploadDir, { recursive: true });
+    await fs.promises.writeFile(uploadPath, buffer);
+    return `/uploads/resumes/${fileName}`;
+  } catch (error) {
+    console.error('[JobFlow] Failed to save resume upload.', error);
+    return null;
+  }
+}
+
+export async function createResumeAction(
+  formData: FormData,
+): Promise<{ success: true } | { success: false; error: string }> {
+  const session = await getSession();
+  if (!session || session.user.role !== 'EMPLOYEE') {
+    return { success: false, error: 'Unauthorized' };
   }
 
-  await dbConnect();
-  const existingCount = await Resume.countDocuments({ userId: session.user.id });
-  const activeForAi = existingCount === 0;
+  const title = (formData.get('title') as string)?.trim();
+  const skills = (formData.get('skills') as string)?.trim();
+  const experience = (formData.get('experience') as string)?.trim() ?? '';
+  const education = (formData.get('education') as string)?.trim() ?? '';
+  const cvLink = (formData.get('cvLink') as string)?.trim() ?? '';
+  const cvFile = formData.get('cvFile');
+  const phone = (formData.get('phone') as string)?.trim() ?? '';
+  const telegram = (formData.get('telegram') as string)?.trim() ?? '';
+  const linkedin = (formData.get('linkedin') as string)?.trim() ?? '';
+  const github = (formData.get('github') as string)?.trim() ?? '';
 
-  await Resume.create({
-    userId: toObjectId(session.user.id),
-    title,
-    skills,
-    experience: experience || '',
-    education: education || '',
-    activeForAi,
-    ...(embedding ? { embedding } : {}),
-    cvLink: cvLink || '',
-    cvFile: cvFilePath || '',
-    phone: phone || '',
-    telegram: telegram || '',
-    linkedin: linkedin || '',
-    github: github || '',
-  });
+  if (!title || !skills) {
+    return { success: false, error: 'Missing required fields' };
+  }
 
-  revalidatePath('/dashboard/employee');
-  revalidatePath('/dashboard/employee/recommendations');
-  redirect('/dashboard/employee');
+  try {
+    let cvFilePath: string | null = null;
+    if (isUploadableFile(cvFile)) {
+      cvFilePath = await saveFile(cvFile);
+      if (!cvFilePath) {
+        return { success: false, error: 'Could not save uploaded CV file' };
+      }
+    }
+
+    let embedding: number[] | undefined = undefined;
+    try {
+      const text = buildResumeEmbeddingText({ title, skills, experience, education });
+      embedding = await getEmbedding(text);
+    } catch (e) {
+      console.warn('[JobFlow] ML service unavailable, resume saved without embedding.', e);
+    }
+
+    await dbConnect();
+    const existingCount = await Resume.countDocuments({ userId: session.user.id });
+    const activeForAi = existingCount === 0;
+
+    await Resume.create({
+      userId: toObjectId(session.user.id),
+      title,
+      skills,
+      experience,
+      education,
+      activeForAi,
+      ...(embedding ? { embedding } : {}),
+      cvLink,
+      cvFile: cvFilePath || '',
+      phone,
+      telegram,
+      linkedin,
+      github,
+    });
+
+    revalidatePath('/dashboard/employee');
+    revalidatePath('/dashboard/employee/recommendations');
+    return { success: true };
+  } catch (error) {
+    console.error('[JobFlow] createResumeAction failed.', error);
+    return { success: false, error: 'Failed to create resume' };
+  }
 }
 
 export async function updateResumeAction(formData: FormData) {
@@ -137,24 +167,40 @@ export async function updateResumeAction(formData: FormData) {
   redirect('/dashboard/employee');
 }
 
-export async function deleteResumeAction(formData: FormData) {
+export async function deleteResumeAction(
+  formData: FormData,
+): Promise<{ success: true } | { success: false; error: string }> {
   const session = await getSession();
-  if (!session || session.user.role !== 'EMPLOYEE') throw new Error('Unauthorized');
-
-  const id = formData.get('id') as string;
-  if (!id) throw new Error('Missing resume id');
-
-  await dbConnect();
-  const toDelete = await Resume.findOne({ _id: id, userId: session.user.id }).select('activeForAi').lean() as {
-    activeForAi?: boolean
-  } | null
-  await Resume.findOneAndDelete({ _id: id, userId: session.user.id });
-  if (toDelete?.activeForAi) {
-    await ensureActiveResumeForUser(session.user.id);
+  if (!session || session.user.role !== 'EMPLOYEE') {
+    return { success: false, error: 'Unauthorized' };
   }
 
-  revalidatePath('/dashboard/employee');
-  revalidatePath('/dashboard/employee/recommendations');
+  const id = formData.get('id') as string;
+  if (!id) {
+    return { success: false, error: 'Missing resume id' };
+  }
+
+  try {
+    await dbConnect();
+    const toDelete = await Resume.findOne({ _id: id, userId: session.user.id }).select('activeForAi').lean() as {
+      activeForAi?: boolean
+    } | null
+
+    if (!toDelete) {
+      return { success: false, error: 'Resume not found' };
+    }
+
+    await Resume.findOneAndDelete({ _id: id, userId: session.user.id });
+    if (toDelete.activeForAi) {
+      await ensureActiveResumeForUser(session.user.id);
+    }
+
+    revalidatePath('/dashboard/employee');
+    revalidatePath('/dashboard/employee/recommendations');
+    return { success: true };
+  } catch {
+    return { success: false, error: 'Failed to delete resume' };
+  }
 }
 
 export async function deleteEmployeeAccountAction() {
@@ -203,25 +249,36 @@ export async function deleteEmployeeAccountAction() {
   redirect('/signup');
 }
 
-export async function updateEmployeeProfileAction(formData: FormData) {
+export async function updateEmployeeProfileAction(
+  formData: FormData,
+): Promise<{ success: true } | { success: false; error: string }> {
   const session = await getSession();
-  if (!session || session.user.role !== 'EMPLOYEE') throw new Error('Unauthorized');
+  if (!session || session.user.role !== 'EMPLOYEE') {
+    return { success: false, error: 'Unauthorized' };
+  }
 
   const firstName = (formData.get('firstName') as string)?.trim();
   const lastName = (formData.get('lastName') as string)?.trim();
   const location = (formData.get('location') as string)?.trim();
 
-  if (!firstName || !lastName) throw new Error('First and last name are required');
+  if (!firstName || !lastName) {
+    return { success: false, error: 'First and last name are required' };
+  }
 
   const name = `${firstName} ${lastName}`.trim();
 
-  await dbConnect();
-  await User.findByIdAndUpdate(session.user.id, {
-    name,
-    location: location || '',
-  });
+  try {
+    await dbConnect();
+    await User.findByIdAndUpdate(session.user.id, {
+      name,
+      location: location || '',
+    });
 
-  revalidatePath('/dashboard/employee');
+    revalidatePath('/dashboard/employee');
+    return { success: true };
+  } catch {
+    return { success: false, error: 'Failed to update profile' };
+  }
 }
 
 export async function getEmployeeResumesAction() {

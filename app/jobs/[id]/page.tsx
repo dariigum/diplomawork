@@ -1,6 +1,7 @@
 import Link from "next/link"
 import { cookies } from "next/headers"
-import { ArrowLeft, MapPin, Clock, Briefcase, Heart, Wifi, Building2, Calendar, Globe, Share2, Flag, ExternalLink } from "lucide-react"
+import { ArrowLeft, MapPin, Clock, Briefcase, Wifi, Building2, Calendar, Globe, ExternalLink } from "lucide-react"
+import { ReportJobDialog } from "@/components/jobs/report-job-dialog"
 import { Button } from "@/components/ui/button"
 import { Badge } from "@/components/ui/badge"
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
@@ -11,7 +12,7 @@ import dbConnect from "@/lib/db/mongoose"
 import { Vacancy, SavedVacancy } from "@/lib/db/schema"
 import { getSession } from "@/lib/auth"
 import { recordVacancyBehaviourEvent } from "@/lib/vacancy-behaviour-events"
-import { buildVacancyDetailView } from "@/lib/vacancy-detail-display"
+import { buildVacancyDetailView, resolveVacancySourceListing } from "@/lib/vacancy-detail-display"
 import { getDictionary } from "@/lib/i18n/dictionaries"
 
 export const dynamic = "force-dynamic"
@@ -64,7 +65,17 @@ export default async function JobDetailsPage({
     })
   }
 
-  const view = buildVacancyDetailView(jobRecord, id)
+  const baseView = buildVacancyDetailView(jobRecord, id)
+  const sourceListing = await resolveVacancySourceListing(jobRecord.sourceUrl)
+  const view = { ...baseView, sourceListing }
+  const showMetadataBanner = sourceListing != null && baseView.metadataIncomplete
+
+  const rawSourceUrl =
+    typeof jobRecord.sourceUrl === "string" ? jobRecord.sourceUrl.trim() : ""
+  if (rawSourceUrl && !sourceListing) {
+    Vacancy.updateOne({ _id: id }, { $unset: { sourceUrl: 1 } }).catch(() => {})
+  }
+
   const showListSections = view.showResponsibilitiesSection || view.showRequirementsSection
   const showCompanyMeta =
     view.companyIndustry != null ||
@@ -85,7 +96,7 @@ export default async function JobDetailsPage({
           {backLabel}
         </Link>
 
-        {view.metadataIncomplete ? (
+        {showMetadataBanner ? (
           <p className="mb-4 text-sm text-muted-foreground rounded-lg border border-border/60 bg-muted/30 px-3 py-2">
             {t.jobs.metadataIncomplete}
           </p>
@@ -100,19 +111,9 @@ export default async function JobDetailsPage({
                     {view.companyLogoMark}
                   </div>
                   <div className="flex-1 min-w-0">
-                    <div className="flex items-start justify-between gap-3">
-                      <div className="min-w-0">
-                        <h1 className="text-2xl font-bold text-foreground break-words">{view.title}</h1>
-                        <p className="text-lg text-muted-foreground mt-1 break-words">{view.companyName}</p>
-                      </div>
-                      <div className="flex gap-2 shrink-0">
-                        <Button variant="ghost" size="icon" type="button" aria-label={t.common.save}>
-                          <Heart className="h-5 w-5" />
-                        </Button>
-                        <Button variant="ghost" size="icon" type="button" aria-label={t.common.save}>
-                          <Share2 className="h-5 w-5" />
-                        </Button>
-                      </div>
+                    <div className="min-w-0">
+                      <h1 className="text-2xl font-bold text-foreground break-words">{view.title}</h1>
+                      <p className="text-lg text-muted-foreground mt-1 break-words">{view.companyName}</p>
                     </div>
 
                     <div className="flex flex-wrap items-center gap-4 mt-4 text-sm text-muted-foreground">
@@ -293,13 +294,7 @@ export default async function JobDetailsPage({
               </CardContent>
             </Card>
 
-            <button
-              type="button"
-              className="flex items-center gap-2 text-sm text-muted-foreground hover:text-foreground transition-colors mx-auto"
-            >
-              <Flag className="h-4 w-4" />
-              {t.jobs.reportJob}
-            </button>
+            <ReportJobDialog vacancyId={view.vacancyId} jobTitle={view.title} />
           </div>
         </div>
       </main>

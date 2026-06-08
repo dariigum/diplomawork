@@ -1,16 +1,14 @@
 'use client';
 
 import Link from 'next/link';
-import { useState } from 'react';
+import { useEffect, useState, useTransition } from 'react';
+import { toast } from 'sonner';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { DeleteEmployeeAccountButton } from '@/components/dashboard/delete-employee-account-button';
-import {
-  deleteResumeAction,
-  setActiveResumeForAiAction,
-  updateEmployeeProfileAction,
-} from '@/app/actions/employee';
+import { DeleteResumeButton } from '@/components/dashboard/delete-resume-button';
+import { setActiveResumeForAiAction, updateEmployeeProfileAction } from '@/app/actions/employee';
 import { useI18n } from '@/lib/i18n/provider';
 import { Badge } from '@/components/ui/badge';
 
@@ -47,7 +45,42 @@ export function EmployeeProfileSection({
 }: EmployeeProfileProps) {
   const { t } = useI18n();
   const [isEditingProfile, setIsEditingProfile] = useState(false);
-  const nameParts = splitDisplayName(userName);
+  const [isProfilePending, startProfileTransition] = useTransition();
+  const [displayName, setDisplayName] = useState(userName);
+  const [displayLocation, setDisplayLocation] = useState(userLocation);
+  const [resumeList, setResumeList] = useState(resumes);
+  const nameParts = splitDisplayName(displayName);
+
+  useEffect(() => {
+    setDisplayName(userName);
+    setDisplayLocation(userLocation);
+  }, [userName, userLocation]);
+
+  useEffect(() => {
+    setResumeList(resumes);
+  }, [resumes]);
+
+  const handleProfileSubmit = (event: React.FormEvent<HTMLFormElement>) => {
+    event.preventDefault();
+    const formData = new FormData(event.currentTarget);
+
+    startProfileTransition(async () => {
+      const result = await updateEmployeeProfileAction(formData);
+      if (!result.success) {
+        toast.error(result.error);
+        return;
+      }
+
+      const firstName = (formData.get('firstName') as string)?.trim() ?? '';
+      const lastName = (formData.get('lastName') as string)?.trim() ?? '';
+      const location = (formData.get('location') as string)?.trim() ?? '';
+
+      setDisplayName(`${firstName} ${lastName}`.trim());
+      setDisplayLocation(location);
+      setIsEditingProfile(false);
+      toast.success(t.dashboard.profileUpdated);
+    });
+  };
 
   return (
     <div className="space-y-8">
@@ -58,7 +91,7 @@ export function EmployeeProfileSection({
           </CardHeader>
           <CardContent className="space-y-4">
             {isEditingProfile ? (
-              <form action={updateEmployeeProfileAction} className="space-y-4">
+              <form onSubmit={handleProfileSubmit} className="space-y-4">
                 <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
                   <div className="space-y-2">
                     <label htmlFor="firstName" className="text-sm font-medium">
@@ -90,7 +123,7 @@ export function EmployeeProfileSection({
                   <Input
                     id="location"
                     name="location"
-                    defaultValue={userLocation}
+                    defaultValue={displayLocation}
                     placeholder={t.dashboard.profileLocationPlaceholder}
                   />
                 </div>
@@ -99,10 +132,13 @@ export function EmployeeProfileSection({
                   <p className="font-medium">{userEmail}</p>
                 </div>
                 <div className="flex flex-wrap gap-2">
-                  <Button type="submit">{t.dashboard.saveProfile}</Button>
+                  <Button type="submit" disabled={isProfilePending}>
+                    {t.dashboard.saveProfile}
+                  </Button>
                   <Button
                     type="button"
                     variant="outline"
+                    disabled={isProfilePending}
                     onClick={() => setIsEditingProfile(false)}
                   >
                     {t.common.cancel}
@@ -113,12 +149,12 @@ export function EmployeeProfileSection({
               <>
                 <div>
                   <p className="text-sm text-muted-foreground">{t.dashboard.name}</p>
-                  <p className="font-medium">{userName}</p>
+                  <p className="font-medium">{displayName}</p>
                 </div>
-                {userLocation ? (
+                {displayLocation ? (
                   <div>
                     <p className="text-sm text-muted-foreground">{t.dashboard.profileLocation}</p>
-                    <p className="font-medium">{userLocation}</p>
+                    <p className="font-medium">{displayLocation}</p>
                   </div>
                 ) : null}
                 <div>
@@ -142,11 +178,11 @@ export function EmployeeProfileSection({
             </Button>
           </CardHeader>
           <CardContent>
-            {resumes.length === 0 ? (
+            {resumeList.length === 0 ? (
               <p className="mt-4 text-sm text-muted-foreground">{t.dashboard.noResumesYet}</p>
             ) : (
               <ul className="mt-4 space-y-4">
-                {resumes.map((r) => (
+                {resumeList.map((r) => (
                   <li
                     key={r.id}
                     className="flex flex-col gap-3 rounded-lg border p-4 sm:flex-row sm:items-start sm:justify-between"
@@ -207,12 +243,13 @@ export function EmployeeProfileSection({
                         <Button variant="secondary" size="sm" asChild className="h-8 whitespace-nowrap">
                           <Link href={`/dashboard/employee/resume/${r.id}`}>{t.common.edit}</Link>
                         </Button>
-                        <form action={deleteResumeAction} className="inline-flex">
-                          <input type="hidden" name="id" value={r.id} />
-                          <Button variant="destructive" size="sm" type="submit" className="h-8 whitespace-nowrap">
-                            {t.common.delete}
-                          </Button>
-                        </form>
+                        <DeleteResumeButton
+                          resumeId={r.id}
+                          resumeTitle={r.title}
+                          onDeleted={(deletedId) => {
+                            setResumeList((prev) => prev.filter((resume) => resume.id !== deletedId));
+                          }}
+                        />
                       </div>
                     </div>
                   </li>

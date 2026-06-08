@@ -5,6 +5,7 @@ import {
   employerDisplayInitials,
   formatEmployerName,
 } from '@/lib/format-employer-name'
+import { isExternalUrlReachable } from '@/lib/validate-external-url'
 import { formatVacancySalary } from '@/lib/format-vacancy-salary'
 import { normalizeStringArray } from '@/lib/normalize-string-array'
 import { normalizeVacancySkills } from '@/lib/normalize-vacancy-skills'
@@ -227,4 +228,13 @@ export function buildVacancyDetailView(jobRecord: unknown, vacancyId: string): V
       skills.length === 0 ||
       (responsibilities.length === 0 && requirements.length === 0),
   }
+}
+
+/** Parsed listing source; null when missing, unsafe, or unreachable. */
+export async function resolveVacancySourceListing(value: unknown): Promise<SafeExternalLink | null> {
+  const parsed = parseSafeExternalUrl(value)
+  if (!parsed) return null
+
+  const reachable = await isExternalUrlReachable(parsed.href)
+  return reachable ? parsed : null
 }

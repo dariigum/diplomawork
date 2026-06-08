@@ -25,11 +25,63 @@ interface JobListProps {
   canApply: boolean
 }
 
-type SortOption = "newest" | "salary-high" | "salary-low" | "relevance"
+export type SortOption = "newest" | "salary-high" | "salary-low" | "relevance"
 
-export function JobList({ jobs, savedJobs, onSaveJob, canApply }: JobListProps) {
+interface JobListHeaderProps {
+  jobsCount: number
+  sortBy: SortOption
+  onSortByChange: (value: SortOption) => void
+}
+
+export function JobListHeader({ jobsCount, sortBy, onSortByChange }: JobListHeaderProps) {
   const { t } = useI18n()
-  const [sortBy, setSortBy] = useState<SortOption>("newest")
+
+  return (
+    <div className="flex min-w-0 flex-col gap-4 sm:flex-row sm:items-center sm:justify-between sm:gap-3">
+      <div className="min-w-0">
+        <h1 className="text-2xl font-bold text-foreground">{t.home.jobVacancies}</h1>
+        <p className="mt-1 text-muted-foreground">
+          {jobsCount} {jobsCount === 1 ? t.home.jobFound : t.home.jobsFound}
+        </p>
+      </div>
+
+      <div className="flex min-w-0 flex-wrap items-center gap-2 sm:shrink-0 sm:justify-end sm:gap-3">
+        <Select value={sortBy} onValueChange={(value) => onSortByChange(value as SortOption)}>
+          <SelectTrigger className="h-9 w-full min-w-[11rem] bg-card border-border sm:w-44">
+            <ArrowUpDown className="h-4 w-4 mr-2 text-muted-foreground" />
+            <SelectValue placeholder={t.home.sortBy} />
+          </SelectTrigger>
+          <SelectContent>
+            <SelectItem value="newest">{t.home.newestFirst}</SelectItem>
+            <SelectItem value="relevance">{t.home.relevance}</SelectItem>
+            <SelectItem value="salary-high">{t.home.salaryHigh}</SelectItem>
+            <SelectItem value="salary-low">{t.home.salaryLow}</SelectItem>
+          </SelectContent>
+        </Select>
+      </div>
+    </div>
+  )
+}
+
+interface JobListExtendedProps extends JobListProps {
+  showHeader?: boolean
+  sortBy?: SortOption
+  onSortByChange?: (value: SortOption) => void
+}
+
+export function JobList({
+  jobs,
+  savedJobs,
+  onSaveJob,
+  canApply,
+  showHeader = true,
+  sortBy: controlledSortBy,
+  onSortByChange,
+}: JobListExtendedProps) {
+  const { t } = useI18n()
+  const [internalSortBy, setInternalSortBy] = useState<SortOption>("newest")
+  const sortBy = controlledSortBy ?? internalSortBy
+  const setSortBy = onSortByChange ?? setInternalSortBy
   const [visibleCount, setVisibleCount] = useState(PAGE_SIZE)
   const [selectedJob, setSelectedJob] = useState<Job | null>(null)
   const [isApplyModalOpen, setIsApplyModalOpen] = useState(false)
@@ -65,32 +117,11 @@ export function JobList({ jobs, savedJobs, onSaveJob, canApply }: JobListProps) 
 
   return (
     <div className="min-w-0 w-full flex-1">
-      {/* Header */}
-      <div className="mb-6 flex min-w-0 flex-col gap-4 sm:flex-row sm:items-center sm:justify-between sm:gap-3">
-        <div className="min-w-0">
-          <h1 className="text-2xl font-bold text-foreground">{t.home.jobVacancies}</h1>
-          <p className="mt-1 text-muted-foreground">
-            {jobs.length} {jobs.length === 1 ? t.home.jobFound : t.home.jobsFound}
-          </p>
+      {showHeader ? (
+        <div className="mb-6">
+          <JobListHeader jobsCount={jobs.length} sortBy={sortBy} onSortByChange={setSortBy} />
         </div>
-
-        <div className="flex min-w-0 flex-wrap items-center gap-2 sm:shrink-0 sm:justify-end sm:gap-3">
-          {/* Sort */}
-          <Select value={sortBy} onValueChange={(value) => setSortBy(value as SortOption)}>
-            <SelectTrigger className="h-9 w-full min-w-[11rem] bg-card border-border sm:w-44">
-              <ArrowUpDown className="h-4 w-4 mr-2 text-muted-foreground" />
-              <SelectValue placeholder={t.home.sortBy} />
-            </SelectTrigger>
-            <SelectContent>
-              <SelectItem value="newest">{t.home.newestFirst}</SelectItem>
-              <SelectItem value="relevance">{t.home.relevance}</SelectItem>
-              <SelectItem value="salary-high">{t.home.salaryHigh}</SelectItem>
-              <SelectItem value="salary-low">{t.home.salaryLow}</SelectItem>
-            </SelectContent>
-          </Select>
-
-        </div>
-      </div>
+      ) : null}
 
       {/* Job Cards */}
       {sortedJobs.length > 0 ? (

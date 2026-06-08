@@ -4,6 +4,7 @@ import { useState, useTransition } from "react"
 import { Heart } from "lucide-react"
 import { Button } from "@/components/ui/button"
 import { ApplyModal } from "@/components/jobs/apply-modal"
+import { JobShareButton } from "@/components/jobs/job-share-button"
 import { toggleSaveVacancyAction } from "@/app/actions/vacancy"
 import { emitSavedVacanciesUpdated } from "@/lib/saved-vacancies-events"
 import { useI18n } from "@/lib/i18n/provider"
@@ -52,16 +53,19 @@ export function JobDetailActions({ job, initialSaved, canApply }: JobDetailActio
             {t.common.applyNow}
           </Button>
         )}
-        <Button
-          variant="outline"
-          className="w-full h-12 text-base"
-          size="lg"
-          onClick={handleSave}
-          disabled={isPending}
-        >
-          <Heart className={`mr-2 h-5 w-5 ${isSaved ? "fill-current text-destructive" : ""}`} />
-          {isSaved ? t.common.saved : t.common.save}
-        </Button>
+        <div className="flex gap-2">
+          <Button
+            variant="outline"
+            className="h-12 flex-1 text-base"
+            size="lg"
+            onClick={handleSave}
+            disabled={isPending}
+          >
+            <Heart className={`mr-2 h-5 w-5 ${isSaved ? "fill-current text-destructive" : ""}`} />
+            {isSaved ? t.common.saved : t.common.save}
+          </Button>
+          <JobShareButton jobId={job.id} className="flex-1" />
+        </div>
       </div>
 
       {canApply && <ApplyModal job={job} isOpen={isApplyOpen} onClose={() => setIsApplyOpen(false)} />}

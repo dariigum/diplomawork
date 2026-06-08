@@ -16,6 +16,7 @@ import { Badge } from '@/components/ui/badge';
 import { Search, Loader2, ChevronLeft, ChevronRight } from 'lucide-react';
 import { format } from 'date-fns';
 import { useI18n } from '@/lib/i18n/provider';
+import { ImportEmployeesButton } from '@/components/admin/import-employees-button';
 
 export default function AdminUsersPage() {
   const { t, locale } = useI18n();
@@ -24,6 +25,7 @@ export default function AdminUsersPage() {
   const [search, setSearch] = useState('');
   const [page, setPage] = useState(1);
   const [totalPages, setTotalPages] = useState(1);
+  const [refreshKey, setRefreshKey] = useState(0);
   const limit = 50;
 
   useEffect(() => {
@@ -51,13 +53,17 @@ export default function AdminUsersPage() {
     // Debounce search
     const timeout = setTimeout(fetchUsers, 300);
     return () => clearTimeout(timeout);
-  }, [search, page]);
+  }, [search, page, refreshKey]);
 
   return (
     <div className="flex flex-col gap-6">
-      <div>
-        <h1 className="text-3xl font-bold tracking-tight">{t.admin.users.title}</h1>
-        <p className="text-muted-foreground">{t.admin.users.subtitle}</p>
+      <div className="flex flex-col gap-4 sm:flex-row sm:items-start sm:justify-between">
+        <div>
+          <h1 className="text-3xl font-bold tracking-tight">{t.admin.users.title}</h1>
+          <p className="text-muted-foreground">{t.admin.users.subtitle}</p>
+          <p className="mt-2 text-sm text-muted-foreground">{t.admin.users.importEmployeesHint}</p>
+        </div>
+        <ImportEmployeesButton onImported={() => setRefreshKey((value) => value + 1)} />
       </div>
 
       <Card>

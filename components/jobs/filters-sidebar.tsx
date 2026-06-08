@@ -12,10 +12,17 @@ import {
   AccordionItem,
   AccordionTrigger,
 } from "@/components/ui/accordion"
-import { Badge } from "@/components/ui/badge"
 import { useI18n } from "@/lib/i18n/provider"
 import { useState } from "react"
 import { cn } from "@/lib/utils"
+import {
+  DEFAULT_SALARY_RANGE,
+  formatSalaryFilterLabel,
+  isDefaultSalaryRange,
+  salaryRangeToSliderIndices,
+  sliderIndicesToSalaryRange,
+  SALARY_FILTER_STEPS,
+} from "@/lib/salary-filter-steps"
 
 interface FiltersSidebarProps {
   onFiltersChange: (filters: FilterState) => void
@@ -37,29 +44,6 @@ export interface FilterState {
 const FILTER_OPTION_ROW_CLASS = "flex min-w-0 items-center gap-3"
 const FILTER_LABEL_CLASS =
   "min-w-0 flex-1 truncate text-sm text-foreground/80 cursor-pointer"
-const ACTIVE_FILTER_BADGE_CLASS =
-  "max-w-full min-w-0 shrink overflow-hidden cursor-pointer transition-colors hover:bg-destructive hover:text-destructive-foreground"
-
-function ActiveFilterBadge({
-  label,
-  onRemove,
-}: {
-  label: string
-  onRemove: () => void
-}) {
-  return (
-    <Badge
-      variant="secondary"
-      className={ACTIVE_FILTER_BADGE_CLASS}
-      title={label}
-      onClick={onRemove}
-    >
-      <span className="min-w-0 truncate">{label}</span>
-      <X className="ml-1 h-3 w-3 shrink-0" aria-hidden />
-    </Badge>
-  )
-}
-
 function FilterOptionRow({
   id,
   label,
@@ -106,7 +90,7 @@ export function FiltersSidebar({
     filters.employmentTypes.length +
     filters.experienceLevels.length +
     (filters.remoteOnly ? 1 : 0) +
-    (filters.salaryRange[0] > 0 || filters.salaryRange[1] < 200 ? 1 : 0)
+    (isDefaultSalaryRange(filters.salaryRange) ? 0 : 1)
 
   const clearAllFilters = () => {
     onFiltersChange({
@@ -114,7 +98,7 @@ export function FiltersSidebar({
       locations: [],
       employmentTypes: [],
       experienceLevels: [],
-      salaryRange: [0, 200],
+      salaryRange: [...DEFAULT_SALARY_RANGE],
       remoteOnly: false,
     })
   }
@@ -131,8 +115,8 @@ export function FiltersSidebar({
   }
 
   return (
-    <aside className="sticky top-6 h-fit w-full min-w-0 max-w-full rounded-xl border border-border bg-card p-5 lg:w-80">
-      <div className="mb-5 flex min-w-0 items-center justify-between gap-2">
+    <aside className="h-fit w-full min-w-0 max-w-full rounded-xl border border-border bg-card p-5 lg:w-80">
+      <div className="mb-5 flex shrink-0 min-w-0 items-center justify-between gap-2">
         <button
           type="button"
           className="flex min-w-0 items-center gap-2 text-left lg:cursor-default"
@@ -149,17 +133,21 @@ export function FiltersSidebar({
             aria-hidden
           />
         </button>
-        {activeFiltersCount > 0 && (
-          <Button
-            variant="ghost"
-            size="sm"
-            onClick={clearAllFilters}
-            className="h-8 shrink-0 px-2 text-muted-foreground hover:text-foreground"
-          >
-            <X className="mr-1 h-4 w-4" aria-hidden />
-            {t.filters.clearAll}
-          </Button>
-        )}
+        <Button
+          variant="ghost"
+          size="sm"
+          onClick={clearAllFilters}
+          disabled={activeFiltersCount === 0}
+          aria-hidden={activeFiltersCount === 0}
+          tabIndex={activeFiltersCount === 0 ? -1 : 0}
+          className={cn(
+            "h-8 shrink-0 px-2 text-muted-foreground hover:text-foreground",
+            activeFiltersCount === 0 && "invisible pointer-events-none",
+          )}
+        >
+          <X className="mr-1 h-4 w-4" aria-hidden />
+          {t.filters.clearAll}
+        </Button>
       </div>
 
       <div
@@ -177,32 +165,6 @@ export function FiltersSidebar({
         />
       </div>
 
-      {/* Active Filters */}
-      {activeFiltersCount > 0 && (
-        <div className="mb-5 flex min-w-0 flex-wrap gap-2 border-b border-border pb-5">
-          {filters.locations.map((loc) => (
-            <ActiveFilterBadge
-              key={loc}
-              label={loc}
-              onRemove={() => toggleArrayFilter("locations", loc)}
-            />
-          ))}
-          {filters.employmentTypes.map((type) => (
-            <ActiveFilterBadge
-              key={type}
-              label={type}
-              onRemove={() => toggleArrayFilter("employmentTypes", type)}
-            />
-          ))}
-          {filters.remoteOnly && (
-            <ActiveFilterBadge
-              label={t.filters.remote}
-              onRemove={() => onFiltersChange({ ...filters, remoteOnly: false })}
-            />
-          )}
-        </div>
-      )}
-
       <Accordion
         type="multiple"
         defaultValue={["location", "employment", "salary"]}
@@ -217,21 +179,23 @@ export function FiltersSidebar({
             </div>
           </AccordionTrigger>
           <AccordionContent className="pt-2 pb-4">
-            <div className="min-w-0 space-y-3">
-              {locationOptions.length === 0 ? (
-                <p className="text-sm text-muted-foreground">{t.filters.noLocations}</p>
-              ) : (
-                locationOptions.map((location) => (
-                  <FilterOptionRow
-                    key={location}
-                    id={`location-${location}`}
-                    label={location}
-                    checked={filters.locations.includes(location)}
-                    onCheckedChange={() => toggleArrayFilter("locations", location)}
-                  />
-                ))
-              )}
-            </div>
+            {locationOptions.length === 0 ? (
+              <p className="text-sm text-muted-foreground">{t.filters.noLocations}</p>
+            ) : (
+              <div className="h-56 overflow-y-auto overscroll-contain rounded-md border border-border/60 bg-muted/20 p-2">
+                <div className="min-w-0 space-y-3">
+                  {locationOptions.map((location) => (
+                    <FilterOptionRow
+                      key={location}
+                      id={`location-${location}`}
+                      label={location}
+                      checked={filters.locations.includes(location)}
+                      onCheckedChange={() => toggleArrayFilter("locations", location)}
+                    />
+                  ))}
+                </div>
+              </div>
+            )}
           </AccordionContent>
         </AccordionItem>
 
@@ -300,18 +264,21 @@ export function FiltersSidebar({
           <AccordionContent className="pt-2 pb-4">
             <div className="min-w-0 space-y-4">
               <Slider
-                value={filters.salaryRange}
+                value={salaryRangeToSliderIndices(filters.salaryRange)}
                 onValueChange={(value) =>
-                  onFiltersChange({ ...filters, salaryRange: value as [number, number] })
+                  onFiltersChange({
+                    ...filters,
+                    salaryRange: sliderIndicesToSalaryRange(value as [number, number]),
+                  })
                 }
-                max={200}
+                max={SALARY_FILTER_STEPS.length - 1}
                 min={0}
-                step={10}
+                step={1}
                 className="w-full"
               />
               <div className="flex items-center justify-between text-sm text-muted-foreground">
-                <span>${filters.salaryRange[0]}k</span>
-                <span>${filters.salaryRange[1]}k+</span>
+                <span>{formatSalaryFilterLabel(filters.salaryRange[0])}</span>
+                <span>{formatSalaryFilterLabel(filters.salaryRange[1], { isRangeEnd: true })}</span>
               </div>
             </div>
           </AccordionContent>

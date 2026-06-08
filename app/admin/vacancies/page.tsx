@@ -17,6 +17,7 @@ import { format } from 'date-fns';
 import Link from 'next/link';
 import { toast } from 'sonner';
 import { useI18n } from '@/lib/i18n/provider';
+import { ImportVacanciesButton } from '@/components/admin/import-vacancies-button';
 
 export default function AdminVacanciesPage() {
   const { t, locale } = useI18n();
@@ -144,9 +145,13 @@ export default function AdminVacanciesPage() {
 
   return (
     <div className="flex flex-col gap-6">
-      <div>
-        <h1 className="text-3xl font-bold tracking-tight">{t.admin.vacancies.title}</h1>
-        <p className="text-muted-foreground">{t.admin.vacancies.subtitle}</p>
+      <div className="flex flex-col gap-4 sm:flex-row sm:items-start sm:justify-between">
+        <div>
+          <h1 className="text-3xl font-bold tracking-tight">{t.admin.vacancies.title}</h1>
+          <p className="text-muted-foreground">{t.admin.vacancies.subtitle}</p>
+          <p className="mt-2 text-sm text-muted-foreground">{t.admin.vacancies.importVacanciesHint}</p>
+        </div>
+        <ImportVacanciesButton onImported={() => setRefreshKey((value) => value + 1)} />
       </div>
 
       <Card>

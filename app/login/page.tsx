@@ -11,15 +11,12 @@ import { Input } from "@/components/ui/input"
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card"
 import { Checkbox } from "@/components/ui/checkbox"
 import { Separator } from "@/components/ui/separator"
-import { loginAction } from "@/app/actions/auth"
-import { useAuth } from "@/components/auth/auth-provider"
 import { toast } from "sonner"
 import { useI18n } from "@/lib/i18n/provider"
 
 export default function LoginPage() {
   const { t } = useI18n()
   const router = useRouter()
-  const { refreshSession } = useAuth()
   const searchParams = useSearchParams()
   const [showPassword, setShowPassword] = useState(false)
   const [isPending, startTransition] = useTransition()
@@ -61,20 +58,32 @@ export default function LoginPage() {
     }
 
     startTransition(async () => {
-      const data = new FormData()
-      data.append('email', email)
-      data.append('password', password)
-      
-      const res = await loginAction(data)
-      if (res?.error) {
-        toast.error(getLoginErrorMessage(res.error))
-        return
-      }
+      const controller = new AbortController()
+      const timeoutId = window.setTimeout(() => controller.abort(), 30_000)
 
-      if (res?.redirectTo) {
-        await refreshSession()
-        router.push(res.redirectTo)
-        router.refresh()
+      try {
+        const res = await fetch("/api/auth/login", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          credentials: "include",
+          body: JSON.stringify({ email, password }),
+          signal: controller.signal,
+        })
+
+        const data = (await res.json()) as { error?: string; redirectTo?: string }
+
+        if (!res.ok || data.error) {
+          toast.error(getLoginErrorMessage(data.error || "Failed to authenticate"))
+          return
+        }
+
+        if (data.redirectTo) {
+          window.location.assign(data.redirectTo)
+        }
+      } catch {
+        toast.error(t.auth.loginFailed)
+      } finally {
+        window.clearTimeout(timeoutId)
       }
     })
   }
